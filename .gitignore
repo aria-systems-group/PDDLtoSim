@@ -1,0 +1,8 @@
+# ignore pycharm ide files
+*.idea
+*.pdf
+
+# ignore cache files
+.pytest_cache/
+__pycache__/
+src/__pycache__/
