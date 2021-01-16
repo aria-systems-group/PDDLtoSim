@@ -53,6 +53,7 @@
 (:goal (and
     ;todo: put the goal condition here
     (on box_0 table_1)
+    (free iiwa)
 ))
 
 ;un-comment the following line if metric is needed
