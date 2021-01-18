@@ -1,5 +1,6 @@
 import os
 import networkx as nx
+import warnings
 import yaml
 import pygraphviz as pgv
 
@@ -26,67 +27,9 @@ class CausalGraph:
         self._problem_file = problem_file
         self._domain_file = domain_file
         self._plot_graph = draw
-
-    def _dump_pddl_to_yaml(self, task, file_name: str):
-        """
-        A build in method that dumps a given Task object into a yaml file that can then be used to build an
-        Transition System using the regret_synthesis_toolbox graph factory.
-        """
-        #create an nx object as its easier to dump it
-        # graph = nx.DiGraph()
-        #
-        # for u in task.facts:
-        #     # add init node flag if it is the initial state
-        #     if u in task.initial_state:
-        #         graph.add_node(u, init=True)
-        #     for v in task.facts:
-        #         for op in task.operators:
-        #             if u == v:
-        #                 continue
-        #             elif u in op.preconditions:
-        #                 if v in op.add_effects or v in op.del_effects:
-        #                     if (u, v) not in graph.edges:
-        #                         graph.add_edge(u, v, action=set([op.name]))
-        #                     else:
-        #                         graph.edges[u, v]["action"].add(op.name)
-        # _nodes = [_n for _n in graph.nodes.data()]
-        # _edges = [_e for _e in graph.edges.data()]
-
-        # store all the respective
-        _start_state = set(task.initial_state)
-        _goal_state = set(task.goals)
-        _num_of_obs = self.num_of_obs
-
-        # create node dictionary
-        _nodes = []
-        for _n in task.facts:
-            if _n in task.initial_state:
-                _nodes.append((_n, {'init': True}))
-            else:
-                _nodes.append((_n, {}))
-
-        _edges = [_e.name for _e in task.operators]
-        _alphabet_size = len(_edges)
-        _num_states = len(_nodes)
-
-        # create a dict and dump it using yaml's dump functionality
-        _graph_dict = dict(
-            alphabet_size=_alphabet_size,
-            num_states=_num_states,
-            num_obs=_num_of_obs,
-            start_state=_start_state,
-            nodes=_nodes,
-            edges=_edges
-        )
-
-        try:
-            with open(file_name, 'w') as outfile:
-                yaml.dump(_graph_dict, outfile, default_flow_style=False)
-
-        except FileNotFoundError:
-            print(FileNotFoundError)
-            print(f"The file {file_name} could not be found."
-                  f" This could be because I could not find the folder to dump in")
+        self._raw_pddl_ts = None
+        self._pddl_ltl_automata = None
+        self._product = None
 
     def build_causal_graph(self):
         """
@@ -102,16 +45,16 @@ class CausalGraph:
                                                   raw_trans_sys=None,
                                                   config_yaml=config_yaml,
                                                   graph_name=task.name,
-                                                  from_file=True,
+                                                  from_file=False,
                                                   pre_built=False,
                                                   save_flag=True,
                                                   debug=False,
-                                                  plot=True,
+                                                  plot=False,
                                                   human_intervention=0,
-                                                  plot_raw_ts=True)
+                                                  plot_raw_ts=False)
 
         for _u in task.facts:
-            raw_transition_system.add_state(_u, player='eve')
+            raw_transition_system.add_state(_u, player='eve', ap=_u.replace(" ", "_"))
             for _v in task.facts:
                 for _action in task.operators:
                     if _u == _v:
@@ -121,14 +64,19 @@ class CausalGraph:
                             if (_u, _v) not in raw_transition_system._graph.edges:
                                 raw_transition_system.add_edge(_u, _v,
                                                                actions=_action.name,
+                                                               weight=0,
                                                                precondition=_action.preconditions,
                                                                add_effects=_action.add_effects,
                                                                del_effects=_action.del_effects)
 
         raw_transition_system.add_initial_states_from(task.initial_state)
         raw_transition_system.add_accepting_states_from(task.goals)
+        raw_transition_system._sanity_check(debug=True)
 
-        raw_transition_system.plot_graph()
+        self._raw_pddl_ts = raw_transition_system
+
+        if self._plot_graph:
+            raw_transition_system.plot_graph()
 
     def _get_task(self):
         _problem = _parse(self._domain_file, self._problem_file)
@@ -137,6 +85,46 @@ class CausalGraph:
         _task = _ground(_problem)
 
         return _task
+
+    def build_LTL_automato(self, formula: str, debug: bool=False):
+        """
+        A method to construct automata using the regret_synthesis_tool.
+        """
+
+        if not isinstance(formula, str):
+            warnings.warn("Please make sure the input formula is of type string.")
+
+        _ltl_automata = graph_factory.get('DFA',
+                                          graph_name="pddl_ltl",
+                                          config_yaml="/config/pddl_ltl",
+                                          save_flag=True,
+                                          sc_ltl=formula,
+                                          use_alias=False,
+                                          plot=False)
+
+        self._pddl_ltl_automata =_ltl_automata
+
+        if debug:
+            print(f"The pddl formula is : {formula}")
+
+    def build_product(self):
+        _product_automaton = graph_factory.get("ProductGraph",
+                                               graph_name="pddl_product_graph",
+                                               config_yaml="/config/pddl_product_graph",
+                                               trans_sys=self._raw_pddl_ts,
+                                               dfa=self._pddl_ltl_automata,
+                                               save_flag=True,
+                                               prune=False,
+                                               debug=False,
+                                               absorbing=True,
+                                               finite=False,
+                                               plot=True)
+
+        print("interesting")
+
+
+
+
 
     @property
     def problem_file(self):
@@ -151,12 +139,19 @@ if __name__ == "__main__":
 
     # define some constants
     _project_root = os.path.dirname(os.path.abspath(__file__))
-    _plotting = True
+    _plotting = False
 
     # Define PDDL files
-    domain_file_path = _project_root + "/../.." + "/pddl_files/domain.pddl"
-    problem_file_ath = _project_root + "/../.." + "/pddl_files/problem.pddl"
+    domain_file_path = _project_root + "/../.." + "/pddl_files/blocks_world/domain.pddl"
+    problem_file_ath = _project_root + "/../.." + "/pddl_files/blocks_world/problem.pddl"
 
     # Define problem and domain file, call the method for testing
     pddl_test_obj = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
+    # build causal graph
     pddl_test_obj.build_causal_graph()
+
+    # build the ltl automata
+    pddl_test_obj.build_LTL_automato(formula="F(on_rb_l_2) & F(on_bb_1_l_0)")
+
+    # compose the above two graphs
+    pddl_test_obj.build_product()
