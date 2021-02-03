@@ -46,7 +46,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;;; (ready to move) Move to Grasp position (moved to location) -> 
-;;; (not ready to move) Grasp (ready to move) ->
+;;; (not ready to move) Grasp (holding True and ready to move) ->
 ;;; (hold is true and ready to move) Tranfer with object in hand (move to location) ->
 ;;; (not read to move) Release (holding false and ready to move)
 
@@ -110,7 +110,7 @@
 ;;;;; Perform Transfer motion with object in hand - Transit with object;;;;;;;;;;;;;;;;;
 ; Parameter: Takes in three parameters of type robot, box and location respectively
 ; Precondition: Initally the robot 'r' is holding the object 'b' and is ready to move
-; Effect: The robot 'r' moved to the location 'l'  with object 'b' and is not ready not move  
+; Effect: The robot 'r' moved to the location 'l'  with object 'b' and is not ready not move and is ready to release the object
 
 (:action move-to-location
     :parameters (?r - robot ?b - box ?l - location)
@@ -125,7 +125,7 @@
 )
 
 ;;;;; Perform Release action;;;;;;;;;;;;;
-; Parameter:Takes in the three parameters of type robot, box and location
+; Parameter: Takes in the three parameters of type robot, box and location
 ; Precondition: The robot 'r' has already moved to the location 'l' with box 'b'
 ; Effect: The robot 'r' is free, not holding the box 'b', the box 'b' is on lokcation 'l' and the robot is free and not at the location 'l' anymore
 
@@ -143,5 +143,21 @@
     )
 )
 
+
+;;; Perform Human Intervention;;;;;
+; A human can move objects when the box in on location l - A box is floating in the world when the robot is in grasp/release or move-to-location mode
+;
+;
+
+(:action human-move
+	:parameters (?b - box ?l1 - location ?l2 - location)
+	:precondition (and
+		(on ?b ?l1)
+	)
+	:effect (and
+		(on ?b ?l2)
+	)
+
+)
 
 )
