@@ -2,28 +2,31 @@
 (:objects
     franka - robot
 
-    l_0 - location
-    l_1 - location
-    l_2 - location
-    l_3 - location
-    l_4 - location
+    l0 - location
+    l1 - location
+    l2 - location
+    l3 - location
+    l4 - location
+
+    b0 - box
+    b1 - box
+    b2 - box
 )
 
 ;todo: put the initial state's facts and numeric values here
 (:init
-    (free franka)
-    (ready-to-move franka)
+    (ready-to-move)
 
-    (on rb l_3)
-    (on bb_1 l_4)
-    (on bb_2 l_1)
+    (on b0 l3)
+    (on b1 l4)
+    (on b2 l1)
 )
 
 ;todo: put the goal condition here
 (:goal (and
-    (on rb l_2)
-    (on bb_1 l_0)
-    (on bb_2 l_3)
+    (on b0 l2)
+    (on b1 l0)
+    (on b2 l3)
 ))
 
 )

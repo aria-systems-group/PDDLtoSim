@@ -12,25 +12,15 @@
 (:types ;todo: enumerate types and their hierarchy here, e.g. car truck bus - vehicle
     robot - object
     box - object
-    red_box - box
-    black_box - box
     location
 )
 
-; un-comment following line if constants are needed
-(:constants 
-    rb - red_box
-    bb_1 - black_box
-    bb_2 - black_box
-)
-
 (:predicates ;todo: define predicates here
-    (free ?r - robot)
-    (holding ?r - robot ?b - box)
-    (ready-to-move ?r - robot)
+    (holding ?b - box)
+    (ready-to-move)
 
-    (moved-to-object ?r - robot ?b - box)
-    (moved-to-location ?r - robot ?b - box ?l - location)
+    (moved-to-object ?b - box ?l - location)
+    (moved-to-location ?b - box ?l - location)
 
     (on ?b - box ?l - location)
 )
@@ -55,16 +45,14 @@
 ; Precondition: The robot 'r' should be free and ready to move initially and the box 'b' should be at location 'l'  
 ; Effect: The roboy 'r' should not be ready to move (as it assumed grasp position) and has already moved to object's location 'l' and the box is not at location 'l'
 
-(:action move-to-object-top
-    :parameters (?r - robot ?b - box ?l - location)
+(:action transit
+    :parameters (?b - box ?l - location)
     :precondition (and 
-        (free ?r)
-        (ready-to-move ?r)
-        (on ?b ?l)
+        (ready-to-move)
     )
     :effect (and 
-        (not (ready-to-move ?r))
-        (moved-to-object ?r ?b)
+        (not (ready-to-move))
+        (moved-to-object ?b ?l)
         (not (on ?b ?l))
     )
 )
@@ -74,19 +62,19 @@
 ; Precondition: Same as above 
 ; Effect: Same as above. The only difference is in the actual execution.
 
-(:action move-to-object-side
-    :parameters (?r - robot ?b - box ?l - location)
-    :precondition (and 
-        (free ?r)
-        (ready-to-move ?r)
-        (on ?b ?l)
-    )
-    :effect (and 
-        (not (ready-to-move ?r))
-        (moved-to-object ?r ?b)
-        (not (on ?b ?l))
-    )
-)
+;(:action move-to-object-side
+;    :parameters (?b - box ?l - location)
+;    :precondition (and 
+;        ;(free ?r)
+;        (ready-to-move)
+;        ;(on ?b ?l)
+;    )
+;    :effect (and 
+;        (not (ready-to-move))
+;        (moved-to-object ?b ?l)
+;        (not (on ?b ?l))
+;    )
+;)
 
 ;;;; Perform the Grasp Action;;;;;;;;;;;;;;;;;;;;;;
 ; Parameters: Takes in the Robot and box type parameters  
@@ -94,16 +82,13 @@
 ; Effect: The robot 'r' should not be free and holding the box 'b' in its hands and it should be ready to move
 
 (:action grasp
-    :parameters (?r - robot ?b - box)
+    :parameters (?b - box ?l - location)
     :precondition (and 
-        (free ?r)
-        (moved-to-object ?r ?b)
+        (moved-to-object ?b ?l)
     )
     :effect (and 
-        (not (free ?r))
-        (holding ?r ?b)
-        (not (moved-to-object ?r ?b))
-        (ready-to-move ?r)
+        (holding ?b)
+        (not (moved-to-object ?b ?l))
     )
 )
 
@@ -112,15 +97,13 @@
 ; Precondition: Initally the robot 'r' is holding the object 'b' and is ready to move
 ; Effect: The robot 'r' moved to the location 'l'  with object 'b' and is not ready not move and is ready to release the object
 
-(:action move-to-location
-    :parameters (?r - robot ?b - box ?l - location)
+(:action transfer
+    :parameters (?b - box ?l - location)
     :precondition (and 
-        (holding ?r ?b)
-        (ready-to-move ?r)
+        (holding ?b)
     )
     :effect (and 
-        (moved-to-location ?r ?b ?l)
-        (not (ready-to-move ?r))
+        (moved-to-location ?b ?l)
     )
 )
 
@@ -130,16 +113,15 @@
 ; Effect: The robot 'r' is free, not holding the box 'b', the box 'b' is on lokcation 'l' and the robot is free and not at the location 'l' anymore
 
 (:action release
-    :parameters (?r - robot ?b - box ?l - location)
+    :parameters (?b - box ?l - location)
     :precondition (and
-        (moved-to-location ?r ?b ?l)
+        (moved-to-location ?b ?l)
     )
     :effect (and
-        (free ?r)
-        (ready-to-move ?r)
-        (not (holding ?r ?b))
+        (ready-to-move)
+        (not (holding ?b))
         (on ?b ?l)
-        (not (moved-to-location ?r ?b ?l))
+        (not (moved-to-location ?b ?l))
     )
 )
 
