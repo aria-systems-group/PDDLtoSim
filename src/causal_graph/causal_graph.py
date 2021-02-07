@@ -180,6 +180,174 @@ class CausalGraph:
         if re.search(_human_move_pattern, causal_graph_edge_str):
             return "human-move"
 
+    def _check_transit_action_validity(self, current_node_list_lbl: list, action: str) -> bool:
+        """
+        A transit action is valid when the box's current location is in line with the current configuration of the
+        world.
+
+        e.g current_node_list_lbl: ['l3', 'l4', 'l1', 'free'] - index correspond to the respective box and the value at
+        that index is the box's current location in the env. Box 0 is currently in location l3 and gripper is free.
+
+        An action "transit b0 l3" from the current node will be a valid transition as box 0 is indeed in location l3
+        """
+
+        # get the box id and its location
+        _box_id, _box_loc = self._get_box_location(action)
+
+        if current_node_list_lbl[_box_id] == _box_loc:
+            return True
+
+        return False
+
+    def _check_grasp_action_validity(self, current_node_list_lbl: list, action: str) -> bool:
+        """
+        A grasp action is valid when the box's current location is in line with the current configuration of the
+        world. An additional constraint is the gripper should be free
+
+        e.g current_node_list_lbl: ['l3', 'l4', 'l1', 'free'] - index correspond to the respective box and the value at
+        that index is the box's current location in the env. Box 0 is currently in location l3 and gripper is free.
+
+        An action "grasp b0 l3" from the current node will be a valid action as box 0 is indeed in location l3 and the
+        gripper is in "free" state
+        """
+
+        # get the box id and its location
+        _box_id, _box_loc = self._get_box_location(action)
+
+        if current_node_list_lbl[_box_id] == _box_loc:
+            if current_node_list_lbl[-1] == "free":
+                return True
+
+        return False
+
+    def _check_transfer_action_validity(self, current_node_list_lbl: list, action: str) -> bool:
+        """
+        A grasp action is valid when the box's current location is in line with the current configuration of the
+        world. An additional constraint is the gripper should be free
+
+        e.g current_node_list_lbl: ['l3', 'l4', 'l1', 'free'] - index correspond to the respective box and the value at
+        that index is the box's current location in the env. Box 0 is currently in location l3 and gripper is free.
+
+        An action "grasp b0 l3" from the current node will be a valid action as box 0 is indeed in location l3 and the
+        gripper is in "free" state
+        """
+
+        return False
+
+    def _check_release_action_validity(self, current_node_list_lbl: list, action: str) -> bool:
+        """
+        A grasp action is valid when the box's current location is in line with the current configuration of the
+        world. An additional constraint is the gripper should be free
+
+        e.g current_node_list_lbl: ['l3', 'l4', 'l1', 'free'] - index correspond to the respective box and the value at
+        that index is the box's current location in the env. Box 0 is currently in location l3 and gripper is free.
+
+        An action "grasp b0 l3" from the current node will be a valid action as box 0 is indeed in location l3 and the
+        gripper is in "free" state
+        """
+
+        return False
+
+    def _add_transition_to_single_player_pddl_ts(self,
+                                                 causal_current_node,
+                                                 causal_succ_node,
+                                                 game_current_node,
+                                                 visitedstack: deque) -> None:
+        """
+        A helped function that called by the self._build_transition_system method to add the edge between two states and
+        update the label of the successor state based on the type of action being performed.
+        """
+
+        # determine the action, create a valid label for the successor state and add it to successor node.
+        _edge_action = self._raw_pddl_ts._graph[causal_current_node][causal_succ_node][0]['actions']
+        _action_type: str = self._get_action_from_causal_graph_edge(_edge_action)
+        if _action_type == "transit":
+            _curr_node_list_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('list_ap')
+            _curr_node_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('ap')
+
+            # we need to check the validity of this action
+            if self._check_transit_action_validity(current_node_list_lbl=_curr_node_list_lbl,
+                                                   action=_edge_action):
+
+                # the label does not change
+                _game_succ_node = causal_succ_node + _curr_node_lbl
+
+                self.single_player_pddl_ts.add_state(_game_succ_node,
+                                                     causal_state_name=causal_succ_node,
+                                                     player="eve",
+                                                     list_ap=_curr_node_list_lbl,
+                                                     ap=_curr_node_lbl)
+
+                self.single_player_pddl_ts.add_edge(game_current_node,
+                                                    _game_succ_node,
+                                                    action=_edge_action)
+
+                visitedstack.append(_game_succ_node)
+
+
+        elif _action_type == "transfer":
+            pass
+
+        elif _action_type == "grasp":
+            # we need to check the validity of the transition
+            _curr_node_list_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('list_ap')
+            _curr_node_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('ap')
+
+            # we need to check the validity of this transition
+            if self._check_grasp_action_validity(current_node_list_lbl=_curr_node_list_lbl,
+                                                 action=_edge_action):
+
+                # update the corresponding box being manipulated value as "gripper" and update gripper with the
+                # corresponding box id
+
+                _succ_node_list_lbl = _curr_node_list_lbl
+                _box_id, _ = self._get_box_location(_edge_action)
+                _succ_node_list_lbl[_box_id] = "gripper"
+                _succ_node_list_lbl[-1] = "b" + str(_box_id)
+
+                _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                _game_succ_node = causal_succ_node + _succ_node_lbl
+
+                self.single_player_pddl_ts.add_state(_game_succ_node,
+                                                     causal_state_name=causal_succ_node,
+                                                     player="eve",
+                                                     list_ap=_succ_node_list_lbl,
+                                                     ap=_succ_node_lbl)
+
+                self.single_player_pddl_ts.add_edge(game_current_node,
+                                                    _game_succ_node,
+                                                    action=_edge_action)
+
+                visitedstack.append(_game_succ_node)
+
+        elif _action_type == "release":
+            pass
+
+        elif _action_type == "human-move":
+            pass
+
+        else:
+            print("Looks like we encountered an invalid type of action")
+
+        return
+
+    def _convert_list_ap_to_str(self, ap: list, separator='_') -> str:
+        """
+        A helper method to convert a state label/atomic proposition which is in a list of elements into a str
+
+        :param ap: Atomic proposition of type list
+        :param separator: element used to join the elements in the given list @ap
+
+        ap: ['l3', 'l4', 'l1', 'free']
+        _ap_str = 'l3_l4_l1_free'
+        """
+        if not isinstance(ap, list):
+            warnings.warn(f"Trying to convert an atomic proposition of type {type(ap)} into a string.")
+
+        _ap_str = separator.join(ap)
+
+        return _ap_str
+
     def _build_transition_system(self):
         """
         A function that build the transition system. This function initially build the causal graph. We then iterate
@@ -209,33 +377,88 @@ class CausalGraph:
             else:
                 _causal_graph_init_state = _causal_state_str
 
-        # start from this initial state in the causal graph and iteratively look at its children and so on an so forth
+        # lets have two stack - visitedStack and doneStack
+        # As you encounter nodes, keep adding them to the visitedStack. As you encounter a neighbour that you already
+        # visited, pop that node and add that node to the done stack. Repeat the process till the visitedStack is empty.
 
 
-        _init_state = _causal_graph_init_state
-        for _v in self._raw_pddl_ts._graph[_causal_graph_init_state]:
-            # now if the outgoing edge is transit then no change in the label.
-            _edge_action = self._raw_pddl_ts._graph[_init_state][_v][0]['actions']
-            _action_type: str = self._get_action_from_causal_graph_edge(_edge_action)
-            if _action_type == "transit":
-                pass
+        visited_stack = deque()
+        done_stack = deque()
 
-            elif _action_type == "transfer":
-                pass
+        _config_yaml = "/config/" + "raw_single_player" + self._task.name
 
-            elif _action_type == "grasp":
-                pass
+        self.single_player_pddl_ts = graph_factory.get('TS',
+                                                       raw_trans_sys=None,
+                                                       config_yaml=_config_yaml,
+                                                       graph_name="raw_single_player" + self._task.name,
+                                                       from_file=False,
+                                                       pre_built=False,
+                                                       save_flag=True,
+                                                       debug=False,
+                                                       plot=False,
+                                                       human_intervention=0,
+                                                       plot_raw_ts=False)
 
-            elif _action_type == "release":
-                pass
+        _causal_current_node = _causal_graph_init_state
+        _str_curr_lbl = self._convert_list_ap_to_str(_init_state_label)
 
-            elif _action_type == "human-move":
-                pass
+        _game_curr_node = _causal_current_node + _str_curr_lbl
 
-            else:
-                print("Looks like we encountered an invalid type of action")
+        visited_stack.append(_game_curr_node)
+
+        self.single_player_pddl_ts.add_state(_game_curr_node,
+                                             causal_state_name=_causal_current_node,
+                                             player="eve",
+                                             list_ap=_init_state_label,
+                                             ap=_str_curr_lbl)
+
+        while visited_stack:
+            # in the initial run we skip this intial pop and proceed directly to the successes
+            # if len(visited_stack) > 1:
+
+            _game_current_node = visited_stack.popleft()
+            # _curr_node_list_lbl = self.single_player_pddl_ts._graph.nodes[_game_current_node].get('list_ap')
+            # _curr_node_lbl = self.single_player_pddl_ts._graph.nodes[_game_current_node].get('ap')
+            _causal_current_node = self.single_player_pddl_ts._graph.nodes[_game_current_node].get('causal_state_name')
+            # _game_curr_node = _causal_current_node + _curr_node_lbl
+            # self.single_player_pddl_ts.add_state(_game_curr_node,
+            #                                      causal_state_name=_causal_current_node,
+            #                                      player="eve",
+            #                                      list_ap=_curr_node_list_lbl,
+            #                                      ap=_curr_node_lbl)
+
+            for _causal_succ_node in self._raw_pddl_ts._graph[_causal_current_node]:
+                # add _succ to the visited_stack, check the transition and accordingly updated its label
+                # visited_stack.append(_causal_succ_node)
+
+                self._add_transition_to_single_player_pddl_ts(causal_current_node=_causal_current_node,
+                                                              causal_succ_node=_causal_succ_node,
+                                                              game_current_node=_game_curr_node,
+                                                              visitedstack=visited_stack)
 
 
+        # _init_state = _causal_graph_init_state
+        # for _v in self._raw_pddl_ts._graph[_causal_graph_init_state]:
+        #     # now if the outgoing edge is transit then no change in the label.
+        #     _edge_action = self._raw_pddl_ts._graph[_init_state][_v][0]['actions']
+        #     _action_type: str = self._get_action_from_causal_graph_edge(_edge_action)
+        #     if _action_type == "transit":
+        #         pass
+        #
+        #     elif _action_type == "transfer":
+        #         pass
+        #
+        #     elif _action_type == "grasp":
+        #         pass
+        #
+        #     elif _action_type == "release":
+        #         pass
+        #
+        #     elif _action_type == "human-move":
+        #         pass
+        #
+        #     else:
+        #         print("Looks like we encountered an invalid type of action")
 
     def build_causal_graph(self, add_cooccuring_edges: bool = False):
         """
