@@ -275,7 +275,7 @@ class CausalGraph:
                 self.single_player_pddl_ts.add_state(_game_succ_node,
                                                      causal_state_name=causal_succ_node,
                                                      player="eve",
-                                                     list_ap=_curr_node_list_lbl,
+                                                     list_ap=_curr_node_list_lbl.copy(),
                                                      ap=_curr_node_lbl)
 
                 self.single_player_pddl_ts.add_edge(game_current_node,
@@ -311,7 +311,7 @@ class CausalGraph:
                 self.single_player_pddl_ts.add_state(_game_succ_node,
                                                      causal_state_name=causal_succ_node,
                                                      player="eve",
-                                                     list_ap=_succ_node_list_lbl,
+                                                     list_ap=_succ_node_list_lbl.copy(),
                                                      ap=_succ_node_lbl)
 
                 self.single_player_pddl_ts.add_edge(game_current_node,
@@ -409,7 +409,7 @@ class CausalGraph:
         self.single_player_pddl_ts.add_state(_game_curr_node,
                                              causal_state_name=_causal_current_node,
                                              player="eve",
-                                             list_ap=_init_state_label,
+                                             list_ap=_init_state_label.copy(),
                                              ap=_str_curr_lbl)
 
         while visited_stack:
@@ -433,7 +433,7 @@ class CausalGraph:
 
                 self._add_transition_to_single_player_pddl_ts(causal_current_node=_causal_current_node,
                                                               causal_succ_node=_causal_succ_node,
-                                                              game_current_node=_game_curr_node,
+                                                              game_current_node=_game_current_node,
                                                               visitedstack=visited_stack)
 
 
