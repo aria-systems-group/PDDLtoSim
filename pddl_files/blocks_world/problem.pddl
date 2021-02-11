@@ -17,15 +17,15 @@
 (:init
     (ready-to-move)
 
-    (on b0 l3)
-    (on b1 l4)
-    (on b2 l1)
+    (on b0 l0)
+    (on b1 l1)
+    (on b2 l2)
 )
 
 ;todo: put the goal condition here
 (:goal (and
-    (on b0 l2)
-    (on b1 l0)
+    (on b0 l1)
+    (on b1 l2)
     (on b2 l3)
 ))
 

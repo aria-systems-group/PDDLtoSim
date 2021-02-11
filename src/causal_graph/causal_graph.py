@@ -2,8 +2,8 @@ import os
 import warnings
 import re
 
-from typing import Tuple, Optional, Dict, Union
-from collections import deque
+from typing import Tuple, Dict, List
+from collections import deque, defaultdict
 
 # import reg_syn_packages
 from regret_synthesis_toolbox.src.graph import graph_factory
@@ -50,18 +50,6 @@ class CausalGraph:
         @property
         def problem(self):
             return self._problem
-
-    def _build_two_player_graph_from_causal_raph(self, raw_transition_system:  FiniteTransSys) -> FiniteTransSys:
-        """
-        A method that builds an explicit two player graph for a transition that only has system nodes and actions that
-        belong to robot and human as well.
-
-        @param: raw_transition_system: The transition system that dictates how the system states evolve in presence of
-        human-intervention
-        """
-
-        # for every transition from a system node, add a intermediate human state
-        pass
 
     def _get_valid_set_of_ap(self, objects, locations: list, print_valid_labels: bool = False):
         """
@@ -121,6 +109,30 @@ class CausalGraph:
 
         if print_valid_labels:
             print(_valid_labels)
+
+    def _get_multiple_box_location(self, multiple_box_location_str: str) -> Tuple[int, List[str]]:
+        """
+        A function that return multiple locations (if present) in a str. In our construction of raw_pddl_ts, as per our
+        pddl file naming convention, a human action is as follows "human-action b# l# l#", the box # is place in l#
+        (1st one) and the human move it to l# (2nd one).
+        """
+
+        _loc_pattern = "[l|L][\d]+"
+        try:
+            _loc_states: List[str] = re.findall(_loc_pattern, multiple_box_location_str)
+        except AttributeError:
+            print(f"The causal_state_string {multiple_box_location_str} dose not contain location of the box")
+
+        _box_pattern = "[b|B][\d]+"
+        try:
+            _box_state: str = re.search(_box_pattern, multiple_box_location_str).group()
+        except AttributeError:
+            print(f"The causal_state_string {multiple_box_location_str} dose not contain box id")
+
+        _box_id_pattern = "\d+"
+        _box_id: int = int(re.search(_box_id_pattern, _box_state).group())
+
+        return _box_id, _loc_states
 
     def _get_box_location(self, box_location_state_str: str) -> Tuple[int, str]:
         """
@@ -266,7 +278,8 @@ class CausalGraph:
                                                  causal_succ_node,
                                                  game_current_node,
                                                  visited_stack: deque,
-                                                 done_stack: deque) -> None:
+                                                 done_stack: deque,
+                                                 action_cost_mapping: dict) -> None:
         """
         A helped function that called by the self._build_transition_system method to add the edge between two states and
         update the label of the successor state based on the type of action being performed.
@@ -276,6 +289,7 @@ class CausalGraph:
         _edge_action = self._raw_pddl_ts._graph[causal_current_node][causal_succ_node][0]['actions']
         _action_type: str = self._get_action_from_causal_graph_edge(_edge_action)
         if _action_type == "transit":
+            _cost: int = action_cost_mapping.get("transit")
             _curr_node_list_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('list_ap')
             _curr_node_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('ap')
 
@@ -286,20 +300,24 @@ class CausalGraph:
                 # the label does not change
                 _game_succ_node = causal_succ_node + _curr_node_lbl
 
-                self.single_player_pddl_ts.add_state(_game_succ_node,
-                                                     causal_state_name=causal_succ_node,
-                                                     player="eve",
-                                                     list_ap=_curr_node_list_lbl.copy(),
-                                                     ap=_curr_node_lbl)
+                if _game_succ_node not in self.single_player_pddl_ts._graph.nodes:
+                    self.single_player_pddl_ts.add_state(_game_succ_node,
+                                                         causal_state_name=causal_succ_node,
+                                                         player="eve",
+                                                         list_ap=_curr_node_list_lbl.copy(),
+                                                         ap=_curr_node_lbl)
 
-                self.single_player_pddl_ts.add_edge(game_current_node,
-                                                    _game_succ_node,
-                                                    action=_edge_action)
+                if (game_current_node, _game_succ_node) not in self.single_player_pddl_ts._graph.edges:
+                    self.single_player_pddl_ts.add_edge(game_current_node,
+                                                        _game_succ_node,
+                                                        actions=_edge_action,
+                                                        weight=_cost)
 
                 if _game_succ_node not in done_stack:
                     visited_stack.append(_game_succ_node)
 
         elif _action_type == "transfer":
+            _cost: int = action_cost_mapping.get("transfer")
             # we need to check the validity of the transition
             _curr_node_list_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('list_ap')
             _curr_node_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('ap')
@@ -315,20 +333,24 @@ class CausalGraph:
                 _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
                 _game_succ_node = causal_succ_node + _succ_node_lbl
 
-                self.single_player_pddl_ts.add_state(_game_succ_node,
-                                                     causal_state_name=causal_succ_node,
-                                                     player="eve",
-                                                     list_ap=_succ_node_list_lbl.copy(),
-                                                     ap=_succ_node_lbl)
+                if _game_succ_node not in self.single_player_pddl_ts._graph.nodes:
+                    self.single_player_pddl_ts.add_state(_game_succ_node,
+                                                         causal_state_name=causal_succ_node,
+                                                         player="eve",
+                                                         list_ap=_succ_node_list_lbl.copy(),
+                                                         ap=_succ_node_lbl)
 
-                self.single_player_pddl_ts.add_edge(game_current_node,
-                                                    _game_succ_node,
-                                                    action=_edge_action)
+                if (game_current_node, _game_succ_node) not in self.single_player_pddl_ts._graph.edges:
+                    self.single_player_pddl_ts.add_edge(game_current_node,
+                                                        _game_succ_node,
+                                                        actions=_edge_action,
+                                                        weight=_cost)
 
                 if _game_succ_node not in done_stack:
                     visited_stack.append(_game_succ_node)
 
         elif _action_type == "grasp":
+            _cost: int = action_cost_mapping.get("grasp")
             # we need to check the validity of the transition
             _curr_node_list_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('list_ap')
             _curr_node_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('ap')
@@ -348,20 +370,24 @@ class CausalGraph:
                 _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
                 _game_succ_node = causal_succ_node + _succ_node_lbl
 
-                self.single_player_pddl_ts.add_state(_game_succ_node,
-                                                     causal_state_name=causal_succ_node,
-                                                     player="eve",
-                                                     list_ap=_succ_node_list_lbl.copy(),
-                                                     ap=_succ_node_lbl)
+                if _game_succ_node not in self.single_player_pddl_ts._graph.nodes:
+                    self.single_player_pddl_ts.add_state(_game_succ_node,
+                                                         causal_state_name=causal_succ_node,
+                                                         player="eve",
+                                                         list_ap=_succ_node_list_lbl.copy(),
+                                                         ap=_succ_node_lbl)
 
-                self.single_player_pddl_ts.add_edge(game_current_node,
-                                                    _game_succ_node,
-                                                    action=_edge_action)
+                if (game_current_node, _game_succ_node) not in self.single_player_pddl_ts._graph.edges:
+                    self.single_player_pddl_ts.add_edge(game_current_node,
+                                                        _game_succ_node,
+                                                        actions=_edge_action,
+                                                        weight=_cost)
 
                 if _game_succ_node not in done_stack:
                     visited_stack.append(_game_succ_node)
 
         elif _action_type == "release":
+            _cost: int = action_cost_mapping.get("release")
             # we need to check the validity of the transition
             _curr_node_list_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('list_ap')
             _curr_node_lbl = self.single_player_pddl_ts._graph.nodes[game_current_node].get('ap')
@@ -380,15 +406,18 @@ class CausalGraph:
                 _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
                 _game_succ_node = causal_succ_node + _succ_node_lbl
 
-                self.single_player_pddl_ts.add_state(_game_succ_node,
-                                                     causal_state_name=causal_succ_node,
-                                                     player="eve",
-                                                     list_ap=_succ_node_list_lbl.copy(),
-                                                     ap=_succ_node_lbl)
+                if _game_succ_node not in self.single_player_pddl_ts._graph.nodes:
+                    self.single_player_pddl_ts.add_state(_game_succ_node,
+                                                         causal_state_name=causal_succ_node,
+                                                         player="eve",
+                                                         list_ap=_succ_node_list_lbl.copy(),
+                                                         ap=_succ_node_lbl)
 
-                self.single_player_pddl_ts.add_edge(game_current_node,
-                                                    _game_succ_node,
-                                                    action=_edge_action)
+                if (game_current_node, _game_succ_node) not in self.single_player_pddl_ts._graph.edges:
+                    self.single_player_pddl_ts.add_edge(game_current_node,
+                                                        _game_succ_node,
+                                                        actions=_edge_action,
+                                                        weight=_cost)
 
                 if _game_succ_node not in done_stack:
                     visited_stack.append(_game_succ_node)
@@ -418,12 +447,22 @@ class CausalGraph:
 
         return _ap_str
 
-    def _build_transition_system(self):
+    def _build_transition_system(self,
+                                 action_cost_mapping: dict,
+                                 plot_raw_ts: bool = False):
         """
         A function that build the transition system. This function initially build the causal graph. We then iterate
         through the states of the graph, starting from the initial state, and updating the label(atomic proposition)
         for each state till we label all the states in the graph.
         """
+
+        if not bool(action_cost_mapping):
+            action_cost_mapping = \
+                {"transit": 0,
+                 "transfer": 0,
+                 "grasp": 0,
+                 "release": 0
+                 }
 
         self.build_causal_graph(add_cooccuring_edges=False)
 
@@ -500,13 +539,184 @@ class CausalGraph:
                                                                   causal_succ_node=_causal_succ_node,
                                                                   game_current_node=_game_current_node,
                                                                   visited_stack=visited_stack,
-                                                                  done_stack=done_stack)
+                                                                  done_stack=done_stack,
+                                                                  action_cost_mapping=action_cost_mapping)
 
             done_stack.append(_game_current_node)
 
-        self.single_player_pddl_ts.plot_graph()
+        if plot_raw_ts:
+            self.single_player_pddl_ts.plot_graph()
 
-        print("Let's see")
+    def _build_two_player_game(self, human_intervention: int = 1):
+        """
+        A function that build a two player game based on a single player Transition System built from causal graph.
+
+        After every Sys transition add a Human state, we then add valid human transitions from that human state.
+        """
+
+        eve_node_lst = []
+        adam_node_lst = []
+        _two_plr_to_sgl_plr_sys_mapping : Dict[Tuple, dict] = defaultdict(lambda: {})
+        _config_yaml = "/config" + "two_player" + self._task.name
+
+        self.two_player_pddl_ts = graph_factory.get('TS',
+                                                    raw_trans_sys=None,
+                                                    config_yaml=_config_yaml,
+                                                    graph_name="two_player" + self._task.name,
+                                                    from_file=False,
+                                                    pre_built=False,
+                                                    save_flag=True,
+                                                    debug=False,
+                                                    plot=False,
+                                                    human_intervention=0,
+                                                    plot_raw_ts=False)
+
+        # lets create k copies f the states
+        for _n in self.single_player_pddl_ts._graph.nodes():
+            for i in range(human_intervention + 1):
+
+                _sys_node = (_n, i)
+                _two_plr_to_sgl_plr_sys_mapping[_sys_node] = self.single_player_pddl_ts._graph.nodes[_n]
+
+                if _sys_node in eve_node_lst:
+                    warnings.warn("The single player pddl ts seems to contain multiple states of same configuration."
+                                  "Check your Causal graph construction and single player pddl Transition system"
+                                  "construction functions")
+                else:
+                    eve_node_lst.append(_sys_node)
+
+        for _u in eve_node_lst:
+            if not self.two_player_pddl_ts._graph.has_node(_u):
+                # add all the attributes from the single player TS to this two-player sys node
+                _single_player_sys_node = _two_plr_to_sgl_plr_sys_mapping.get(_u)
+
+                if _single_player_sys_node is not None:
+                    self.two_player_pddl_ts.add_state(_u, **_single_player_sys_node)
+
+        # for each edge create a human node and then add valid human transition from that human state
+        for _e in self.single_player_pddl_ts._graph.edges():
+            for i in reversed(range(human_intervention + 1)):
+                _u = _e[0]
+                _v = _e[1]
+
+                _env_node = (f"h{_u}", i)
+                adam_node_lst.append(_env_node)
+
+                # add this node to the game and the attributes of the sys state.
+                # Change player and causal state attribute to "adam" and "human-move" respectively.
+                if not self.two_player_pddl_ts._graph.has_node(_env_node):
+                    _single_player_sys_node = _two_plr_to_sgl_plr_sys_mapping.get((_u, 1))
+
+                    if _single_player_sys_node is not None:
+                        self.two_player_pddl_ts.add_state(_env_node, **_single_player_sys_node)
+                        self.two_player_pddl_ts._graph.nodes[_env_node]['player'] = "adam"
+                        self.two_player_pddl_ts._graph.nodes[_env_node]['causal_state_name'] = "human-move"
+
+                # get the org edge and its attributes between _u and _v
+                _org_edge_attributes = self.single_player_pddl_ts._graph.edges[_u, _v, 0]
+
+                # add edge between the original system state and the human state
+                self.two_player_pddl_ts.add_edge(u=(_u, i),
+                                                 v=_env_node,
+                                                 **_org_edge_attributes)
+
+                # add a valid human nonintervention edge and its corresponding action cost will be 0
+                self.two_player_pddl_ts.add_edge(u=_env_node,
+                                                 v=(_v, i),
+                                                 **_org_edge_attributes)
+                self.two_player_pddl_ts._graph.edges[_env_node, (_v, i), 0]['weight'] = 0
+
+                if i != 0:
+                    # now get add all the valid human interventions
+                    self._add_valid_human_edges(human_state_name=_env_node,
+                                                org_succ_state_name=(_v, i))
+
+
+    def _add_valid_human_edges(self, human_state_name: tuple, org_succ_state_name: tuple):
+        """
+        A helper method that adds valid human intervention edges given the current human state, and the original
+        successor state if the human decided not to intervene.
+
+        :param human_state: The human state which is type of dict. It contains the current configuration of the world
+         as an attribute in list and sting format i.e list_ap and ap respectively
+
+        :param org_succ_state: The original successor state that game would have evolved if human did not intervene
+
+        This function gets all the valid actions for human intervention given the current robot action,
+        world configuration, and evolves the game as per the intervention. Currently human intervention does have any
+        weight associated with them.
+        """
+
+        # write a function that gets all the valid human actions from a given human state
+        _human_node: dict = self.two_player_pddl_ts._graph.nodes[human_state_name]
+        _org_succ_node: dict = self.two_player_pddl_ts._graph.nodes[org_succ_state_name]
+        _current_world_conf: list = _human_node["list_ap"]
+        _valid_human_actions: list = self.__get_all_valid_human_intervention(human_node=_human_node)
+        _curr_succ_idx: int = org_succ_state_name[1]
+
+        # now add that human edge to the transition system and accordingly update the list_ap and ap attributes of the
+        # system node
+
+        for _human_action in _valid_human_actions:
+            _box_id, _box_loc = self._get_multiple_box_location(_human_action)
+
+            _succ_node_lbl = _current_world_conf.copy()
+            _succ_node_lbl[_box_id] = _box_loc[1]
+            _succ_node_lbl_str = self._convert_list_ap_to_str(_succ_node_lbl)
+
+            _causal_succ_node = _org_succ_node["causal_state_name"]
+            _succ_state_name = _causal_succ_node + _succ_node_lbl_str
+
+            _succ_game_state_name = (_succ_state_name, _curr_succ_idx - 1)
+
+            if not self.two_player_pddl_ts._graph.has_node(_succ_game_state_name):
+                self.two_player_pddl_ts.add_state(_succ_game_state_name,
+                                                  **_org_succ_node)
+                self.two_player_pddl_ts._graph.nodes[_succ_game_state_name]["list_ap"] = _succ_node_lbl
+                self.two_player_pddl_ts._graph.nodes[_succ_game_state_name]["ap"] = _succ_node_lbl_str
+
+            if not self.two_player_pddl_ts._graph.has_edge(human_state_name, _succ_game_state_name):
+                self.two_player_pddl_ts.add_edge(u=human_state_name,
+                                                 v=_succ_game_state_name,
+                                                 actions=_human_action,
+                                                 weight=0)
+
+
+
+    def __get_all_valid_human_intervention(self, human_node: dict) -> list:
+        """
+        A helper function that looks up the valid human actions in the causal graph and validate those intervention
+        given then current configuration of the world.
+        """
+
+        # given a configuration [l0, l1, l2, free] get all the human moves from causal state on b0 l0 and so on and so
+        # forth
+
+        _causal_states: list = []
+        _possible_human_action: list = []
+        _current_world_conf: list = human_node["list_ap"]
+
+        for _box_idx, _box_loc in enumerate(_current_world_conf):
+            if _box_idx != len(_current_world_conf) - 1:
+                _state = f"(on b{_box_idx} {_box_loc})"
+
+                # check if this is a valid human action or not by checking if the add_effect (predicate that becomes)
+                # is possible given the current configuration of the world
+                for _succ_node in self._raw_pddl_ts._graph[_state]:
+                    _add_effect: str = tuple(self._raw_pddl_ts._graph[_state][_succ_node][0]["add_effects"])[0]
+
+                    # get the box location where it is being moved to
+                    _, _box_loc = self._get_box_location(_add_effect)
+
+                    # if a box is already at this location then this is not a valid human action
+                    if _box_loc in _current_world_conf:
+                        pass
+                    else:
+                        _possible_human_action.append(self._raw_pddl_ts._graph[_state][_succ_node][0]["actions"])
+
+        return _possible_human_action
+
+
 
     def build_causal_graph(self, add_cooccuring_edges: bool = False):
         """
@@ -516,9 +726,9 @@ class CausalGraph:
 
         _boxes, _locations = self._get_boxes_and_location_from_problem(self._problem)
 
-        self._get_valid_set_of_ap(objects=_boxes,
-                                  locations=_locations,
-                                  print_valid_labels=True)
+        # self._get_valid_set_of_ap(objects=_boxes,
+        #                           locations=_locations,
+        #                           print_valid_labels=True)
 
         config_yaml = "/config/" + self._task.name
 
@@ -642,7 +852,9 @@ if __name__ == "__main__":
     # Define problem and domain file, call the method for testing
     pddl_test_obj = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
 
-    pddl_test_obj._build_transition_system()
+    pddl_test_obj._build_transition_system(action_cost_mapping={})
+
+    pddl_test_obj._build_two_player_game()
 
     # build causal graph
     # pddl_test_obj.build_causal_graph()
