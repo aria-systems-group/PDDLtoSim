@@ -143,16 +143,19 @@ class CausalGraph:
         NOTE: The string should be exactly in the above formation i.e on<whitespace>b#<whitespave>l#. We can swap
          between small and capital i.e 'l' & 'L' are valid.
         """
+
         _loc_pattern = "[l|L][\d]+"
         try:
             _loc_state: str = re.search(_loc_pattern, box_location_state_str).group()
         except AttributeError:
+            _loc_state = ""
             print(f"The causal_state_string {box_location_state_str} dose not contain location of the box")
 
         _box_pattern = "[b|B][\d]+"
         try:
             _box_state: str = re.search(_box_pattern, box_location_state_str).group()
         except AttributeError:
+            _box_state = ""
             print(f"The causal_state_string {box_location_state_str} dose not contain box id")
 
         _box_id_pattern = "\d+"
@@ -490,7 +493,6 @@ class CausalGraph:
         # As you encounter nodes, keep adding them to the visitedStack. As you encounter a neighbour that you already
         # visited, pop that node and add that node to the done stack. Repeat the process till the visitedStack is empty.
 
-
         visited_stack = deque()
         done_stack = deque()
 
@@ -547,7 +549,11 @@ class CausalGraph:
         if plot_raw_ts:
             self.single_player_pddl_ts.plot_graph()
 
-    def _build_two_player_game(self, human_intervention: int = 1):
+    def _build_two_player_game(self,
+                               human_intervention: int = 1,
+                               human_intervention_cost: int = 0,
+                               human_non_intervention_cost: int = 0,
+                               plot_two_player_game: bool = False):
         """
         A function that build a two player game based on a single player Transition System built from causal graph.
 
@@ -556,7 +562,7 @@ class CausalGraph:
 
         eve_node_lst = []
         adam_node_lst = []
-        _two_plr_to_sgl_plr_sys_mapping : Dict[Tuple, dict] = defaultdict(lambda: {})
+        _two_plr_to_sgl_plr_sys_mapping: Dict[Tuple, dict] = defaultdict(lambda: {})
         _config_yaml = "/config" + "two_player" + self._task.name
 
         self.two_player_pddl_ts = graph_factory.get('TS',
@@ -571,7 +577,7 @@ class CausalGraph:
                                                     human_intervention=0,
                                                     plot_raw_ts=False)
 
-        # lets create k copies f the states
+        # lets create k copies of the system states
         for _n in self.single_player_pddl_ts._graph.nodes():
             for i in range(human_intervention + 1):
 
@@ -620,38 +626,42 @@ class CausalGraph:
                                                  v=_env_node,
                                                  **_org_edge_attributes)
 
-                # add a valid human nonintervention edge and its corresponding action cost will be 0
+                # add a valid human nonintervention edge and its corresponding action cost
                 self.two_player_pddl_ts.add_edge(u=_env_node,
                                                  v=(_v, i),
                                                  **_org_edge_attributes)
-                self.two_player_pddl_ts._graph.edges[_env_node, (_v, i), 0]['weight'] = 0
+                self.two_player_pddl_ts._graph.edges[_env_node, (_v, i), 0]['weight'] = human_non_intervention_cost
 
                 if i != 0:
                     # now get add all the valid human interventions
                     self._add_valid_human_edges(human_state_name=_env_node,
-                                                org_succ_state_name=(_v, i))
+                                                org_succ_state_name=(_v, i),
+                                                human_intervention_cost=human_intervention_cost)
 
+        if plot_two_player_game:
+            self.two_player_pddl_ts.plot_graph()
+            print("Done plotting")
 
-    def _add_valid_human_edges(self, human_state_name: tuple, org_succ_state_name: tuple):
+    def _add_valid_human_edges(self, human_state_name: tuple, org_succ_state_name: tuple, human_intervention_cost: int):
         """
         A helper method that adds valid human intervention edges given the current human state, and the original
         successor state if the human decided not to intervene.
 
-        :param human_state: The human state which is type of dict. It contains the current configuration of the world
+        :param human_state: The human state which is a tuple. It contains the current configuration of the world
          as an attribute in list and sting format i.e list_ap and ap respectively
 
         :param org_succ_state: The original successor state that game would have evolved if human did not intervene
 
         This function gets all the valid actions for human intervention given the current robot action,
-        world configuration, and evolves the game as per the intervention. Currently human intervention does have any
-        weight associated with them.
+        world configuration, and evolves the game as per the intervention.
         """
 
         # write a function that gets all the valid human actions from a given human state
         _human_node: dict = self.two_player_pddl_ts._graph.nodes[human_state_name]
         _org_succ_node: dict = self.two_player_pddl_ts._graph.nodes[org_succ_state_name]
         _current_world_conf: list = _human_node["list_ap"]
-        _valid_human_actions: list = self.__get_all_valid_human_intervention(human_node=_human_node)
+        _valid_human_actions: list = self.__get_all_valid_human_intervention(human_node=_human_node,
+                                                                             org_succ_node=_org_succ_node)
         _curr_succ_idx: int = org_succ_state_name[1]
 
         # now add that human edge to the transition system and accordingly update the list_ap and ap attributes of the
@@ -669,6 +679,9 @@ class CausalGraph:
 
             _succ_game_state_name = (_succ_state_name, _curr_succ_idx - 1)
 
+            # this action is need to add state/configuration that are only possible because human intervention
+            # e.g. human moved a box that the robot was transiting to. The single player ts does not capture such a conf
+            # because the raw_pddl_ts does have any transition for robot moving towards an empty location.
             if not self.two_player_pddl_ts._graph.has_node(_succ_game_state_name):
                 self.two_player_pddl_ts.add_state(_succ_game_state_name,
                                                   **_org_succ_node)
@@ -679,29 +692,88 @@ class CausalGraph:
                 self.two_player_pddl_ts.add_edge(u=human_state_name,
                                                  v=_succ_game_state_name,
                                                  actions=_human_action,
-                                                 weight=0)
+                                                 weight=human_intervention_cost)
 
-
-
-    def __get_all_valid_human_intervention(self, human_node: dict) -> list:
+    def __get_all_valid_human_intervention(self, human_node: dict, org_succ_node: dict) -> list:
         """
         A helper function that looks up the valid human actions in the causal graph and validate those intervention
         given then current configuration of the world.
+
+        Validity:
+
+        transfer: human has no restriction on how they can move objects around.
+        transit: human has no restriction on how they can move objects around except for the one in Robot's hand.
+        grasp: human can not move the object currently being picked up/grasped.
+        release: human has no restriction on how they can move objects around.
         """
 
-        # given a configuration [l0, l1, l2, free] get all the human moves from causal state on b0 l0 and so on and so
+        # if org succ node's causal state name is "holding b#" then the robot is trying to grasp that box.
+        _succ_causal_state_name = org_succ_node["causal_state_name"]
+
+        # given a configuration [l0, l1, l2, free] get all the human moves from causal state "on b0 l0" and so on and so
         # forth
 
-        _causal_states: list = []
         _possible_human_action: list = []
         _current_world_conf: list = human_node["list_ap"]
 
-        for _box_idx, _box_loc in enumerate(_current_world_conf):
-            if _box_idx != len(_current_world_conf) - 1:
+        # the end effector is currently free
+        if _current_world_conf[-1] == "free":
+            # the end effector is not performing a grab action
+            if "holding" not in _succ_causal_state_name:
+                # for _box_idx, _box_loc in enumerate(_current_world_conf):
+                #     if _box_idx != len(_current_world_conf) - 1:
+                #         _state = f"(on b{_box_idx} {_box_loc})"
+                #
+                #         # check if this is a valid human action or not by checking if the add_effect
+                #         # (predicate that becomes)is possible given the current configuration of the world
+                #         for _succ_node in self._raw_pddl_ts._graph[_state]:
+                #             _add_effect: str = tuple(self._raw_pddl_ts._graph[_state][_succ_node][0]["add_effects"])[0]
+                #
+                #             # get the box location where it is being moved to
+                #             _, _box_loc = self._get_box_location(_add_effect)
+                #
+                #             # if a box is already at this location then this is not a valid human action
+                #             if _box_loc in _current_world_conf:
+                #                 pass
+                #             else:
+                #                 _possible_human_action.append(self._raw_pddl_ts._graph[_state][_succ_node][0]["actions"])
+
+                _possible_human_action: list = self.__get_valid_human_actions_under_transit(current_world_conf=_current_world_conf)
+            # the end effector is performing a grab.
+            else:
+                _possible_human_action: list = \
+                    self.__get_valid_human_actions_under_grasp(succ_causal_state_name=_succ_causal_state_name,
+                                                               current_world_conf=_current_world_conf)
+
+        # if the robot is holding is an object
+        elif "gripper" in _current_world_conf:
+            # if the robot is transferring an object
+            _transfer_action: bool = False
+            _, _boxes = self._get_boxes_and_location_from_problem(self._problem)
+            for _box in _boxes:
+                if _box == _current_world_conf[-1]:
+                    _transfer_action = True
+                    break
+
+            if _transfer_action:
+                _possible_human_action: list = self.__get_valid_human_actions_under_transfer(current_world_conf=_current_world_conf)
+            else:
+                _possible_human_action: list = self.__get_valid_human_actions_under_release(current_world_conf=_current_world_conf)
+
+        return _possible_human_action
+
+    def __get_valid_human_actions_under_transit(self, current_world_conf: list) -> list:
+        """
+        A function that returns a list all possible human action when the robot is trying to perform a transit action
+        """
+        _valid_human_actions: list = []
+
+        for _box_idx, _box_loc in enumerate(current_world_conf):
+            if _box_idx != len(current_world_conf) - 1:
                 _state = f"(on b{_box_idx} {_box_loc})"
 
-                # check if this is a valid human action or not by checking if the add_effect (predicate that becomes)
-                # is possible given the current configuration of the world
+                # check if this is a valid human action or not by checking if the add_effect
+                # (predicate that becomes true)is possible given the current configuration of the world
                 for _succ_node in self._raw_pddl_ts._graph[_state]:
                     _add_effect: str = tuple(self._raw_pddl_ts._graph[_state][_succ_node][0]["add_effects"])[0]
 
@@ -709,14 +781,96 @@ class CausalGraph:
                     _, _box_loc = self._get_box_location(_add_effect)
 
                     # if a box is already at this location then this is not a valid human action
-                    if _box_loc in _current_world_conf:
+                    if _box_loc in current_world_conf:
                         pass
                     else:
-                        _possible_human_action.append(self._raw_pddl_ts._graph[_state][_succ_node][0]["actions"])
+                        _valid_human_actions.append(self._raw_pddl_ts._graph[_state][_succ_node][0]["actions"])
 
-        return _possible_human_action
+        return _valid_human_actions
 
+    def __get_valid_human_actions_under_grasp(self, succ_causal_state_name: str, current_world_conf: list) -> list:
+        """
+        A function that returns a list of all possible human actions when the robot is trying to perform a grasp action
+        """
 
+        _valid_human_actions: list = []
+
+        _box_id, _ = self._get_box_location(succ_causal_state_name)
+
+        for _box_idx, _box_loc in enumerate(current_world_conf):
+            if _box_idx != len(current_world_conf) - 1 and _box_id != _box_idx:
+                _state = f"(on b{_box_idx} {_box_loc})"
+
+                # check if this is a valid human action or not by checking if the add_effect
+                # (predicate that becomes)is possible given the current configuration of the world
+                for _succ_node in self._raw_pddl_ts._graph[_state]:
+                    _add_effect: str = tuple(self._raw_pddl_ts._graph[_state][_succ_node][0]["add_effects"])[0]
+
+                    # get the box location where it is being moved to
+                    _, _box_loc = self._get_box_location(_add_effect)
+
+                    # if a box is already at this location then this is not a valid human action
+                    if _box_loc in current_world_conf:
+                        pass
+                    else:
+                        _valid_human_actions.append(
+                            self._raw_pddl_ts._graph[_state][_succ_node][0]["actions"])
+
+        return _valid_human_actions
+
+    def __get_valid_human_actions_under_transfer(self, current_world_conf: list) -> list:
+        """
+        A function that returns a list of all possible human actions when the robot is moving a box around
+        """
+        _valid_human_actions: list = []
+
+        for _box_idx, _box_loc in enumerate(current_world_conf):
+            if _box_loc != "gripper" and _box_idx != len(current_world_conf) - 1:
+                _state = f"(on b{_box_idx} {_box_loc})"
+
+                # check if this is a valid human action or not by checking if the add_effect
+                # (predicate that becomes)is possible given the current configuration of the world
+                for _succ_node in self._raw_pddl_ts._graph[_state]:
+                    _add_effect: str = tuple(self._raw_pddl_ts._graph[_state][_succ_node][0]["add_effects"])[0]
+
+                    # get the box location where it is being moved to
+                    _, _box_loc = self._get_box_location(_add_effect)
+
+                    # if a box is already at this location then this is not a valid human action
+                    if _box_loc in current_world_conf:
+                        pass
+                    else:
+                        _valid_human_actions.append(
+                            self._raw_pddl_ts._graph[_state][_succ_node][0]["actions"])
+
+        return _valid_human_actions
+
+    def __get_valid_human_actions_under_release(self, current_world_conf: list):
+        """
+        A function that returns a list of all possible human actions when the robot is trying to drop an object
+        """
+        _valid_human_actions: list = []
+
+        for _box_idx, _box_loc in enumerate(current_world_conf):
+            if _box_loc != "gripper" and _box_idx != len(current_world_conf) - 1:
+                _state = f"(on b{_box_idx} {_box_loc})"
+
+                # check if this is a valid human action or not by checking if the add_effect
+                # (predicate that becomes)is possible given the current configuration of the world
+                for _succ_node in self._raw_pddl_ts._graph[_state]:
+                    _add_effect: str = tuple(self._raw_pddl_ts._graph[_state][_succ_node][0]["add_effects"])[0]
+
+                    # get the box location where it is being moved to
+                    _, _box_loc = self._get_box_location(_add_effect)
+
+                    # if a box is already at this location then this is not a valid human action
+                    if _box_loc in current_world_conf:
+                        pass
+                    else:
+                        _valid_human_actions.append(
+                            self._raw_pddl_ts._graph[_state][_succ_node][0]["actions"])
+
+        return _valid_human_actions
 
     def build_causal_graph(self, add_cooccuring_edges: bool = False):
         """
@@ -843,7 +997,7 @@ if __name__ == "__main__":
 
     # define some constants
     _project_root = os.path.dirname(os.path.abspath(__file__))
-    _plotting = False
+    _plotting = True
 
     # Define PDDL files
     domain_file_path = _project_root + "/../.." + "/pddl_files/blocks_world/domain.pddl"
@@ -852,9 +1006,9 @@ if __name__ == "__main__":
     # Define problem and domain file, call the method for testing
     pddl_test_obj = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
 
-    pddl_test_obj._build_transition_system(action_cost_mapping={})
+    pddl_test_obj._build_transition_system(action_cost_mapping={}, plot_raw_ts=True)
 
-    pddl_test_obj._build_two_player_game()
+    pddl_test_obj._build_two_player_game(plot_two_player_game=True)
 
     # build causal graph
     # pddl_test_obj.build_causal_graph()
