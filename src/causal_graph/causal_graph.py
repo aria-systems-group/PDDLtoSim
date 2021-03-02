@@ -1,9 +1,12 @@
 import os
 import warnings
 import re
+import copy
+import networkx as nx
 
-from typing import Tuple, Dict, List
+from typing import Tuple, Dict, List, Optional
 from collections import deque, defaultdict
+from bidict import bidict
 
 # import reg_syn_packages
 from regret_synthesis_toolbox.src.graph import graph_factory
@@ -32,24 +35,33 @@ class CausalGraph:
         self._pddl_ltl_automata = None
         self._product = None
         self._task = None
+        self._action_cost_map: Dict[str: Optional[int, float]] = defaultdict(lambda: {})
         self._problem = None
         self._get_task_and_problem()
 
-        @property
-        def problem_file(self):
-            return self._problem_file
+    @property
+    def problem_file(self):
+        return self._problem_file
 
-        @property
-        def domain_file(self):
-            return self._domain_file
+    @property
+    def domain_file(self):
+        return self._domain_file
 
-        @property
-        def task(self):
-            return self._task
+    @property
+    def task(self):
+        return self._task
 
-        @property
-        def problem(self):
-            return self._problem
+    @property
+    def problem(self):
+        return self._problem
+
+    @property
+    def action_cost_map(self):
+        return self._action_cost_map
+
+    @action_cost_map.setter
+    def action_cost_map(self):
+        pass
 
     def _get_valid_set_of_ap(self, objects, locations: list, print_valid_labels: bool = False):
         """
@@ -113,8 +125,8 @@ class CausalGraph:
     def _get_multiple_box_location(self, multiple_box_location_str: str) -> Tuple[int, List[str]]:
         """
         A function that return multiple locations (if present) in a str. In our construction of raw_pddl_ts, as per our
-        pddl file naming convention, a human action is as follows "human-action b# l# l#", the box # is place in l#
-        (1st one) and the human move it to l# (2nd one).
+        pddl file naming convention, a human action is as follows "human-action b# l# l#", the box # is placed on l#
+        (1st one) and the human moves it to l# (2nd one).
         """
 
         _loc_pattern = "[l|L][\d]+"
@@ -203,13 +215,14 @@ class CausalGraph:
         e.g current_node_list_lbl: ['l3', 'l4', 'l1', 'free'] - index correspond to the respective box and the value at
         that index is the box's current location in the env. Box 0 is currently in location l3 and gripper is free.
 
-        An action "transit b0 l3" from the current node will be a valid transition as box 0 is indeed in location l3
+        An action "transit b0 else l3" from the current node will be a valid transition as box 0 is indeed in location
+        l3 and the robot is moving from location else to l3.
         """
 
         # get the box id and its location
-        _box_id, _box_loc = self._get_box_location(action)
+        _box_id, _box_loc = self._get_multiple_box_location(action)
 
-        if current_node_list_lbl[_box_id] == _box_loc:
+        if current_node_list_lbl[_box_id] == _box_loc[-1]:
             return True
 
         return False
@@ -242,15 +255,15 @@ class CausalGraph:
 
         e.g current_node_list_lbl: ['gripper', 'l4', 'l1', 'b0'] -  Box 0 is currently being transferred
 
-        An action "transfer b0 l2" from the current node will be a valid action as box 0 can indeed be placed in
-        location l2.
+        An action "transfer b0 l0 l2" from the current node will be a valid action as box 0 can indeed be placed in
+        location l2 from location l0.
         """
 
         # get the box id and its location
-        _box_id, _box_loc = self._get_box_location(action)
+        _box_id, _box_loc = self._get_multiple_box_location(action)
 
         if current_node_list_lbl[_box_id] == "gripper" and current_node_list_lbl[-1] == "b" + str(_box_id):
-            if not (_box_loc in current_node_list_lbl):
+            if not (_box_loc[-1] in current_node_list_lbl):
                 return True
 
         return False
@@ -330,9 +343,10 @@ class CausalGraph:
                                                     action=_edge_action):
 
                 _succ_node_list_lbl = _curr_node_list_lbl.copy()
-                _, _box_loc = self._get_box_location(_edge_action)
+                _, _box_loc = self._get_multiple_box_location(_edge_action)
+                # _, _box_loc = self._get_box_location(_edge_action)
 
-                _succ_node_list_lbl[-1] = _box_loc
+                _succ_node_list_lbl[-1] = _box_loc[-1]
                 _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
                 _game_succ_node = causal_succ_node + _succ_node_lbl
 
@@ -553,7 +567,8 @@ class CausalGraph:
                                human_intervention: int = 1,
                                human_intervention_cost: int = 0,
                                human_non_intervention_cost: int = 0,
-                               plot_two_player_game: bool = False):
+                               plot_two_player_game: bool = False,
+                               relabel_nodes: bool = True):
         """
         A function that build a two player game based on a single player Transition System built from causal graph.
 
@@ -604,14 +619,15 @@ class CausalGraph:
             for i in reversed(range(human_intervention + 1)):
                 _u = _e[0]
                 _v = _e[1]
+                _edge_action = self.single_player_pddl_ts._graph.get_edge_data(*_e)[0]['actions']
 
-                _env_node = (f"h{_u}", i)
+                _env_node = (f"h{_u}{_edge_action}", i)
                 adam_node_lst.append(_env_node)
 
                 # add this node to the game and the attributes of the sys state.
                 # Change player and causal state attribute to "adam" and "human-move" respectively.
                 if not self.two_player_pddl_ts._graph.has_node(_env_node):
-                    _single_player_sys_node = _two_plr_to_sgl_plr_sys_mapping.get((_u, 1))
+                    _single_player_sys_node = _two_plr_to_sgl_plr_sys_mapping.get((_u, i))
 
                     if _single_player_sys_node is not None:
                         self.two_player_pddl_ts.add_state(_env_node, **_single_player_sys_node)
@@ -638,8 +654,68 @@ class CausalGraph:
                                                 org_succ_state_name=(_v, i),
                                                 human_intervention_cost=human_intervention_cost)
 
+        # get all the sys nodes from which there are no outoging edges
+        for _n in self.two_player_pddl_ts._graph.nodes():
+            if self.two_player_pddl_ts._graph.out_degree(_n) == 0:
+                # if its a to-obj action
+                if "to-obj" in _n:
+                    # find where the robot is currently using the causal state name of the form "to-obj b# l#"
+                    _pre_two_player_node = self.two_player_pddl_ts._graph.nodes[_n]
+                    _intervention_remaining: int = _pre_two_player_node[1]
+                    _pre_single_player_node = _two_plr_to_sgl_plr_sys_mapping.get(_n)
+                    _pre_single_player_causal_state_name = _pre_single_player_node.get('causal_state')
+                    _pre_world_confg = _pre_single_player_node.get("list_ap")
+                    _pre_world_confg_str = _pre_single_player_node.get("ap")
+
+                    # robot's current loc
+                    _, _robo_curr_loc = self._get_box_location(_pre_single_player_causal_state_name)
+
+                    # create new system node. From "to-obj b# l#" state you transition to a new "ready" state that did
+                    # not exist before in the single player game
+                    _sys_state = f"ready {_robo_curr_loc}{_pre_world_confg_str}, {_intervention_remaining}"
+
+                    if not self.two_player_pddl_ts._graph.has_node(_sys_state):
+                        self.two_player_pddl_ts.add_state(_sys_state, **_pre_two_player_node)
+                        self.two_player_pddl_ts._graph.nodes[_sys_state]['player'] = "eve"
+                        self.two_player_pddl_ts._graph.nodes[_sys_state]['causal_state_name'] =\
+                            f"ready {_robo_curr_loc}"
+
+                    # add a valid transition to this
+                    self.two_player_pddl_ts.add_edge(u=_pre_two_player_node,
+                                                     v=_sys_state,
+                                                     actions="",
+                                                     weight=0)
+
+                    # form this ready state we add valid transition to "to-obj b# l#" sys states. These state should
+                    # already exists in the two_player_pddl_ts graph
+                    # _valid_states = []
+                    for _box_id, _box_loc in enumerate(_pre_world_confg):
+                        if _box_id != len(_pre_world_confg) - 1:
+                            _valid_state_to_transit = f"to-obj b{_box_id} l{_box_loc}"
+                            # _valid_states.append(_valid_state_to_transit)
+                            if not self.two_player_pddl_ts._graph.has_node(_valid_state_to_transit):
+                                # warnings.warn(f"Adding a transition from {_pre_two_player_node} to"
+                                #               f" {_valid_state_to_transit}. The state {_valid_state_to_transit} does not"
+                                #               f" already exist in the graph")
+                                warnings.warn(f"Adding a transition from {_sys_state} to"
+                                              f" {_valid_state_to_transit}. The state {_valid_state_to_transit} does not"
+                                              f" already exist in the graph")
+
+                            _edge_action = f"transit b{_box_id} l{_box_loc}"
+                            self.two_player_pddl_ts.add_edge(u=_sys_state,
+                                                             v=_valid_state_to_transit,
+                                                             actions=_edge_action,
+                                                             weight=0)
+
+
+                # if its a to-loc action
+
         if plot_two_player_game:
-            self.two_player_pddl_ts.plot_graph()
+            if relabel_nodes:
+                _relabelled_graph = self._internal_node_mapping()
+                _relabelled_graph.plot_graph()
+            else:
+                self.two_player_pddl_ts.plot_graph()
             print("Done plotting")
 
     def _add_valid_human_edges(self, human_state_name: tuple, org_succ_state_name: tuple, human_intervention_cost: int):
@@ -659,7 +735,8 @@ class CausalGraph:
         # write a function that gets all the valid human actions from a given human state
         _human_node: dict = self.two_player_pddl_ts._graph.nodes[human_state_name]
         _org_succ_node: dict = self.two_player_pddl_ts._graph.nodes[org_succ_state_name]
-        _current_world_conf: list = _human_node["list_ap"]
+        # _current_world_conf: list = _human_node["list_ap"]
+        _succ_world_conf: list = _org_succ_node["list_ap"]
         _valid_human_actions: list = self.__get_all_valid_human_intervention(human_node=_human_node,
                                                                              org_succ_node=_org_succ_node)
         _curr_succ_idx: int = org_succ_state_name[1]
@@ -670,7 +747,7 @@ class CausalGraph:
         for _human_action in _valid_human_actions:
             _box_id, _box_loc = self._get_multiple_box_location(_human_action)
 
-            _succ_node_lbl = _current_world_conf.copy()
+            _succ_node_lbl = _succ_world_conf.copy()
             _succ_node_lbl[_box_id] = _box_loc[1]
             _succ_node_lbl_str = self._convert_list_ap_to_str(_succ_node_lbl)
 
@@ -720,25 +797,8 @@ class CausalGraph:
         if _current_world_conf[-1] == "free":
             # the end effector is not performing a grab action
             if "holding" not in _succ_causal_state_name:
-                # for _box_idx, _box_loc in enumerate(_current_world_conf):
-                #     if _box_idx != len(_current_world_conf) - 1:
-                #         _state = f"(on b{_box_idx} {_box_loc})"
-                #
-                #         # check if this is a valid human action or not by checking if the add_effect
-                #         # (predicate that becomes)is possible given the current configuration of the world
-                #         for _succ_node in self._raw_pddl_ts._graph[_state]:
-                #             _add_effect: str = tuple(self._raw_pddl_ts._graph[_state][_succ_node][0]["add_effects"])[0]
-                #
-                #             # get the box location where it is being moved to
-                #             _, _box_loc = self._get_box_location(_add_effect)
-                #
-                #             # if a box is already at this location then this is not a valid human action
-                #             if _box_loc in _current_world_conf:
-                #                 pass
-                #             else:
-                #                 _possible_human_action.append(self._raw_pddl_ts._graph[_state][_succ_node][0]["actions"])
-
-                _possible_human_action: list = self.__get_valid_human_actions_under_transit(current_world_conf=_current_world_conf)
+                _possible_human_action: list = \
+                    self.__get_valid_human_actions_under_transit(current_world_conf=_current_world_conf)
             # the end effector is performing a grab.
             else:
                 _possible_human_action: list = \
@@ -756,9 +816,11 @@ class CausalGraph:
                     break
 
             if _transfer_action:
-                _possible_human_action: list = self.__get_valid_human_actions_under_transfer(current_world_conf=_current_world_conf)
+                _possible_human_action: list = \
+                    self.__get_valid_human_actions_under_transfer(current_world_conf=_current_world_conf)
             else:
-                _possible_human_action: list = self.__get_valid_human_actions_under_release(current_world_conf=_current_world_conf)
+                _possible_human_action: list =\
+                    self.__get_valid_human_actions_under_release(current_world_conf=_current_world_conf)
 
         return _possible_human_action
 
@@ -934,6 +996,20 @@ class CausalGraph:
         if self._plot_graph:
             raw_transition_system.plot_graph()
 
+    def _internal_node_mapping(self) -> FiniteTransSys:
+        """
+        A helper function that created a node to int dictionary. This helps in plotting as the node names in
+        two_player_pddl_ts_game are huge.
+        """
+
+        _node_int_map = bidict({state: index for index, state in enumerate(self.two_player_pddl_ts._graph.nodes)})
+        _modified_two_player_pddl_ts = copy.deepcopy(self.two_player_pddl_ts)
+
+        _relabelled_graph = nx.relabel_nodes(self.two_player_pddl_ts._graph, _node_int_map, copy=True)
+        _modified_two_player_pddl_ts._graph = _relabelled_graph
+
+        return _modified_two_player_pddl_ts
+
     def _get_task_and_problem(self):
         self._problem = _parse(self._domain_file, self._problem_file)
         # change this in future
@@ -997,7 +1073,7 @@ if __name__ == "__main__":
 
     # define some constants
     _project_root = os.path.dirname(os.path.abspath(__file__))
-    _plotting = True
+    _plotting = False
 
     # Define PDDL files
     domain_file_path = _project_root + "/../.." + "/pddl_files/blocks_world/domain.pddl"
@@ -1006,15 +1082,15 @@ if __name__ == "__main__":
     # Define problem and domain file, call the method for testing
     pddl_test_obj = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
 
-    pddl_test_obj._build_transition_system(action_cost_mapping={}, plot_raw_ts=True)
+    pddl_test_obj._build_transition_system(action_cost_mapping={}, plot_raw_ts=False)
 
-    pddl_test_obj._build_two_player_game(plot_two_player_game=True)
+    pddl_test_obj._build_two_player_game(plot_two_player_game=False, relabel_nodes=False)
 
     # build causal graph
     # pddl_test_obj.build_causal_graph()
 
     # build the ltl automata
-    pddl_test_obj.build_LTL_automato(formula="F(on_rb_l_2) & F(on_bb_1_l_0)")
+    # pddl_test_obj.build_LTL_automato(formula="F(on_rb_l_2) & F(on_bb_1_l_0)")
 
     # compose the above two graphs
-    pddl_test_obj.build_product()
+    # pddl_test_obj.build_product()
