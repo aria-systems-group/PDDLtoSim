@@ -37,7 +37,10 @@ class CausalGraph:
         self._task = None
         self._action_cost_map: Dict[str: Optional[int, float]] = defaultdict(lambda: {})
         self._problem = None
+        self._task_objects: list = []
+        self._task_locations: list = []
         self._get_task_and_problem()
+        self._get_boxes_and_location_from_problem()
 
     @property
     def problem_file(self):
@@ -59,68 +62,17 @@ class CausalGraph:
     def action_cost_map(self):
         return self._action_cost_map
 
+    @property
+    def task_objects(self):
+        return self._task_objects
+
+    @property
+    def task_locations(self):
+        return self._task_locations
+
     @action_cost_map.setter
     def action_cost_map(self):
         pass
-
-    def _get_valid_set_of_ap(self, objects, locations: list, print_valid_labels: bool = False):
-        """
-        A function that given a list of objects and location creates a super-set of atomic proposition. This superset
-        will be used to verify the validity of a given atomic proposition.
-
-        Given: say 3 objects (say b0, b1, b2) and 3 locations l0, l1, l2 we create a tuple
-        {<box_0_location>, <box_1_location>, <box_2_location>, <gripper_status>}
-
-        The number of box location depends on the # of objects - index corresponds to the box and the value is its loc.
-        box_location can take values -
-                'loc#' - all possible locations
-                'gripper' - if it is being held
-
-        gripper_status can take values -
-                'box#'- holding the box
-                'loc#'- is it ready to drop it
-                'free'- otherwise
-        """
-
-        # number of possible objects it can hold + possible location it can drop + free states
-        _valid_gripper_states = objects + locations + ['free']
-
-        _num_of_objects = len(objects)
-
-        _valid_labels = set()
-
-        # Sample ap is : {[gripper, lo, l1, l2], [gripper, lo, l1, l2], [gripper, l0, l1, l2],
-        # [free, l0, l1, l3, b0, b1, b3]}
-
-        _valid_box_values = ['gripper'] + locations
-        pass
-
-        # NOTE: Need to complete this implementation
-
-        # def loop_rec(_ap, _tuple_idx):
-        #     if _tuple_idx > 1:
-        #         for _box_state in _valid_box_values:
-        #             loop_rec(_ap, _tuple_idx - 1)
-        #             for _l in _ap:
-        #                 _l.append(_box_state)
-        #     else:
-        #         for _gripper_state in _valid_gripper_states:
-        #             _ap.append([_gripper_state])
-        #         return _ap
-
-        # loop_rec([], 5)
-
-        for _l1 in _valid_box_values:
-            for _l2 in _valid_box_values:
-                for _l3 in _valid_box_values:
-                    for _l4 in _valid_box_values:
-                        for _l5 in _valid_box_values:
-                            for _gripper in _valid_gripper_states:
-                                _ap = tuple([_l1, _l2, _l3, _l4, _l5, _gripper])
-                                _valid_labels.add(_ap)
-
-        if print_valid_labels:
-            print(_valid_labels)
 
     def _get_multiple_box_location(self, multiple_box_location_str: str) -> Tuple[int, List[str]]:
         """
@@ -595,6 +547,9 @@ class CausalGraph:
         # lets create k copies of the system states
         for _n in self.single_player_pddl_ts._graph.nodes():
             for i in range(human_intervention + 1):
+                # do not create multiple copies of the init state
+                # if self.single_player_pddl_ts._graph.nodes[_n].get('init') is True and i != human_intervention:
+                #     continue
 
                 _sys_node = (_n, i)
                 _two_plr_to_sgl_plr_sys_mapping[_sys_node] = self.single_player_pddl_ts._graph.nodes[_n]
@@ -633,6 +588,9 @@ class CausalGraph:
                         self.two_player_pddl_ts.add_state(_env_node, **_single_player_sys_node)
                         self.two_player_pddl_ts._graph.nodes[_env_node]['player'] = "adam"
                         self.two_player_pddl_ts._graph.nodes[_env_node]['causal_state_name'] = "human-move"
+                        self.two_player_pddl_ts._graph.nodes[_env_node]['init'] = False
+                else:
+                    warnings.warn(f"The human state {_env_node} already exists. This is a major blunder in the code")
 
                 # get the org edge and its attributes between _u and _v
                 _org_edge_attributes = self.single_player_pddl_ts._graph.edges[_u, _v, 0]
@@ -654,61 +612,62 @@ class CausalGraph:
                                                 org_succ_state_name=(_v, i),
                                                 human_intervention_cost=human_intervention_cost)
 
-        # get all the sys nodes from which there are no outoging edges
-        for _n in self.two_player_pddl_ts._graph.nodes():
-            if self.two_player_pddl_ts._graph.out_degree(_n) == 0:
-                # if its a to-obj action
-                if "to-obj" in _n:
-                    # find where the robot is currently using the causal state name of the form "to-obj b# l#"
-                    _pre_two_player_node = self.two_player_pddl_ts._graph.nodes[_n]
-                    _intervention_remaining: int = _pre_two_player_node[1]
-                    _pre_single_player_node = _two_plr_to_sgl_plr_sys_mapping.get(_n)
-                    _pre_single_player_causal_state_name = _pre_single_player_node.get('causal_state')
-                    _pre_world_confg = _pre_single_player_node.get("list_ap")
-                    _pre_world_confg_str = _pre_single_player_node.get("ap")
+        # add transitions from the new sys sattes formed due human intervention
+        self.__add_transition_from_new_sys_states()
 
-                    # robot's current loc
-                    _, _robo_curr_loc = self._get_box_location(_pre_single_player_causal_state_name)
+        # after adding valid transitions from novel Sys states to existing Sys states. We need to once again add human
+        # state associated with these edges.
+        _old_two_player_pddl_ts: FiniteTransSys = copy.deepcopy(self.two_player_pddl_ts)
 
-                    # create new system node. From "to-obj b# l#" state you transition to a new "ready" state that did
-                    # not exist before in the single player game
-                    _sys_state = f"ready {_robo_curr_loc}{_pre_world_confg_str}, {_intervention_remaining}"
+        for _e in _old_two_player_pddl_ts._graph.edges():
+            # for i in reversed(range(human_intervention + 1)):
+            _u = _e[0]
+            _v = _e[1]
+            i: int = _u[1]
 
-                    if not self.two_player_pddl_ts._graph.has_node(_sys_state):
-                        self.two_player_pddl_ts.add_state(_sys_state, **_pre_two_player_node)
-                        self.two_player_pddl_ts._graph.nodes[_sys_state]['player'] = "eve"
-                        self.two_player_pddl_ts._graph.nodes[_sys_state]['causal_state_name'] =\
-                            f"ready {_robo_curr_loc}"
+            if self.two_player_pddl_ts.get_state_w_attribute(_u, "player") == "adam" or\
+                    self.two_player_pddl_ts.get_state_w_attribute(_v, "player") == "adam":
+                continue
 
-                    # add a valid transition to this
-                    self.two_player_pddl_ts.add_edge(u=_pre_two_player_node,
-                                                     v=_sys_state,
-                                                     actions="",
-                                                     weight=0)
+            _edge_action = self.two_player_pddl_ts._graph.get_edge_data(*_e)[0]['actions']
 
-                    # form this ready state we add valid transition to "to-obj b# l#" sys states. These state should
-                    # already exists in the two_player_pddl_ts graph
-                    # _valid_states = []
-                    for _box_id, _box_loc in enumerate(_pre_world_confg):
-                        if _box_id != len(_pre_world_confg) - 1:
-                            _valid_state_to_transit = f"to-obj b{_box_id} l{_box_loc}"
-                            # _valid_states.append(_valid_state_to_transit)
-                            if not self.two_player_pddl_ts._graph.has_node(_valid_state_to_transit):
-                                # warnings.warn(f"Adding a transition from {_pre_two_player_node} to"
-                                #               f" {_valid_state_to_transit}. The state {_valid_state_to_transit} does not"
-                                #               f" already exist in the graph")
-                                warnings.warn(f"Adding a transition from {_sys_state} to"
-                                              f" {_valid_state_to_transit}. The state {_valid_state_to_transit} does not"
-                                              f" already exist in the graph")
+            _env_node = (f"h{_u}{_edge_action}", i)
+            adam_node_lst.append(_env_node)
 
-                            _edge_action = f"transit b{_box_id} l{_box_loc}"
-                            self.two_player_pddl_ts.add_edge(u=_sys_state,
-                                                             v=_valid_state_to_transit,
-                                                             actions=_edge_action,
-                                                             weight=0)
+            if not self.two_player_pddl_ts._graph.has_node(_env_node):
+                _sys_node_attrs = self.two_player_pddl_ts._graph.nodes[_u]
+                self.two_player_pddl_ts.add_state(_env_node, **_sys_node_attrs)
+                self.two_player_pddl_ts._graph.nodes[_env_node]['player'] = "adam"
+                self.two_player_pddl_ts._graph.nodes[_env_node]['causal_state_name'] = "human-move"
 
+            else:
+                warnings.warn(f"The human state {_env_node} already exists. This is a major blunder in the code")
 
-                # if its a to-loc action
+            # get the org edge and its attributes between _u and _v
+            _org_edge_attributes = self.two_player_pddl_ts._graph.edges[_u, _v, 0]
+
+            # add edge between the original system state and the human state
+            self.two_player_pddl_ts.add_edge(u=_u,
+                                             v=_env_node,
+                                             **_org_edge_attributes)
+
+            # add a valid human nonintervention edge and its corresponding action cost
+            self.two_player_pddl_ts.add_edge(u=_env_node,
+                                             v=_v,
+                                             **_org_edge_attributes)
+            self.two_player_pddl_ts._graph.edges[_env_node, _v, 0]['weight'] = human_non_intervention_cost
+
+            # remove the original _u to _v edge
+            self.two_player_pddl_ts._graph.remove_edge(_u, _v)
+
+            if i != 0:
+                # now get add all the valid human interventions
+                self._add_valid_human_edges(human_state_name=_env_node,
+                                            org_succ_state_name=_v,
+                                            human_intervention_cost=human_intervention_cost)
+
+        print("Iterating for the second time to check if human interventions created any new nodes")
+        self.__add_transition_from_new_sys_states()
 
         if plot_two_player_game:
             if relabel_nodes:
@@ -717,6 +676,70 @@ class CausalGraph:
             else:
                 self.two_player_pddl_ts.plot_graph()
             print("Done plotting")
+
+    def __add_transition_from_new_sys_states(self):
+        """
+        A helper method that identifies states that were created because of human interventions. We then add valid
+        Sys transitions from these states.
+        """
+        for _n in self.two_player_pddl_ts._graph.nodes():
+            if self.two_player_pddl_ts._graph.out_degree(_n) == 0:
+                print(_n)
+                _curr_two_player_node = self.two_player_pddl_ts._graph.nodes[_n]
+                _curr_world_confg = _curr_two_player_node.get("list_ap")
+                _curr_world_confg_str = _curr_two_player_node.get("ap")
+                _curr_causal_state_name = _curr_two_player_node.get("causal_state_name")
+                _curr_box_id, _curr_robo_loc = self._get_box_location(_curr_causal_state_name)
+                _intervention_remaining: int = _n[1]
+                # if its a to-obj action
+                if "to-obj" in _n[0]:
+                    # form this state we add valid transition to "to-obj b# l#" sys states. These state should
+                    # already exists in the two_player_pddl_ts graph
+                    for _box_id, _box_loc in enumerate(_curr_world_confg):
+                        if _box_id != len(_curr_world_confg) - 1:
+                            _valid_state_to_transit: tuple = (f'(to-obj b{_box_id} {_box_loc}){_curr_world_confg_str}',
+                                                              _intervention_remaining)
+
+                            if not self.two_player_pddl_ts._graph.has_node(_valid_state_to_transit):
+                                warnings.warn(f"Adding a transition from {_n} to {_valid_state_to_transit}."
+                                              f" The state {_valid_state_to_transit} does not already exist")
+
+                            _edge_action = f"transit b{_box_id} {_curr_robo_loc} {_box_loc}"
+                            self.two_player_pddl_ts.add_edge(u=_n,
+                                                             v=_valid_state_to_transit,
+                                                             actions=_edge_action,
+                                                             weight=0)
+                elif "to-loc" in _n[0]:
+                    # in this state the robot is moving a box. So, we add transitions to location that are currently
+                    # available/free
+                    _occupied_locs: set = set()
+                    _succ_world_conf = _curr_world_confg.copy()
+                    for _idx, _loc in enumerate(_curr_world_confg):
+                        if _idx != len(_curr_world_confg) - 1 and _loc != "gripper":
+                            _occupied_locs.add(_loc)
+
+                    _free_loc = set(self._task_locations) - _occupied_locs
+
+                    for _loc in _free_loc:
+                        _succ_world_conf[-1] = _loc
+                        _succ_world_conf_str = self._convert_list_ap_to_str(ap=_succ_world_conf)
+                        _valid_state_to_transit: tuple = (f'(to-loc b{_curr_box_id} {_loc}){_succ_world_conf_str}',
+                                                          _intervention_remaining)
+
+                        if not self.two_player_pddl_ts._graph.has_node(_valid_state_to_transit):
+                            warnings.warn(f"Adding a transition from {_n} to {_valid_state_to_transit}."
+                                          f" The state {_valid_state_to_transit} does not already exist")
+
+                        _edge_action = f"transfer b{_curr_box_id} {_curr_robo_loc} {_loc}"
+                        self.two_player_pddl_ts.add_edge(u=_n,
+                                                         v=_valid_state_to_transit,
+                                                         actions=_edge_action,
+                                                         weight=0)
+
+                else:
+                    warnings.warn(f"Encountered a Sys state due to human intervention which was unaccounted for. "
+                                  f" The Sys state is {_n}")
+
 
     def _add_valid_human_edges(self, human_state_name: tuple, org_succ_state_name: tuple, human_intervention_cost: int):
         """
@@ -809,8 +832,7 @@ class CausalGraph:
         elif "gripper" in _current_world_conf:
             # if the robot is transferring an object
             _transfer_action: bool = False
-            _, _boxes = self._get_boxes_and_location_from_problem(self._problem)
-            for _box in _boxes:
+            for _box in self.task_objects:
                 if _box == _current_world_conf[-1]:
                     _transfer_action = True
                     break
@@ -939,13 +961,6 @@ class CausalGraph:
         A method that gets the task, dumps the respective data in a yaml file and build a graph using the
         regret_synthesis_toolbox graph factory which reads the dumped yaml file.
         """
-
-        _boxes, _locations = self._get_boxes_and_location_from_problem(self._problem)
-
-        # self._get_valid_set_of_ap(objects=_boxes,
-        #                           locations=_locations,
-        #                           print_valid_labels=True)
-
         config_yaml = "/config/" + self._task.name
 
         raw_transition_system = graph_factory.get('TS',
@@ -1016,22 +1031,17 @@ class CausalGraph:
         self.num_of_obs = self._problem.domain.predicates
         self._task = _ground(self._problem)
 
-    def _get_boxes_and_location_from_problem(self, problem):
+    def _get_boxes_and_location_from_problem(self):
         """
         A helper function to return the boxes and location associated with a problem in a given domain.
         """
         # get objects and location from the problem instance
-        _objects = []
-        _locations = []
-
-        for _object, _type in problem.objects.items():
-            if _type.name == 'location':
-                _objects.append(_object)
-
+        for _object, _type in self._problem.objects.items():
             if _type.name == 'box':
-                _locations.append(_object)
+                self._task_objects.append(_object)
 
-        return _objects, _locations
+            if _type.name == 'box_loc':
+                self._task_locations.append(_object)
 
     def build_LTL_automato(self, formula: str, debug: bool=False):
         """
@@ -1068,6 +1078,7 @@ class CausalGraph:
                                                plot=True)
 
         print("interesting")
+
 
 if __name__ == "__main__":
 
