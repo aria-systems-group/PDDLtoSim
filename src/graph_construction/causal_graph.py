@@ -1093,7 +1093,7 @@ if __name__ == "__main__":
     # Define problem and domain file, call the method for testing
     pddl_test_obj = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
 
-    pddl_test_obj._build_transition_system(action_cost_mapping={}, plot_raw_ts=False)
+    pddl_test_obj._build_transition_system(action_cost_mapping={}, plot_raw_ts=True)
 
     pddl_test_obj._build_two_player_game(plot_two_player_game=False, relabel_nodes=False)
 
