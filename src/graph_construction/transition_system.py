@@ -1,6 +1,7 @@
 import sys
 import warnings
 import re
+import os
 import copy
 import networkx as nx
 
@@ -10,6 +11,9 @@ from typing import Tuple, Dict, List, Optional
 from regret_synthesis_toolbox.src.graph import graph_factory
 from regret_synthesis_toolbox.src.graph import FiniteTransSys
 
+# import local packages
+from .causal_graph import CausalGraph
+
 
 class FiniteTransitionSystem:
     """
@@ -17,14 +21,14 @@ class FiniteTransitionSystem:
     domain and problem file.
     """
 
-    def __init__(self, causal_graph_instance):
-        self._causal_graph = causal_graph_instance
-        self._transition_system: Optional[FiniteTransitionSystem] = None
+    def __init__(self, causal_graph):
+        self._causal_graph: CausalGraph = causal_graph
+        self._transition_system: Optional[FiniteTransSys] = None
         self._action_to_cost: Optional[Dict] = self._set_default_action_cost_mapping()
 
     @property
     def transition_system(self):
-        if isinstance(self._transition_system, None):
+        if isinstance(self._transition_system, type(None)):
             warnings.warn("The transition system is of type of None. Please build the transition system before"
                           " accessing it")
         return self._transition_system
@@ -56,7 +60,7 @@ class FiniteTransitionSystem:
              }
         return _action_cost_mapping
 
-    def build_transition_system(self, action_cost_mapping: dict, plot: bool = False):
+    def build_transition_system(self, plot: bool = False):
         """
         A function that builds the transition system given a causal graph.
 
@@ -77,7 +81,7 @@ class FiniteTransitionSystem:
 
         """
 
-        _init_state_label, _init_robo_conf = self._get_intial_state_label()
+        _init_state_label, _init_robo_conf = self._get_initial_state_label()
 
         # lets have two stack - visitedStack and doneStack
         # As you encounter nodes, keep adding them to the visitedStack. As you encounter a neighbour that you already
@@ -86,8 +90,8 @@ class FiniteTransitionSystem:
         visited_stack = deque()
         done_stack = deque()
 
-        _graph_name = "pddl_ts_" + self._causal_graph._task.name
-        _config_yaml = "/config/" + "pddl_ts_" + self._causal_graph._task.name
+        _graph_name = "pddl_ts_" + self._causal_graph.task.name
+        _config_yaml = "/config/" + "pddl_ts_" + self._causal_graph.task.name
 
         self._transition_system: FiniteTransSys = graph_factory.get('TS',
                                                                     raw_trans_sys=None,
@@ -119,7 +123,7 @@ class FiniteTransitionSystem:
             _game_current_node = visited_stack.popleft()
             _causal_current_node = self._transition_system._graph.nodes[_game_current_node].get('causal_state_name')
 
-            for _causal_succ_node in self._causal_graph._graph[_causal_current_node]:
+            for _causal_succ_node in self._causal_graph.causal_graph._graph[_causal_current_node]:
                 # add _succ to the visited_stack, check the transition and accordingly updated its label
                 _on_state_pattern = "\\bon\\b"
 
@@ -133,28 +137,34 @@ class FiniteTransitionSystem:
 
             done_stack.append(_game_current_node)
 
+        if plot:
+            self._transition_system.plot_graph()
+
     def _add_transition_to_transition_system(self,
-                                            causal_current_node,
-                                            causal_succ_node,
-                                            game_current_node,
-                                            visited_stack: deque,
-                                            done_stack: deque) -> None:
+                                             causal_current_node,
+                                             causal_succ_node,
+                                             game_current_node,
+                                             visited_stack: deque,
+                                             done_stack: deque) -> None:
         """
         A helper function called by the self._build_transition_system method to add valid the edges between two states
         of the Transition System and update the label of the successor state based on the type of action being
         performed.
+
+        The edge between two states that belong to the Transition System has the following attributes:
+
+            1) actions = The edge action name. The name is same the one in the Causal graph
+            2) weight = The weight to take that action given the actio_to_cost dictionary
         """
 
         # determine the action, create a valid label for the successor state and add it to successor node.
-        _edge_action = self._causal_graph._graph[causal_current_node][causal_succ_node][0]['actions']
+        _edge_action = self._causal_graph.causal_graph._graph[causal_current_node][causal_succ_node][0]['actions']
         _action_type: str = self._get_action_from_causal_graph_edge(_edge_action)
+        _curr_node_list_lbl = self._transition_system._graph.nodes[game_current_node].get('list_ap')
+        _curr_node_lbl = self._transition_system._graph.nodes[game_current_node].get('ap')
 
         if _action_type == "transit":
             _cost: int = self._action_to_cost.get("transit")
-            _curr_node_list_lbl = self._transition_system._graph.nodes[game_current_node].get('list_ap')
-            _curr_node_lbl = self._transition_system._graph.nodes[game_current_node].get('ap')
-
-            # we need to check the validity of this action
             if self._check_transit_action_validity(current_node_list_lbl=_curr_node_list_lbl,
                                                    action=_edge_action):
 
@@ -179,17 +189,11 @@ class FiniteTransitionSystem:
 
         elif _action_type == "transfer":
             _cost: int = self._action_to_cost.get("transfer")
-            # we need to check the validity of the transition
-            _curr_node_list_lbl = self._transition_system._graph.nodes[game_current_node].get('list_ap')
-            _curr_node_lbl = self._transition_system._graph.nodes[game_current_node].get('ap')
-
-            # we need to check the validity of this transition
             if self._check_transfer_action_validity(current_node_list_lbl=_curr_node_list_lbl,
                                                     action=_edge_action):
 
                 _succ_node_list_lbl = _curr_node_list_lbl.copy()
                 _, _box_loc = self._get_multiple_box_location(_edge_action)
-                # _, _box_loc = self._get_box_location(_edge_action)
 
                 _succ_node_list_lbl[-1] = _box_loc[-1]
                 _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
@@ -213,11 +217,6 @@ class FiniteTransitionSystem:
 
         elif _action_type == "grasp":
             _cost: int = self._action_to_cost.get("grasp")
-            # we need to check the validity of the transition
-            _curr_node_list_lbl = self._transition_system._graph.nodes[game_current_node].get('list_ap')
-            _curr_node_lbl = self._transition_system._graph.nodes[game_current_node].get('ap')
-
-            # we need to check the validity of this transition
             if self._check_grasp_action_validity(current_node_list_lbl=_curr_node_list_lbl,
                                                  action=_edge_action):
 
@@ -250,11 +249,6 @@ class FiniteTransitionSystem:
 
         elif _action_type == "release":
             _cost: int = self._action_to_cost.get("release")
-            # we need to check the validity of the transition
-            _curr_node_list_lbl = self._transition_system._graph.nodes[game_current_node].get('list_ap')
-            _curr_node_lbl = self._transition_system._graph.nodes[game_current_node].get('ap')
-
-            # we need to check the validity of this transition
             if self._check_release_action_validity(current_node_list_lbl=_curr_node_list_lbl,
                                                    action=_edge_action):
 
@@ -372,7 +366,7 @@ class FiniteTransitionSystem:
 
         return False
 
-    def _get_intial_state_label(self) -> Tuple[List[str], str]:
+    def _get_initial_state_label(self) -> Tuple[List[str], str]:
         """
         A function that create the initial label given the grounded (True) labels in the causal graph. This is a crucial
         step because, we update the labels from the intial label.
@@ -387,7 +381,7 @@ class FiniteTransitionSystem:
         """
 
         # get the init state of the world
-        _init_state_list: List[str] = list(self._causal_graph._task._intial_state)
+        _init_state_list: List[str] = list(self._causal_graph.task.initial_state)
 
         # initialize an empty tuple with all 0s; init_state_list has an extra free franka label that is not an "on"
         # predicate
@@ -515,3 +509,18 @@ class FiniteTransitionSystem:
         _ap_str = separator.join(ap)
 
         return _ap_str
+
+
+if __name__ == "__main__":
+
+    # define some constants
+    _project_root = os.path.dirname(os.path.abspath(__file__))
+    _plotting = True
+
+    # Define PDDL files
+    domain_file_path = _project_root + "/../.." + "/pddl_files/blocks_world/domain.pddl"
+    problem_file_ath = _project_root + "/../.." + "/pddl_files/blocks_world/problem.pddl"
+
+    _causal_graph_instance = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
+
+    _causal_graph_instance.build_causal_graph(add_cooccuring_edges=False)

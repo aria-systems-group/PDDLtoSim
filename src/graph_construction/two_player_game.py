@@ -1,0 +1,564 @@
+import re
+import warnings
+import copy
+import networkx as nx
+
+from typing import Tuple, Dict, List, Optional
+from collections import deque, defaultdict
+from bidict import bidict
+
+from regret_synthesis_toolbox.src.graph import graph_factory
+from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
+
+# import local packages
+from .causal_graph import CausalGraph
+from .transition_system import FiniteTransitionSystem
+
+
+class TwoPlayerGame:
+    """
+    A Class that builds a Two player game based on the Transition System built using the Causal Graph.
+    """
+
+    def __init__(self, causal_graph, transition_system):
+        self._causal_graph: CausalGraph = causal_graph
+        self._transition_system: FiniteTransitionSystem = transition_system
+        self._two_player_game: Optional[TwoPlayerGraph] = None
+
+    @property
+    def causal_graph(self):
+        return self._causal_graph
+
+    @property
+    def transition_system(self):
+        return self._transition_system
+
+    @property
+    def two_player_game(self):
+        if isinstance(self._two_player_game, None):
+            warnings.warn("The Two player game is of type of None. Please build the game before accessing it")
+        return self._two_player_game
+
+    def build_two_player_game(self,
+                              human_intervention: int = 1,
+                              human_intervention_cost: int = 0,
+                              human_non_intervention_cost: int = 0,
+                              plot_two_player_game: bool = False,
+                              relabel_nodes: bool = True):
+        """
+        A function that build a Two Player Game based on a Transition System built from causal graph.
+
+        After every Sys transition add a Human state, we then add valid human transitions from that human state. Every
+        node that belongs to the Two player game has the same node as well as the edge attributes as their counterparts
+        in the Transition System.
+        """
+
+        eve_node_lst = []
+        adam_node_lst = []
+        _two_plr_to_sgl_plr_sys_mapping: Dict[Tuple, dict] = defaultdict(lambda: {})
+        _graph_name = "two_player" + self._causal_graph.task.name
+        _config_yaml = "/config/" + "two_player" + self._causal_graph.task.name
+
+        self._two_player_game = graph_factory.get("TwoPlayerGraph",
+                                                  graph_name=_graph_name,
+                                                  config_yaml=_config_yaml,
+                                                  save_flag=True,
+                                                  pre_built=False,
+                                                  plot=False)
+
+        # lets create k copies of the system states
+        for _n in self._transition_system.transition_system._graph.nodes():
+            for i in range(human_intervention + 1):
+                _sys_node = (_n, i)
+                _two_plr_to_sgl_plr_sys_mapping[_sys_node] = self._transition_system.transition_system._graph.nodes[_n]
+
+                if _sys_node in eve_node_lst:
+                    warnings.warn("The Transition System seems to contain multiple states of same configuration."
+                                  "Check your Causal graph construction and Transition system construction functions")
+                else:
+                    eve_node_lst.append(_sys_node)
+
+        for _u in eve_node_lst:
+            if not self._two_player_game._graph.has_node(_u):
+                # add all the attributes from the single player TS to this two-player sys node
+                _single_player_sys_node = _two_plr_to_sgl_plr_sys_mapping.get(_u)
+
+                if _single_player_sys_node is not None:
+                    self._two_player_game.add_state(_u, **_single_player_sys_node)
+
+        # for each edge create a human node and then add valid human transition from that human state
+        for _e in self._transition_system.transition_system._graph.edges():
+            for i in reversed(range(human_intervention + 1)):
+                _u = _e[0]
+                _v = _e[1]
+                _edge_action = self._transition_system.transition_system._graph.get_edge_data(*_e)[0]['actions']
+
+                _env_node = (f"h{_u}{_edge_action}", i)
+                adam_node_lst.append(_env_node)
+
+                # add this node to the game and the attributes of the sys state.
+                # Change player and causal state attribute to "adam" and "human-move" respectively.
+                if not self._two_player_game._graph.has_node(_env_node):
+                    _single_player_sys_node = _two_plr_to_sgl_plr_sys_mapping.get((_u, i))
+
+                    if _single_player_sys_node is not None:
+                        self._two_player_game.add_state(_env_node, **_single_player_sys_node)
+                        self._two_player_game._graph.nodes[_env_node]['player'] = "adam"
+                        self._two_player_game._graph.nodes[_env_node]['causal_state_name'] = "human-move"
+                        self._two_player_game._graph.nodes[_env_node]['init'] = False
+                else:
+                    warnings.warn(
+                        f"The human state {_env_node} already exists. This is a major blunder in the code")
+
+                # get the org edge and its attributes between _u and _v
+                _org_edge_attributes = self._transition_system.transition_system._graph.edges[_u, _v, 0]
+
+                # add edge between the original system state and the human state
+                self._two_player_game.add_edge(u=(_u, i),
+                                               v=_env_node,
+                                               **_org_edge_attributes)
+
+                # add a valid human nonintervention edge and its corresponding action cost
+                self._two_player_game.add_edge(u=_env_node,
+                                               v=(_v, i),
+                                               **_org_edge_attributes)
+                self._two_player_game._graph.edges[_env_node, (_v, i), 0]['weight'] = human_non_intervention_cost
+
+                if i != 0:
+                    # now get add all the valid human interventions
+                    self._add_valid_human_edges(human_state_name=_env_node,
+                                                org_succ_state_name=(_v, i),
+                                                human_intervention_cost=human_intervention_cost)
+
+        print("Iterating for the second time to check if human interventions created any new nodes")
+        self.__add_transition_from_new_sys_states()
+
+        # after adding valid transitions from novel Sys states to existing Sys states. We need to once again add human
+        # state associated with these edges.
+        _old_two_player_pddl_ts: TwoPlayerGraph = copy.deepcopy(self._two_player_game)
+
+        for _e in _old_two_player_pddl_ts._graph.edges():
+            _u = _e[0]
+            _v = _e[1]
+            i: int = _u[1]
+
+            if self._two_player_game.get_state_w_attribute(_u, "player") == "adam" or\
+                    self._two_player_game.get_state_w_attribute(_v, "player") == "adam":
+                continue
+
+            _edge_action = self._two_player_game._graph.get_edge_data(*_e)[0]['actions']
+
+            _env_node = (f"h{_u}{_edge_action}", i)
+            adam_node_lst.append(_env_node)
+
+            if not self._two_player_game._graph.has_node(_env_node):
+                _sys_node_attrs = self._two_player_game._graph.nodes[_u]
+                self._two_player_game.add_state(_env_node, **_sys_node_attrs)
+                self._two_player_game._graph.nodes[_env_node]['player'] = "adam"
+                self._two_player_game._graph.nodes[_env_node]['causal_state_name'] = "human-move"
+
+            else:
+                warnings.warn(f"The human state {_env_node} already exists. This is a major blunder in the code")
+
+            # get the org edge and its attributes between _u and _v
+            _org_edge_attributes = self._two_player_game._graph.edges[_u, _v, 0]
+
+            # add edge between the original system state and the human state
+            self._two_player_game.add_edge(u=_u,
+                                           v=_env_node,
+                                           **_org_edge_attributes)
+
+            # add a valid human nonintervention edge and its corresponding action cost
+            self._two_player_game.add_edge(u=_env_node,
+                                           v=_v,
+                                           **_org_edge_attributes)
+            self._two_player_game._graph.edges[_env_node, _v, 0]['weight'] = human_non_intervention_cost
+
+            # remove the original _u to _v edge
+            self._two_player_game._graph.remove_edge(_u, _v)
+
+            if i != 0:
+                # now get add all the valid human interventions
+                self._add_valid_human_edges(human_state_name=_env_node,
+                                            org_succ_state_name=_v,
+                                            human_intervention_cost=human_intervention_cost)
+
+        print("Iterating for the second time to check if human interventions created any new nodes")
+        self.__add_transition_from_new_sys_states()
+
+        if plot_two_player_game:
+            if relabel_nodes:
+                _relabelled_graph = self._internal_node_mapping()
+                _relabelled_graph.plot_graph()
+            else:
+                self._two_player_game.plot_graph()
+            print("Done plotting")
+
+    def _add_valid_human_edges(self,
+                               human_state_name: tuple,
+                               org_succ_state_name: tuple,
+                               human_intervention_cost: int):
+        """
+        A helper method that adds valid human intervention edges given the current human state, and the original
+        successor state if the human decided not to intervene.
+
+        :param human_state_name: The human state which is a tuple. It contains the current configuration of the world
+         as an attribute in list and sting format i.e list_ap and ap respectively
+
+        :param org_succ_state_name: The original successor state that game would have evolved if human did not intervene
+
+        This function gets all the valid actions for human intervention given the current robot action,
+        world configuration, and evolves the game as per the intervention.
+        """
+        _human_node: dict = self._two_player_game._graph.nodes[human_state_name]
+        _org_succ_node: dict = self._two_player_game._graph.nodes[org_succ_state_name]
+        _succ_world_conf: list = _org_succ_node["list_ap"]
+        _valid_human_actions: list = self.__get_all_valid_human_intervention(human_node=_human_node,
+                                                                             org_succ_node=_org_succ_node)
+        _curr_succ_idx: int = org_succ_state_name[1]
+
+        # now add that human edge to the transition system and accordingly update the list_ap and ap attributes of the
+        # system node
+
+        for _human_action in _valid_human_actions:
+            _box_id, _box_loc = self._get_multiple_box_location(_human_action)
+
+            _succ_node_lbl = _succ_world_conf.copy()
+            _succ_node_lbl[_box_id] = _box_loc[1]
+            _succ_node_lbl_str = self._convert_list_ap_to_str(_succ_node_lbl)
+
+            _causal_succ_node = _org_succ_node["causal_state_name"]
+            _succ_state_name = _causal_succ_node + _succ_node_lbl_str
+
+            _succ_game_state_name = (_succ_state_name, _curr_succ_idx - 1)
+
+            # this action is need to add state/configuration that are only possible because human intervention
+            # e.g. human moved a box that the robot was transiting to. The single player ts does not capture such a conf
+            # because the raw_pddl_ts does have any transition for robot moving towards an empty location.
+            if not self._two_player_game._graph.has_node(_succ_game_state_name):
+                self._two_player_game.add_state(_succ_game_state_name,
+                                                **_org_succ_node)
+                self._two_player_game._graph.nodes[_succ_game_state_name]["list_ap"] = _succ_node_lbl
+                self._two_player_game._graph.nodes[_succ_game_state_name]["ap"] = _succ_node_lbl_str
+
+            if not self._two_player_game._graph.has_edge(human_state_name, _succ_game_state_name):
+                self._two_player_game.add_edge(u=human_state_name,
+                                               v=_succ_game_state_name,
+                                               actions=_human_action,
+                                               weight=human_intervention_cost)
+
+    def __get_all_valid_human_intervention(self, human_node: dict, org_succ_node: dict) -> list:
+        """
+        A helper function that looks up the valid human actions in the causal graph and validate those intervention
+        given then current configuration of the world.
+
+        Validity:
+
+        transfer: human has no restriction on how they can move objects around.
+        transit: human has no restriction on how they can move objects around except for the one in Robot's hand.
+        grasp: human can not move the object currently being picked up/grasped.
+        release: human has no restriction on how they can move objects around.
+        """
+
+        # if org succ node's causal state name is "holding b#" then the robot is trying to grasp that box.
+        _succ_causal_state_name = org_succ_node["causal_state_name"]
+
+        # given a configuration [l0, l1, l2, free] get all the human moves from causal state "on b0 l0" and so on and so
+        # forth
+
+        _possible_human_action: list = []
+        _current_world_conf: list = human_node["list_ap"]
+
+        # the end effector is currently free
+        if _current_world_conf[-1] == "free":
+            # the end effector is not performing a grab action
+            if "holding" not in _succ_causal_state_name:
+                _possible_human_action: list = \
+                    self.__get_valid_human_actions_under_transit(current_world_conf=_current_world_conf)
+            # the end effector is performing a grab.
+            else:
+                _possible_human_action: list = \
+                    self.__get_valid_human_actions_under_grasp(succ_causal_state_name=_succ_causal_state_name,
+                                                               current_world_conf=_current_world_conf)
+
+        # if the robot is holding is an object
+        elif "gripper" in _current_world_conf:
+            # if the robot is transferring an object
+            _transfer_action: bool = False
+            for _box in self._causal_graph.task_objects:
+                if _box == _current_world_conf[-1]:
+                    _transfer_action = True
+                    break
+
+            if _transfer_action:
+                _possible_human_action: list = \
+                    self.__get_valid_human_actions_under_transfer(current_world_conf=_current_world_conf)
+            else:
+                _possible_human_action: list = \
+                    self.__get_valid_human_actions_under_release(current_world_conf=_current_world_conf)
+
+        return _possible_human_action
+
+    def __get_valid_human_actions_under_transit(self, current_world_conf: list) -> list:
+        """
+        A function that returns a list all possible human action when the robot is trying to perform a transit action
+        """
+        _valid_human_actions: list = []
+
+        for _box_idx, _box_loc in enumerate(current_world_conf):
+            if _box_idx != len(current_world_conf) - 1:
+                _state = f"(on b{_box_idx} {_box_loc})"
+
+                # check if this is a valid human action or not by checking if the add_effect
+                # (predicate that becomes true)is possible given the current configuration of the world
+                for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                    _add_effect: str = tuple(
+                        self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
+
+                    # get the box location where it is being moved to
+                    _, _box_loc = self._get_box_location(_add_effect)
+
+                    # if a box is already at this location then this is not a valid human action
+                    if _box_loc in current_world_conf:
+                        pass
+                    else:
+                        _valid_human_actions.append(
+                            self._causal_graph.causal_graph._graph[_state][_succ_node][0]["actions"])
+
+        return _valid_human_actions
+
+    def __get_valid_human_actions_under_grasp(self, succ_causal_state_name: str, current_world_conf: list) -> list:
+        """
+        A function that returns a list of all possible human actions when the robot is trying to perform a grasp action
+        """
+
+        _valid_human_actions: list = []
+
+        _box_id, _ = self._get_box_location(succ_causal_state_name)
+
+        for _box_idx, _box_loc in enumerate(current_world_conf):
+            if _box_idx != len(current_world_conf) - 1 and _box_id != _box_idx:
+                _state = f"(on b{_box_idx} {_box_loc})"
+
+                # check if this is a valid human action or not by checking if the add_effect
+                # (predicate that becomes)is possible given the current configuration of the world
+                for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                    _add_effect: str = tuple(
+                        self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
+
+                    # get the box location where it is being moved to
+                    _, _box_loc = self._get_box_location(_add_effect)
+
+                    # if a box is already at this location then this is not a valid human action
+                    if _box_loc in current_world_conf:
+                        pass
+                    else:
+                        _valid_human_actions.append(
+                            self._causal_graph.causal_graph._graph[_state][_succ_node][0]["actions"])
+
+        return _valid_human_actions
+
+    def __get_valid_human_actions_under_transfer(self, current_world_conf: list) -> list:
+        """
+        A function that returns a list of all possible human actions when the robot is moving a box around
+        """
+        _valid_human_actions: list = []
+
+        for _box_idx, _box_loc in enumerate(current_world_conf):
+            if _box_loc != "gripper" and _box_idx != len(current_world_conf) - 1:
+                _state = f"(on b{_box_idx} {_box_loc})"
+
+                # check if this is a valid human action or not by checking if the add_effect
+                # (predicate that becomes)is possible given the current configuration of the world
+                for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                    _add_effect: str = tuple(
+                        self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
+
+                    # get the box location where it is being moved to
+                    _, _box_loc = self._get_box_location(_add_effect)
+
+                    # if a box is already at this location then this is not a valid human action
+                    if _box_loc in current_world_conf:
+                        pass
+                    else:
+                        _valid_human_actions.append(
+                            self._causal_graph.causal_graph._graph[_state][_succ_node][0]["actions"])
+
+        return _valid_human_actions
+
+    def __get_valid_human_actions_under_release(self, current_world_conf: list):
+        """
+        A function that returns a list of all possible human actions when the robot is trying to drop an object
+        """
+        _valid_human_actions: list = []
+
+        for _box_idx, _box_loc in enumerate(current_world_conf):
+            if _box_loc != "gripper" and _box_idx != len(current_world_conf) - 1:
+                _state = f"(on b{_box_idx} {_box_loc})"
+
+                # check if this is a valid human action or not by checking if the add_effect
+                # (predicate that becomes)is possible given the current configuration of the world
+                for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                    _add_effect: str = tuple(
+                        self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
+
+                    # get the box location where it is being moved to
+                    _, _box_loc = self._get_box_location(_add_effect)
+
+                    # if a box is already at this location then this is not a valid human action
+                    if _box_loc in current_world_conf:
+                        pass
+                    else:
+                        _valid_human_actions.append(
+                            self._causal_graph.causal_graph._graph[_state][_succ_node][0]["actions"])
+
+        return _valid_human_actions
+
+    def __add_transition_from_new_sys_states(self):
+        """
+        A helper method that identifies states that were created because of human interventions. We then add valid
+        Sys transitions from these states.
+        """
+        for _n in self._two_player_game._graph.nodes():
+            if self._two_player_game._graph.out_degree(_n) == 0:
+                print(_n)
+                _curr_two_player_node = self._two_player_game._graph.nodes[_n]
+                _curr_world_confg = _curr_two_player_node.get("list_ap")
+                _curr_world_confg_str = _curr_two_player_node.get("ap")
+                _curr_causal_state_name = _curr_two_player_node.get("causal_state_name")
+                _curr_box_id, _curr_robo_loc = self._get_box_location(_curr_causal_state_name)
+                _intervention_remaining: int = _n[1]
+                # if its a to-obj action
+                if "to-obj" in _n[0]:
+                    # form this state we add valid transition to "to-obj b# l#" sys states. These state should
+                    # already exists in the two_player_pddl_ts graph
+                    for _box_id, _box_loc in enumerate(_curr_world_confg):
+                        if _box_id != len(_curr_world_confg) - 1:
+                            _valid_state_to_transit: tuple = (f'(to-obj b{_box_id} {_box_loc}){_curr_world_confg_str}',
+                                                              _intervention_remaining)
+
+                            if not self._two_player_game._graph.has_node(_valid_state_to_transit):
+                                warnings.warn(f"Adding a transition from {_n} to {_valid_state_to_transit}."
+                                              f" The state {_valid_state_to_transit} does not already exist")
+
+                            _edge_action = f"transit b{_box_id} {_curr_robo_loc} {_box_loc}"
+                            self._two_player_game.add_edge(u=_n,
+                                                           v=_valid_state_to_transit,
+                                                           actions=_edge_action,
+                                                           weight=0)
+                elif "to-loc" in _n[0]:
+                    # in this state the robot is moving a box. So, we add transitions to location that are currently
+                    # available/free
+                    _occupied_locs: set = set()
+                    _succ_world_conf = _curr_world_confg.copy()
+                    for _idx, _loc in enumerate(_curr_world_confg):
+                        if _idx != len(_curr_world_confg) - 1 and _loc != "gripper":
+                            _occupied_locs.add(_loc)
+
+                    _free_loc = set(self._causal_graph.task_locations) - _occupied_locs
+
+                    for _loc in _free_loc:
+                        _succ_world_conf[-1] = _loc
+                        _succ_world_conf_str = self._convert_list_ap_to_str(ap=_succ_world_conf)
+                        _valid_state_to_transit: tuple = (f'(to-loc b{_curr_box_id} {_loc}){_succ_world_conf_str}',
+                                                          _intervention_remaining)
+
+                        if not self._two_player_game._graph.has_node(_valid_state_to_transit):
+                            warnings.warn(f"Adding a transition from {_n} to {_valid_state_to_transit}."
+                                          f" The state {_valid_state_to_transit} does not already exist")
+
+                        _edge_action = f"transfer b{_curr_box_id} {_curr_robo_loc} {_loc}"
+                        self._two_player_game.add_edge(u=_n,
+                                                       v=_valid_state_to_transit,
+                                                       actions=_edge_action,
+                                                       weight=0)
+
+                else:
+                    warnings.warn(f"Encountered a Sys state due to human intervention which was unaccounted for. "
+                                  f" The Sys state is {_n}")
+
+    def _get_multiple_box_location(self, multiple_box_location_str: str) -> Tuple[int, List[str]]:
+        """
+        A function that return multiple locations (if present) in a str.
+
+        In our construction of transition system, as per our pddl file naming convention, a human action is as follows
+        "human-action b# l# l#", the box # is placed on l# (1st one) and the human moves it to l# (2nd one).
+        """
+
+        _loc_pattern = "[l|L][\d]+"
+        try:
+            _loc_states: List[str] = re.findall(_loc_pattern, multiple_box_location_str)
+        except AttributeError:
+            print(f"The causal_state_string {multiple_box_location_str} dose not contain location of the box")
+
+        _box_pattern = "[b|B][\d]+"
+        try:
+            _box_state: str = re.search(_box_pattern, multiple_box_location_str).group()
+        except AttributeError:
+            print(f"The causal_state_string {multiple_box_location_str} dose not contain box id")
+
+        _box_id_pattern = "\d+"
+        _box_id: int = int(re.search(_box_id_pattern, _box_state).group())
+
+        return _box_id, _loc_states
+
+    def _convert_list_ap_to_str(self, ap: list, separator='_') -> str:
+        """
+        A helper method to convert a state label/atomic proposition which is in a list of elements into a str
+
+        :param ap: Atomic proposition of type list
+        :param separator: element used to join the elements in the given list @ap
+
+        ap: ['l3', 'l4', 'l1', 'free']
+        _ap_str = 'l3_l4_l1_free'
+        """
+        if not isinstance(ap, list):
+            warnings.warn(f"Trying to convert an atomic proposition of type {type(ap)} into a string.")
+
+        _ap_str = separator.join(ap)
+
+        return _ap_str
+
+    def _get_box_location(self, box_location_state_str: str) -> Tuple[int, str]:
+        """
+        A function that returns the location of the box and the box id in the given world.
+
+        e.g Str: on b# l1 then return l1
+
+        NOTE: The string should be exactly in the above formation i.e on<whitespace>b#<whitespave>l#. We can swap
+         between small and capital i.e 'l' & 'L' are valid.
+        """
+
+        _loc_pattern = "[l|L][\d]+"
+        try:
+            _loc_state: str = re.search(_loc_pattern, box_location_state_str).group()
+        except AttributeError:
+            _loc_state = ""
+            print(f"The causal_state_string {box_location_state_str} dose not contain location of the box")
+
+        _box_pattern = "[b|B][\d]+"
+        try:
+            _box_state: str = re.search(_box_pattern, box_location_state_str).group()
+        except AttributeError:
+            _box_state = ""
+            print(f"The causal_state_string {box_location_state_str} dose not contain box id")
+
+        _box_id_pattern = "\d+"
+        _box_id: int = int(re.search(_box_id_pattern, _box_state).group())
+
+        return _box_id, _loc_state
+
+    def _internal_node_mapping(self) -> TwoPlayerGraph:
+        """
+        A helper function that created a node to int dictionary. This helps in plotting as the node names in
+        two_player_pddl_ts_game are huge.
+        """
+
+        _node_int_map = bidict({state: index for index, state in enumerate(self._two_player_game._graph.nodes)})
+        _modified_two_player_pddl_ts = copy.deepcopy(self._two_player_game)
+
+        _relabelled_graph = nx.relabel_nodes(self._two_player_game._graph, _node_int_map, copy=True)
+        _modified_two_player_pddl_ts._graph = _relabelled_graph
+
+        return _modified_two_player_pddl_ts
+
