@@ -35,7 +35,7 @@ class FiniteTransitionSystem:
 
     @property
     def action_to_cost(self):
-        return self._transition_system
+        return self._action_to_cost
 
     @action_to_cost.setter
     def action_to_cost(self, action_cost_dict):

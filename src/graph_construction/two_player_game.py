@@ -130,7 +130,6 @@ class TwoPlayerGame:
                                                 org_succ_state_name=(_v, i),
                                                 human_intervention_cost=human_intervention_cost)
 
-        print("Iterating for the second time to check if human interventions created any new nodes")
         self.__add_transition_from_new_sys_states()
 
         # after adding valid transitions from novel Sys states to existing Sys states. We need to once again add human
@@ -428,10 +427,13 @@ class TwoPlayerGame:
                 _curr_causal_state_name = _curr_two_player_node.get("causal_state_name")
                 _curr_box_id, _curr_robo_loc = self._get_box_location(_curr_causal_state_name)
                 _intervention_remaining: int = _n[1]
+                _cost_dict: Dict = self._transition_system.action_to_cost
+
                 # if its a to-obj action
                 if "to-obj" in _n[0]:
-                    # form this state we add valid transition to "to-obj b# l#" sys states. These state should
+                    # from this state we add valid transition to "to-obj b# l#" sys states. These state should
                     # already exists in the two_player_pddl_ts graph
+                    _transit_cost: int = _cost_dict.get("transit")
                     for _box_id, _box_loc in enumerate(_curr_world_confg):
                         if _box_id != len(_curr_world_confg) - 1:
                             _valid_state_to_transit: tuple = (f'(to-obj b{_box_id} {_box_loc}){_curr_world_confg_str}',
@@ -445,10 +447,11 @@ class TwoPlayerGame:
                             self._two_player_game.add_edge(u=_n,
                                                            v=_valid_state_to_transit,
                                                            actions=_edge_action,
-                                                           weight=0)
+                                                           weight=_transit_cost)
                 elif "to-loc" in _n[0]:
                     # in this state the robot is moving a box. So, we add transitions to location that are currently
                     # available/free
+                    _transfer_cost: int = _cost_dict.get("transfer")
                     _occupied_locs: set = set()
                     _succ_world_conf = _curr_world_confg.copy()
                     for _idx, _loc in enumerate(_curr_world_confg):
@@ -471,7 +474,7 @@ class TwoPlayerGame:
                         self._two_player_game.add_edge(u=_n,
                                                        v=_valid_state_to_transit,
                                                        actions=_edge_action,
-                                                       weight=0)
+                                                       weight=_transfer_cost)
 
                 else:
                     warnings.warn(f"Encountered a Sys state due to human intervention which was unaccounted for. "
@@ -579,6 +582,31 @@ class TwoPlayerGame:
 
             # delete the list_ap node attribute
             del self._two_player_game._graph.nodes[_n]['list_ap']
+
+    def modify_ap_w_object_types(self):
+        """
+        A function that modifies the list of atomic propositions that are true at a given state with the box type
+
+        e.g ["l2", "l3", "l4", "free"] => ["p02", "p13", "p24", "free"] or
+        [gripper, "l3", "l0", "b0"] => ["gripper", "p13", "p20", "b0"].
+
+        NOTE: Before calling this function, make sure we call the set_appropriate_ap_attribute_name() method that swaps
+         the list_ap node with ap attribute.
+        """
+
+        for _n in self._two_player_game._graph.nodes():
+            _list_ap = self._two_player_game.get_state_w_attribute(_n, "ap")
+            _tmp_lst_ap = _list_ap.copy()
+
+            for _idx, _box_loc in enumerate(_list_ap):
+                if _box_loc == "gripper" or _idx == len(_list_ap) - 1:
+                    continue
+                else:
+                    _loc = re.findall('[0-9]+', _box_loc)
+                    _new_ap_str = f"p{_idx}{_loc[0]}"
+                    _tmp_lst_ap[_idx] = _new_ap_str
+
+            self._two_player_game._graph.nodes[_n]['ap'] = _tmp_lst_ap
 
     def build_LTL_automaton(self, formula: str, debug: bool=False):
         """

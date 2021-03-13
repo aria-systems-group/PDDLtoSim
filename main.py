@@ -21,8 +21,9 @@ if __name__ == "__main__":
     two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
     two_player_instance.build_two_player_game(plot_two_player_game=False)
     two_player_instance.set_appropriate_ap_attribute_name()
+    two_player_instance.modify_ap_w_object_types()
 
-    dfa = two_player_instance.build_LTL_automaton(formula="!l1 U l2")
+    dfa = two_player_instance.build_LTL_automaton(formula="F(p02)")
     product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
     relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
     relabelled_graph.plot_graph()
