@@ -11,12 +11,18 @@ if __name__ == "__main__":
     domain_file_path = _project_root + "/pddl_files/blocks_world/domain.pddl"
     problem_file_ath = _project_root + "/pddl_files/blocks_world/problem.pddl"
 
-    _causal_graph_instance = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=False)
+    causal_graph_instance = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=False)
 
-    _causal_graph_instance.build_causal_graph(add_cooccuring_edges=False)
+    causal_graph_instance.build_causal_graph(add_cooccuring_edges=False)
 
-    _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
-    _transition_system_instance.build_transition_system(plot=False)
+    transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
+    transition_system_instance.build_transition_system(plot=False)
 
-    _two_player_instance = TwoPlayerGame(_causal_graph_instance, _transition_system_instance)
-    _two_player_instance.build_two_player_game(plot_two_player_game=True)
+    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    two_player_instance.build_two_player_game(plot_two_player_game=False)
+    two_player_instance.set_appropriate_ap_attribute_name()
+
+    dfa = two_player_instance.build_LTL_automaton(formula="!l1 U l2")
+    product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
+    relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
+    relabelled_graph.plot_graph()

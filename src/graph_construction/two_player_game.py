@@ -35,7 +35,7 @@ class TwoPlayerGame:
 
     @property
     def two_player_game(self):
-        if isinstance(self._two_player_game, None):
+        if isinstance(self._two_player_game, type(None)):
             warnings.warn("The Two player game is of type of None. Please build the game before accessing it")
         return self._two_player_game
 
@@ -188,7 +188,7 @@ class TwoPlayerGame:
 
         if plot_two_player_game:
             if relabel_nodes:
-                _relabelled_graph = self._internal_node_mapping()
+                _relabelled_graph = self.internal_node_mapping(self._two_player_game)
                 _relabelled_graph.plot_graph()
             else:
                 self._two_player_game.plot_graph()
@@ -548,17 +548,73 @@ class TwoPlayerGame:
 
         return _box_id, _loc_state
 
-    def _internal_node_mapping(self) -> TwoPlayerGraph:
+    def internal_node_mapping(self, game: TwoPlayerGraph) -> TwoPlayerGraph:
         """
         A helper function that created a node to int dictionary. This helps in plotting as the node names in
         two_player_pddl_ts_game are huge.
         """
 
-        _node_int_map = bidict({state: index for index, state in enumerate(self._two_player_game._graph.nodes)})
-        _modified_two_player_pddl_ts = copy.deepcopy(self._two_player_game)
+        _node_int_map = bidict({state: index for index, state in enumerate(game._graph.nodes)})
+        _modified_two_player_pddl_ts = copy.deepcopy(game)
 
-        _relabelled_graph = nx.relabel_nodes(self._two_player_game._graph, _node_int_map, copy=True)
+        _relabelled_graph = nx.relabel_nodes(game._graph, _node_int_map, copy=True)
         _modified_two_player_pddl_ts._graph = _relabelled_graph
 
         return _modified_two_player_pddl_ts
+
+    def set_appropriate_ap_attribute_name(self):
+        """
+        A helper function that iterates through every node in the two player game, removes the list ap attribute
+        and replaces the ap attribute with that list ap. We also add a new node attribute str_ap that stores the string
+        form of the list ap attribute corresponding to that node.
+        """
+
+        for _n in self._two_player_game._graph.nodes():
+            _node_atts = self._two_player_game._graph.nodes[_n]
+            _tmp_ap = _node_atts.get("list_ap")
+            _tmp_str_ap = _node_atts.get("ap")
+
+            self._two_player_game._graph.nodes[_n]['ap'] = _tmp_ap
+            self._two_player_game._graph.nodes[_n]['str_ap'] = _tmp_str_ap
+
+            # delete the list_ap node attribute
+            del self._two_player_game._graph.nodes[_n]['list_ap']
+
+    def build_LTL_automaton(self, formula: str, debug: bool=False):
+        """
+        A method to construct automata using the regret_synthesis_tool.
+        """
+
+        if not isinstance(formula, str):
+            warnings.warn("Please make sure the input formula is of type string.")
+
+        _ltl_automaton = graph_factory.get('DFA',
+                                           graph_name="pddl_ltl",
+                                           config_yaml="/config/pddl_ltl",
+                                           save_flag=True,
+                                           sc_ltl=formula,
+                                           use_alias=False,
+                                           plot=False)
+
+        if debug:
+            print(f"The pddl formula is : {formula}")
+
+        return _ltl_automaton
+
+    def build_product(self, dfa, trans_sys, plot: bool = False):
+        _product_automaton = graph_factory.get("ProductGraph",
+                                               graph_name="pddl_product_graph",
+                                               config_yaml="/config/pddl_product_graph",
+                                               trans_sys=trans_sys,
+                                               dfa=dfa,
+                                               save_flag=True,
+                                               prune=False,
+                                               debug=False,
+                                               absorbing=True,
+                                               finite=False,
+                                               plot=plot)
+
+        print("DOne build the Product Automaton")
+
+        return _product_automaton
 

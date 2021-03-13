@@ -134,42 +134,6 @@ class CausalGraph:
             if _type.name == 'box_loc':
                 self._task_locations.append(_object)
 
-    def build_LTL_automato(self, formula: str, debug: bool=False):
-        """
-        A method to construct automata using the regret_synthesis_tool.
-        """
-
-        if not isinstance(formula, str):
-            warnings.warn("Please make sure the input formula is of type string.")
-
-        _ltl_automata = graph_factory.get('DFA',
-                                          graph_name="pddl_ltl",
-                                          config_yaml="/config/pddl_ltl",
-                                          save_flag=True,
-                                          sc_ltl=formula,
-                                          use_alias=False,
-                                          plot=False)
-
-        self._pddl_ltl_automata =_ltl_automata
-
-        if debug:
-            print(f"The pddl formula is : {formula}")
-
-    def build_product(self):
-        _product_automaton = graph_factory.get("ProductGraph",
-                                               graph_name="pddl_product_graph",
-                                               config_yaml="/config/pddl_product_graph",
-                                               trans_sys=self._raw_pddl_ts,
-                                               dfa=self._pddl_ltl_automata,
-                                               save_flag=True,
-                                               prune=False,
-                                               debug=False,
-                                               absorbing=True,
-                                               finite=False,
-                                               plot=True)
-
-        print("interesting")
-
 
 if __name__ == "__main__":
 
