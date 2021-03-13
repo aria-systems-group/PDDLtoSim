@@ -84,9 +84,9 @@ class Panda:
 
         # add boxes on the table
         self.box_obj = self.bullet_client.loadURDF(fileName=PATH_TO_RED_BOX,
-                                                   basePosition=_base_positon + np.array([0.3, 0, 0.6 + 0.17/2]),
+                                                   basePosition=_base_positon + np.array([-0.1, 0, 0.7 + 0.17/2]),
                                                    baseOrientation=_base_orientation,
-                                                   useFixedBase=True,
+                                                   useFixedBase=False,
                                                    flags=self.flags)
 
         # self.bullet_client.loadURDF(fileName=PATH_TO_BLACK_BOX,
@@ -172,12 +172,12 @@ class Panda:
 
         self.pos = _robot_ee_world_pos
 
-        alpha = 0.1  # 0.99
+        alpha = 0.99  # 0.99
         # state 1 - change the x value
         # state 2 - change the y value
         # state 3 - change the z value
-        # state 4 - Open the fingers value
-        # state 5 - close the fingers value
+        # state 8 - Open the fingers value
+        # state 7 - close the fingers value
         if self.state == 1:
             self.pos = [self.pos[0] + alpha * self.step_size, self.pos[1], self.pos[2]]
 
@@ -195,36 +195,13 @@ class Panda:
 
         elif self.state == 6:
             self.pos = [self.pos[0], self.pos[1], self.pos[2] - alpha * self.step_size]
-        # if self.state == 1 or self.state == 2 or self.state == 3 or self.state == 4 or self.state == 7:
-        #     self.gripper_height = alpha * self.gripper_height + (1. - alpha) * 0.03
-        #     if self.state == 2 or self.state == 3 or self.state == 7:
-        #         self.gripper_height = alpha * self.gripper_height + (1. - alpha) * 0.2
-        #
-        #     t = self.t
-        #     self.t += self.step_size
-        #
-        #     pos = [self.offset[0] + 0.2 * math.sin(1.5 * t),
-        #            self.offset[1] + 0.1 * math.cos(1.5 * t),
-        #            self.offset[2] + self.gripper_height]
-        #
-        #     if self.state == 3 or self.state == 4:
-        #         pos, o = self.bullet_client.getBasePositionAndOrientation(self.box_obj)
-        #         pos = [pos[0], pos[1], self.gripper_height]
-        #         self.prev_pos = pos
-        #
-        #     if self.state == 7:
-        #         pos = self.prev_pos
-        #         diffX = pos[0] - self.offset[0]
-        #         diffZ = pos[2] - (self.offset[2] - 0.6)
-        #         self.prev_pos = [self.prev_pos[0] - diffX * 0.1, self.prev_pos[1], self.prev_pos[2] - diffZ * 0.1]
 
         orn = self.bullet_client.getQuaternionFromEuler([math.pi, 0., 0.])
         self.bullet_client.submitProfileTiming("IK")
 
         joint_poses = self.bullet_client.calculateInverseKinematics(self.robot_obj,
-                                                                   pandaEndEffectorIndex, self.pos, orn, ll,
-                                                                   ul,
-                                                                   jr, rp, maxNumIterations=20)
+                                                                    pandaEndEffectorIndex, self.pos, orn, ll,
+                                                                    ul, jr, rp, maxNumIterations=20)
         self.bullet_client.submitProfileTiming()
 
         for i in range(pandaNumDofs):
@@ -237,110 +214,153 @@ class Panda:
                                                      self.finger_target, force=10)
         self.bullet_client.submitProfileTiming()
 
-    def _fixed_pick_and_place(self):
-        # sequence of positions
-        _pos_seq = []
+    def _continuous_pick_and_place(self, time_step: int, org_box_pos: list):
+        if 0 < time_step <= 200:
+            # go to the object
+
+            _grasp_pos = [org_box_pos[0], org_box_pos[1], org_box_pos[2] + 0.3]
+            self.perform_action(_grasp_pos)
+            self.pre_grasp()
+        elif 200 < time_step <= 300:
+            # open the end effector
+            self.pre_grasp()
+        elif 300 < time_step <= 400:
+            # go down to the target
+            _grasp_pos = [org_box_pos[0], org_box_pos[1], org_box_pos[2]]
+            self.perform_action(_grasp_pos)
+            self.pre_grasp()
+
+        elif 400 < time_step <= 500:
+            # grasp the object
+            self.grasp()
+
+        elif 500 < time_step <= 700:
+            # place the object somewhere and release
+            # go down to the target and open the end effector
+            _grasp_pos = [org_box_pos[0], org_box_pos[1], org_box_pos[2] + 0.3]
+            self.perform_action(_grasp_pos)
+            self.grasp()
+        elif 700 < time_step <= 800:
+            # go to some rest position
+            _grasp_pos = [org_box_pos[0], org_box_pos[1], org_box_pos[2] + 0.03]
+            self.perform_action(_grasp_pos)
+            self.grasp()
+        elif 800 < time_step <= 900:
+            # go to some rest position
+            self.pre_grasp()
+
+    def _iterative_pick_and_place(self, org_box_pos: list):
+        _grasp_pos = [org_box_pos[0], org_box_pos[1], org_box_pos[2] + 0.3]
+        self.perform_action(_grasp_pos)
+        self.pre_grasp()
+        for _ in range(100):
+            p.stepSimulation()
+            time.sleep(0.01)
+
+        _grasp_pos = [org_box_pos[0], org_box_pos[1], org_box_pos[2]]
+        self.perform_action(_grasp_pos)
+        self.pre_grasp()
+        for _ in range(100):
+            p.stepSimulation()
+            time.sleep(0.01)
+
+        self.grasp()
+        for _ in range(100):
+            p.stepSimulation()
+            time.sleep(0.01)
+
+        _grasp_pos = [org_box_pos[0], org_box_pos[1], org_box_pos[2] + 0.3]
+        self.perform_action(_grasp_pos)
+        self.grasp()
+        for _ in range(100):
+            p.stepSimulation()
+            time.sleep(0.01)
+
+        _grasp_pos = [org_box_pos[0], org_box_pos[1], org_box_pos[2] + 0.01]
+        self.perform_action(_grasp_pos)
+        self.grasp()
+        for _ in range(100):
+            p.stepSimulation()
+            time.sleep(0.01)
+
+        self.pre_grasp()
+        for _ in range(100):
+            p.stepSimulation()
+            time.sleep(0.01)
+
+
+
+
+    def perform_action(self, pos: list, max_vel: int = 2):
+        if len(pos) != 3:
+            warnings.warn("Please provide a sequence of Robot End Effector Position.")
 
         # orientation remains constant
         orn = self.bullet_client.getQuaternionFromEuler([math.pi, 0., 0.])
-        _red_box_pos = self.bullet_client.getBasePositionAndOrientation(self.box_obj)[0]
-
-        # move end effector to the top
-        _grasp_pos = [_red_box_pos[0], _red_box_pos[1], _red_box_pos[2] + 0.2]
-        # _pos_seq.append(_grasp_pos)
         self.bullet_client.submitProfileTiming("IK")
 
         joint_poses = self.bullet_client.calculateInverseKinematics(self.robot_obj,
-                                                                    pandaEndEffectorIndex, _grasp_pos, orn, ll,
-                                                                    ul,
-                                                                    jr, rp, maxNumIterations=20)
+                                                                    pandaEndEffectorIndex, pos, orn, ll,
+                                                                    ul, jr, rp, maxNumIterations=20)
+
         for i in range(pandaNumDofs):
-            self.bullet_client.setJointMotorControl2(self.robot_obj, i, self.bullet_client.POSITION_CONTROL,
-                                                     joint_poses[i], force=5 * 240.)
+            self.bullet_client.setJointMotorControl2(bodyUniqueId=self.robot_obj,
+                                                     jointIndex=i,
+                                                     controlMode=self.bullet_client.POSITION_CONTROL,
+                                                     targetPosition=joint_poses[i],
+                                                     maxVelocity=max_vel)
 
-        self.bullet_client.submitProfileTiming()
-        # self.bullet_client.stepSimulation()
+    def pre_grasp(self):
+        self.apply_action_fingers([0.04, 0.04], pre_grasp=True)
 
-        # open end effector
-        self.finger_target = 0.04
+    def grasp(self):
+        self.apply_action_fingers([0.0, 0.0])
+
+    def apply_action_fingers(self, finger_pos, pre_grasp: bool = False):
+        assert len(finger_pos) == 2, ('finger joints are 2! The number of positions you passed is ', len(finger_pos))
+        force = 20
+        if pre_grasp:
+            force = 0
+
         for i in [9, 10]:
-            self.bullet_client.setJointMotorControl2(self.robot_obj, i, self.bullet_client.POSITION_CONTROL,
-                                                     self.finger_target, force=10)
-
-        self.bullet_client.submitProfileTiming()
-        # self.bullet_client.stepSimulation()
-
-        # go down and grab it
-        _grasp_pos = [_red_box_pos[0], _red_box_pos[1], _red_box_pos[2]]
-        self.bullet_client.submitProfileTiming("IK")
-
-        joint_poses = self.bullet_client.calculateInverseKinematics(self.robot_obj,
-                                                                    pandaEndEffectorIndex, _grasp_pos, orn, ll,
-                                                                    ul,
-                                                                    jr, rp, maxNumIterations=20)
-        for i in range(pandaNumDofs):
-            self.bullet_client.setJointMotorControl2(self.robot_obj, i, self.bullet_client.POSITION_CONTROL,
-                                                     joint_poses[i], force=5 * 240.)
-
-        self.bullet_client.submitProfileTiming()
-        # self.bullet_client.stepSimulation()
-
-        self.finger_target = 0.01
-        for i in [9, 10]:
-            self.bullet_client.setJointMotorControl2(self.robot_obj, i, self.bullet_client.POSITION_CONTROL,
-                                                     self.finger_target, force=10)
-
-        self.bullet_client.submitProfileTiming()
-        # self.bullet_client.stepSimulation()
-
-        # pick and place and some other location
-        _place_pos = [_grasp_pos[0] - 0.5, _grasp_pos[1] - 0.5, _grasp_pos[2]]
-        self.bullet_client.submitProfileTiming("IK")
-
-        joint_poses = self.bullet_client.calculateInverseKinematics(self.robot_obj,
-                                                                    pandaEndEffectorIndex, _place_pos, orn, ll,
-                                                                    ul,
-                                                                    jr, rp, maxNumIterations=20)
-        for i in range(pandaNumDofs):
-            self.bullet_client.setJointMotorControl2(self.robot_obj, i, self.bullet_client.POSITION_CONTROL,
-                                                     joint_poses[i], force=5 * 240.)
-
-        self.bullet_client.submitProfileTiming()
-        # self.bullet_client.stepSimulation()
-
-        # release
-        self.finger_target = 0.04
-        for i in [9, 10]:
-            self.bullet_client.setJointMotorControl2(self.robot_obj, i, self.bullet_client.POSITION_CONTROL,
-                                                     self.finger_target, force=10)
-
-        self.bullet_client.submitProfileTiming()
-        # self.bullet_client.stepSimulation()
-
-
-
+            self.bullet_client.setJointMotorControl2(self.robot_obj,
+                                                     i,
+                                                     self.bullet_client.POSITION_CONTROL,
+                                                     self.finger_target,
+                                                     force=force,
+                                                     maxVelocity=2)
     def simulate(self):
         # build the env
         self._build_env()
 
         self.bullet_client.submitProfileTiming("start")
+        _red_box_pos = self.bullet_client.getBasePositionAndOrientation(self.box_obj)[0]
+        _testcase = False
 
         # start simulating
         if self.mode == "interactive":
             for i in range(10000):
-                self.bullet_client.submitProfileTiming("full_step")
+                # self.bullet_client.submitProfileTiming("full_step")
                 self._interactive_step()
-                # self._fixed_pick_and_place()
                 self.bullet_client.stepSimulation()
-                self.bullet_client.submitProfileTiming()
-                time.sleep(0.05)
+                # self.bullet_client.submitProfileTiming()
+                time.sleep(0.01)
+
+        elif self.mode == "simulate":
+            if _testcase:
+                self._iterative_pick_and_place(org_box_pos=_red_box_pos)
+            else:
+                for i in range(900):
+                    self._continuous_pick_and_place(time_step=i, org_box_pos=_red_box_pos)
+                    self.bullet_client.stepSimulation()
+                    time.sleep(0.01)
 
         self.bullet_client.submitProfileTiming()
 
 
 if __name__ == "__main__":
     # video requires ffmpeg available in path
-    createVideo = True
+    createVideo = False
     fps = 240.
     timeStep = 1. / fps
 
@@ -356,5 +376,5 @@ if __name__ == "__main__":
     p.setTimeStep(timeStep)
     p.setGravity(0, 0, -9.8)
 
-    panda_sim = Panda(p, [0, 0, 0], joint_positions=jointPositions, mode="interactive")
+    panda_sim = Panda(p, [0, 0, 0], joint_positions=jointPositions, mode="simulate")
     panda_sim.simulate()

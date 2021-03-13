@@ -19,11 +19,15 @@ if __name__ == "__main__":
     transition_system_instance.build_transition_system(plot=False)
 
     two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
-    two_player_instance.build_two_player_game(plot_two_player_game=False)
+    two_player_instance.build_two_player_game(human_intervention=5, plot_two_player_game=False)
     two_player_instance.set_appropriate_ap_attribute_name()
     two_player_instance.modify_ap_w_object_types()
 
-    dfa = two_player_instance.build_LTL_automaton(formula="F(p02)")
+    dfa = two_player_instance.build_LTL_automaton(formula="F(p01 & ((p11 & p22) || (p12 & p21)))")
     product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
     relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
-    relabelled_graph.plot_graph()
+    # relabelled_graph.plot_graph()
+
+    # print some details about the product graph
+    print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
+    print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
