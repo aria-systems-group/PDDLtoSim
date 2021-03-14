@@ -288,9 +288,6 @@ class Panda:
             p.stepSimulation()
             time.sleep(0.01)
 
-
-
-
     def perform_action(self, pos: list, max_vel: int = 2):
         if len(pos) != 3:
             warnings.warn("Please provide a sequence of Robot End Effector Position.")

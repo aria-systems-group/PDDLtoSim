@@ -7,7 +7,7 @@
     l1 - box_loc
     l2 - box_loc
     l3 - box_loc
-;    l4 - box_loc
+    l4 - box_loc
 	
 
     b0 - box
