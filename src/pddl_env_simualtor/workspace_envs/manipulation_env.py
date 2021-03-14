@@ -29,7 +29,7 @@ class ManipulationDomain:
 
     @property
     def table_height(self):
-        return self.table_height
+        return self._table_height
 
     @property
     def obj_ids(self):
@@ -83,8 +83,12 @@ class ManipulationDomain:
     def load_object(self, obj_name, obj_init_position=None, obj_init_orientation=None):
         _filename = PATH_TO_LOCAL_URDF + PATH_TO_BOXES + obj_name + ".urdf"
 
+        # add the table height to the z position of the obj position
+        _new_obj_pos = obj_init_position
+        _new_obj_pos[2] = _new_obj_pos[2] + self.table_height
+
         obj_id = pb.loadURDF(fileName=_filename,
-                             basePosition=obj_init_position,
+                             basePosition=_new_obj_pos,
                              baseOrientation=obj_init_orientation,
                              useFixedBase=False,
                              flags=pb.URDF_USE_MATERIAL_COLORS_FROM_MTL,
@@ -96,4 +100,3 @@ class ManipulationDomain:
         info = list(pb.getCollisionShapeData(obj_id, -1, physicsClientId=self._physics_client_id)[0])
         info[4] = pb.getVisualShapeData(obj_id, -1, physicsClientId=self._physics_client_id)[0][4]
         return info
-

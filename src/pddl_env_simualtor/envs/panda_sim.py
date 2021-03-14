@@ -24,35 +24,35 @@ class PandaSim:
                  use_IK=0,
                  base_position=(0.0, 0.0, 0.6),
                  control_orientation=1,
-                 control_eu_or_quat=0,
                  joint_action_space=7):
 
+        self._time_step = 1. / 240.
         self._physics_client_id = physics_client_id
         self._use_IK = use_IK
         self._control_orientation = control_orientation
         self._base_position = base_position
-        self.sim_start_default_height = 0.01
-
+        self.sim_start_default_height = 0.00
         self.joint_action_space = joint_action_space
-        self._control_eu_or_quat = control_eu_or_quat
-
         self._workspace_lim = [[0.3, 0.65], [-0.3, 0.3], [0.65, 1.5]]
-        self._eu_lim = [[-math.pi, math.pi], [-math.pi, math.pi], [-math.pi, math.pi]]
-
         self.end_eff_idx = 11  # 8
-
         self._home_hand_pose = []
-
         self._num_dof = 7
         self._joint_name_to_ids = {}
         self.robot_id = None
         self._world: Optional[ManipulationDomain] = None
+        self.render()
 
     @property
     def world(self):
         return self._world
 
     def render(self):
+        # initialize simulation parameters
+        pb.configureDebugVisualizer(pb.COV_ENABLE_GUI, 0, physicsClientId=self._physics_client_id)
+        pb.setPhysicsEngineParameter(maxNumCmdPer1ms=1000, physicsClientId=self._physics_client_id)
+        pb.setTimeStep(self._time_step, physicsClientId=self._physics_client_id)
+        pb.setGravity(0, 0, -9.8, physicsClientId=self._physics_client_id)
+        pb.setAdditionalSearchPath(pd.getDataPath(), physicsClientId=self._physics_client_id)
 
         # Load robot model
         flags = pb.URDF_ENABLE_CACHED_GRAPHICS_SHAPES | pb.URDF_USE_INERTIA_FROM_FILE | pb.URDF_USE_SELF_COLLISION
@@ -103,12 +103,16 @@ class PandaSim:
                                          workspace_lim=self._workspace_lim)
 
         self._world.load_object(obj_name="red_box",
-                                obj_init_position=np.array([-0.1, 0.2, 0.6 + 0.17/2 + self.sim_start_default_height]),
+                                obj_init_position=np.array([+0.3, 0.2, 0.17/2 + self.sim_start_default_height]),
                                 obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
 
-        self._world.load_object(obj_name="black_box",
-                                obj_init_position=np.array([+0.1, 0.2, 0.6 + 0.17/2 + self.sim_start_default_height]),
-                                obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+        # self._world.load_object(obj_name="black_box",
+        #                         obj_init_position=np.array([+0.3, 0.0, 0.6 + 0.17/2 + self.sim_start_default_height]),
+        #                         obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+
+        # start the world for few secs
+        for _ in range(100):
+            pb.stepSimulation(physicsClientId=self._physics_client_id)
 
 
     def get_joint_ranges(self):
@@ -152,7 +156,6 @@ class PandaSim:
                                  '\ninstead it is: ', len(action))
 
         # --- Constraint end-effector pose inside the workspace --- #
-
         dx, dy, dz = action[:3]
         new_pos = [dx, dy,
                    min(self._workspace_lim[2][1], max(self._workspace_lim[2][0], dz))]
@@ -306,24 +309,62 @@ class PandaSim:
 
 
 if __name__ == "__main__":
-    fps = 240.
-    timeStep = 1. / fps
+
     physics_client = pb.connect(pb.GUI)
 
-    pb.configureDebugVisualizer(pb.COV_ENABLE_GUI, 0)
-    pb.setPhysicsEngineParameter(maxNumCmdPer1ms=1000)
-    pb.setAdditionalSearchPath(pd.getDataPath())
+    panda = PandaSim(physics_client, use_IK=1)
+    # panda.render()
 
-    pb.setTimeStep(timeStep)
-    pb.setGravity(0, 0, -9.8)
 
-    panda_sim = PandaSim(physics_client, use_IK=1)
-    panda_sim.render()
+    # panda_sim.world.get_object_ids()
+    # obj_shape_info = panda_sim.world.get_object_shape_info(3)
+    _, pos, orn = panda.world.get_obj_attr(3)
 
-    panda_sim.world.get_object_ids()
-    obj_shape_info = panda_sim.world.get_object_shape_info(3)
-    obj_info = panda_sim.world.get_obj_attr(3)
-
-    for _ in range(500):
+    # let do trail run
+    panda.pre_grasp()
+    pb.stepSimulation()
+    for _ in range(100):
         pb.stepSimulation()
         time.sleep(0.01)
+
+    # 1. go above the object
+    _pos = [pos[0], pos[1], pos[2] + 0.3]
+    panda.apply_action(action=_pos, max_vel=2)
+    panda.pre_grasp()
+
+    for _ in range(400):
+        pb.stepSimulation()
+        time.sleep(0.01)
+
+    # 2. go down towards the object
+    _pos = [pos[0], pos[1], pos[2] + 0.07]
+    panda.apply_action(action=_pos, max_vel=1)
+
+    for _ in range(600):
+        pb.stepSimulation()
+        time.sleep(0.01)
+
+    # 3. grab the object
+    _pos = [pos[0], pos[1], pos[2] + 0.3]
+    panda.apply_action(action=_pos, max_vel=1)
+    panda.grasp(obj_id=3)
+
+    for _ in range(400):
+        pb.stepSimulation()
+        time.sleep(0.01)
+
+    # 4. pick and place it somewhere else
+    _pos = [pos[0], pos[1], pos[2] + 0.07]
+    panda.apply_action(action=_pos, max_vel=2)
+    panda.grasp(obj_id=3)
+
+    for _ in range(100):
+        pb.stepSimulation()
+        time.sleep(0.01)
+
+    # release
+    panda.pre_grasp()
+    for _ in range(100):
+        pb.stepSimulation()
+        time.sleep(0.01)
+

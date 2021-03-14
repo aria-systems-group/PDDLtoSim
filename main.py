@@ -1,10 +1,30 @@
 import os
+import warnings
+import pybullet as pb
+import numpy as np
 
 from src.graph_construction.causal_graph import CausalGraph
 from src.graph_construction.transition_system import FiniteTransitionSystem
 from src.graph_construction.two_player_game import TwoPlayerGame
 
+from src.pddl_env_simualtor.envs.panda_sim import PandaSim
+
+def load_pre_build_loc_info(exp_name: str):
+    if exp_name == "diag":
+        loc_dict = {
+            'l0': np.array([0.3, 0.2, 0.17/2]),
+            'l1': np.array([0.3, -0.2, 0.17/2]),
+            'l2': np.array([0.6, 0.2, 0.17/2]),
+            'l3': np.array([0.6, -0.2, 0.17/2]),
+            'l4': np.array([0.45, 0.0, 0.17/2])
+        }
+    elif exp_name == "arch":
+        pass
+    else:
+        warnings.warn("PLease enter a valid experiment name")
+
 if __name__ == "__main__":
+    # build the product automaton
     _project_root = os.path.dirname(os.path.abspath(__file__))
 
     # Experimental stage - lets try calling the function within pyperplan
@@ -31,3 +51,8 @@ if __name__ == "__main__":
     # print some details about the product graph
     print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
     print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
+
+    # build the simulator
+    physics_client = pb.connect(pb.GUI)
+
+    panda = PandaSim(physics_client, use_IK=1)
