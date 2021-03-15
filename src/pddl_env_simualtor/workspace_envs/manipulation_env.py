@@ -23,7 +23,7 @@ class ManipulationDomain:
         self._physics_client_id = physics_client_id
         self._ws_lim = tuple(workspace_lim)
         self._table_height = []
-        self._obj_ids: Dict = {}
+        self._objs: Dict = {}
 
         self.render()
 
@@ -32,15 +32,15 @@ class ManipulationDomain:
         return self._table_height
 
     @property
-    def obj_ids(self):
-        return self._obj_ids
+    def objs(self):
+        return self._objs
 
     def get_object_ids(self) -> List[int]:
         """
         Every object loaded in the environment has its own uniqye id. This methods returns ONLY the list of ids.
         """
 
-        return list(self._obj_ids.keys())
+        return list(self._objs.keys())
 
     def get_obj_attr(self, obj_id: int) -> Tuple:
         """
@@ -53,15 +53,49 @@ class ManipulationDomain:
 
         assert type(obj_id) == int, "An object Id is always of type integer"
 
-        if self._obj_ids.get(obj_id) is None:
+        if self._objs.get(obj_id) is None:
             warnings.warn(f"The object id {obj_id} is not a Valid obj id. Please enter an id from"
-                          f" {self._obj_ids.keys()}")
+                          f" {self._objs.keys()}")
 
-        _obj_attrs = self._obj_ids.get(obj_id)
+        _obj_attrs = self._objs.get(obj_id)
         _obj_name = _obj_attrs[0]
         _obj_curr_pose = pb.getBasePositionAndOrientation(obj_id)
 
         return _obj_name, _obj_curr_pose[0], _obj_curr_pose[1]
+
+    def get_obj_id(self, obj_name: str):
+        """
+        A helper function that returns the id of the obj given an object name
+        """
+
+        for _obj_id, _obj_attrs in self.objs:
+            if _obj_attrs[0] == obj_name:
+                return _obj_id
+
+        warnings.warn(f"Could not find an object with the name {obj_name}")
+        return None
+
+    def get_obj_ids_from(self, obj_names: list):
+        """
+        A helper function to get a set of object ids corresponding to a set of obj names
+        """
+        _obj_ids = []
+
+        for _obj_name in obj_names:
+            _obj_ids.append(self.get_obj_id(_obj_name))
+
+        return _obj_ids
+
+    def get_obj_pose(self, obj_name):
+        """
+        A help function that return the pose corresponding the object name. We first retireve the obj id and the get the
+        object information in the world.
+        """
+        _obj_id = self.get_obj_id(obj_name)
+
+        _obj_pos, _obj_orn = pb.getBasePositionAndOrientation(_obj_id, physicsClientId=self._physics_client_id)
+
+        return _obj_pos, _obj_orn
 
     def render(self):
         # load plane
@@ -80,8 +114,8 @@ class ManipulationDomain:
         # set ws limit on z according to table height
         self._ws_lim[2][:] = [self._table_height, self._table_height + 0.3]
 
-    def load_object(self, obj_name, obj_init_position=None, obj_init_orientation=None):
-        _filename = PATH_TO_LOCAL_URDF + PATH_TO_BOXES + obj_name + ".urdf"
+    def load_object(self, urdf_name, obj_name, obj_init_position=None, obj_init_orientation=None):
+        _filename = PATH_TO_LOCAL_URDF + PATH_TO_BOXES + urdf_name + ".urdf"
 
         # add the table height to the z position of the obj position
         _new_obj_pos = obj_init_position
@@ -94,7 +128,7 @@ class ManipulationDomain:
                              flags=pb.URDF_USE_MATERIAL_COLORS_FROM_MTL,
                              physicsClientId=self._physics_client_id)
 
-        self._obj_ids.update({obj_id: (obj_name, obj_init_position, obj_init_orientation)})
+        self._objs.update({obj_id: (obj_name, obj_init_position, obj_init_orientation)})
 
     def get_object_shape_info(self, obj_id):
         info = list(pb.getCollisionShapeData(obj_id, -1, physicsClientId=self._physics_client_id)[0])

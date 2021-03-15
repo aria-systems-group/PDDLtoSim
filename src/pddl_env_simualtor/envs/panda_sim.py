@@ -21,10 +21,11 @@ class PandaSim:
 
     def __init__(self,
                  physics_client_id,
-                 use_IK=0,
-                 base_position=(0.0, 0.0, 0.6),
-                 control_orientation=1,
-                 joint_action_space=7):
+                 use_IK: int = 0,
+                 base_position: iter =(0.0, -0.4, 0.6),
+                 control_orientation: int = 1,
+                 joint_action_space: int = 7,
+                 record: bool = False):
 
         self._time_step = 1. / 240.
         self._physics_client_id = physics_client_id
@@ -40,11 +41,36 @@ class PandaSim:
         self._joint_name_to_ids = {}
         self.robot_id = None
         self._world: Optional[ManipulationDomain] = None
+        self._record = record
         self.render()
 
     @property
     def world(self):
         return self._world
+
+    @property
+    def time_step(self):
+        return self.time_step
+
+    @property
+    def base_position(self):
+        return self._base_position
+
+    @property
+    def workspace_lim(self):
+        return self._workspace_lim
+
+    @property
+    def num_dof(self):
+        return self._num_dof
+
+    @property
+    def record(self):
+        return self._record
+
+    @record.setter
+    def record(self, flag: bool):
+        self._record = flag
 
     def render(self):
         # initialize simulation parameters
@@ -58,6 +84,7 @@ class PandaSim:
         flags = pb.URDF_ENABLE_CACHED_GRAPHICS_SHAPES | pb.URDF_USE_INERTIA_FROM_FILE | pb.URDF_USE_SELF_COLLISION
         self.robot_id = pb.loadURDF(fileName="franka_panda/panda.urdf",
                                     basePosition=self._base_position,
+                                    baseOrientation=pb.getQuaternionFromEuler([0, 0, 3.14/2]),
                                     useFixedBase=True,
                                     flags=flags,
                                     physicsClientId=self._physics_client_id)
@@ -91,12 +118,12 @@ class PandaSim:
         self.ll, self.ul, self.jr, self.rs = self.get_joint_ranges()
 
         if self._use_IK:
-            self._home_hand_pose = [-0.2, 0.0, 0.8,
+            self._home_hand_pose = [0.0, -0.1, 0.8,
                                     min(math.pi, max(-math.pi, math.pi)),
-                                    min(math.pi, max(-math.pi, 0)),
-                                    min(-math.pi, max(-math.pi, 0))]
+                                    min(math.pi, max(-math.pi, 0)), math.pi/2]
+                                    # min(0, max(-math.pi, 0))]
 
-            self.apply_action(self._home_hand_pose)
+            self.apply_low_level_action(self._home_hand_pose)
             pb.stepSimulation(physicsClientId=self._physics_client_id)
 
             # create a constraint to keep the fingers centered
@@ -113,19 +140,46 @@ class PandaSim:
 
         self._world = ManipulationDomain(physics_client_id=self._physics_client_id,
                                          workspace_lim=self._workspace_lim)
-
-        # self._world.load_object(obj_name="red_box",
-        #                         obj_init_position=np.array([+0.45, +0.0, 0.17/2 + self.sim_start_default_height]),
-        #                         obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
-
-        # self._world.load_object(obj_name="black_box",
-        #                         obj_init_position=np.array([+0.3, 0.0, 0.6 + 0.17/2 + self.sim_start_default_height]),
-        #                         obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
-
         # start the world for few secs
         for _ in range(100):
             pb.stepSimulation(physicsClientId=self._physics_client_id)
 
+    def goal_distance(self, a: np.ndarray, b: np.ndarray):
+        if not a.shape == b.shape:
+            raise AssertionError("goal_distance(): shape of points mismatch")
+        return np.linalg.norm(a - b, axis=-1)
+
+    def get_ee_location(self, debug: bool = False):
+        """
+        A helper function that returns the pose : including the position and quanternion of the end effector in the
+         simulation
+        """
+        _state = pb.getLinkState(self.robot_id,
+                                 self.end_eff_idx,
+                                 computeLinkVelocity=1,
+                                 computeForwardKinematics=1,
+                                 physicsClientId=self._physics_client_id)
+        _ee_pos = _state[0]
+        _ee_orn = _state[1]
+
+        if debug:
+            print(_state)
+
+        return _ee_pos, _ee_orn
+
+    def done_action(self, target_pose: Tuple[list, list], tol_pos=0.01, tol_orn=0.05) -> bool:
+        """
+        A helper function that determines if the desired pose has been achieved or not
+        """
+
+        _ee_pos, _ee_orn = self.get_ee_location()
+
+        d_pos = self.goal_distance(np.array(target_pose[0]), np.array(_ee_pos))
+        d_orn = self.goal_distance(np.array(target_pose[1]), np.array(_ee_orn))
+
+        if d_pos < tol_pos and d_orn < tol_orn:
+            return True
+        return False
 
     def get_joint_ranges(self):
         lower_limits, upper_limits, joint_ranges, rest_poses = [], [], [], []
@@ -146,7 +200,65 @@ class PandaSim:
 
         return lower_limits, upper_limits, joint_ranges, rest_poses
 
-    def apply_action(self, action, max_vel=-1):
+    def apply_high_level_action(self, action_type: str, pose, vel=1):
+        """
+        A wrapper that call the appropriate action function based on the action type, automatically adjusts the time
+        required to reach the desired location state.
+        """
+
+        if action_type == "openEE":
+            # apply action
+            self.pre_grasp(vel)
+            # while not self.done_action(_ee_target_pos, _ee_target_quat_orn):
+            for _ in range (500):
+                # simulate it
+                pb.stepSimulation()
+                time.sleep(self._time_step)
+
+        elif action_type == "closeEE":
+            # apply action
+            self.grasp(max_velocity=vel)
+
+            # while not self.done_action:
+            for _ in range(500):
+                # simulate it
+                pb.stepSimulation()
+                time.sleep(self._time_step)
+
+        elif action_type == "transit":
+            _ee_target_quat_orn = pb.getQuaternionFromEuler(pose[3:6])
+            _ee_target_pos = pose[:3]
+
+            self.apply_low_level_action(action=pose, max_vel=vel)
+            self.pre_grasp(vel)
+            _timer = 0
+            while not self.done_action((_ee_target_pos, _ee_target_quat_orn)):
+                # simulate it
+                pb.stepSimulation()
+                time.sleep(self._time_step)
+                _timer += self._time_step
+
+                if _timer > 10:
+                    break
+
+        elif action_type == "transfer":
+            _ee_target_quat_orn = pb.getQuaternionFromEuler(pose[3:6])
+            _ee_target_pos = pose[:3]
+
+            self.apply_low_level_action(action=pose, max_vel=vel)
+            self.grasp(max_velocity=vel)
+
+            _timer = 0
+            while not self.done_action((_ee_target_pos, _ee_target_quat_orn)):
+                # simulate it
+                pb.stepSimulation()
+                time.sleep(self._time_step)
+                _timer += self._time_step
+
+                if _timer > 10:
+                    break
+
+    def apply_low_level_action(self, action, max_vel=-1):
 
         if self._use_IK:
             # ------------------ #
