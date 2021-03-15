@@ -3,7 +3,7 @@
   <link name="base_link">
     <inertial>
       <origin xyz="0 0 0" rpy="0 0 0" />
-      <mass value="0.5" />
+      <mass value="1.0" />
       <!-- <inertia ixx="0.000363" ixy="0" ixz="0" iyy="0.000363" iyz="0"
           izz="0.00006" /> -->
       <inertia ixx="0.000360" ixy="0" ixz="0" iyy="0.0000615" iyz="0"
@@ -12,7 +12,7 @@
     <visual>
       <origin xyz="0 0 0" rpy="0 0 0" />
       <geometry>
-        <box size="0.03 0.03 0.16" />
+        <box size="0.06 0.06 0.17" />
       </geometry>
       <material name="red">
         <color rgba="0.8 0.1 0.1 0.9" />
@@ -32,58 +32,58 @@
       https://github.com/RobotLocomotion/drake/issues/6254 tracks the
       difficulty in supporting face-to-face contact.
      -->
-    <contact_coefficients kd="1000.0" kp="0000.0" mu="100"/>
+    <contact_coefficients kd="1.0" kp="1000.0" mu="1"/>
     <collision>
       <geometry>
-        <box size="0.029 0.029 0.159" />
+        <box size="0.059 0.059 0.169" />
       </geometry>
     </collision>
 
     <collision>
-      <origin xyz="-0.015 -0.015 -0.04" rpy="0 0 0"/>
+      <origin xyz="-0.03 -0.03 -0.085" rpy="0 0 0"/>
       <geometry>
         <sphere radius="1e-7"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="-0.015 0.015 -0.08" rpy="0 0 0"/>
+      <origin xyz="-0.03 0.03 -0.085" rpy="0 0 0"/>
       <geometry>
         <sphere radius="1e-7"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.015 0.015 -0.08" rpy="0 0 0"/>
+      <origin xyz="0.03 0.03 -0.085" rpy="0 0 0"/>
       <geometry>
         <sphere radius="1e-7"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.015 -0.015 -0.08" rpy="0 0 0"/>
+      <origin xyz="0.03 -0.03 -0.085" rpy="0 0 0"/>
       <geometry>
         <sphere radius="1e-7"/>
       </geometry>
     </collision>
 
     <collision>
-      <origin xyz="-0.015 -0.015 0.08" rpy="0 0 0"/>
+      <origin xyz="-0.03 -0.03 0.085" rpy="0 0 0"/>
       <geometry>
         <sphere radius="1e-7"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="-0.015 0.015 0.08" rpy="0 0 0"/>
+      <origin xyz="-0.03 0.03 0.085" rpy="0 0 0"/>
       <geometry>
         <sphere radius="1e-7"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.015 0.015 0.08" rpy="0 0 0"/>
+      <origin xyz="0.03 0.03 0.085" rpy="0 0 0"/>
       <geometry>
         <sphere radius="1e-7"/>
       </geometry>
     </collision>
     <collision>
-      <origin xyz="0.015 -0.015 0.08" rpy="0 0 0"/>
+      <origin xyz="0.03 -0.03 0.085" rpy="0 0 0"/>
       <geometry>
         <sphere radius="1e-7"/>
       </geometry>

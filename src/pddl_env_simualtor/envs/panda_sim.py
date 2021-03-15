@@ -91,20 +91,32 @@ class PandaSim:
         self.ll, self.ul, self.jr, self.rs = self.get_joint_ranges()
 
         if self._use_IK:
-            self._home_hand_pose = [0.2, 0.0, 0.8,
+            self._home_hand_pose = [-0.2, 0.0, 0.8,
                                     min(math.pi, max(-math.pi, math.pi)),
                                     min(math.pi, max(-math.pi, 0)),
-                                    min(math.pi, max(-math.pi, 0))]
+                                    min(-math.pi, max(-math.pi, 0))]
 
             self.apply_action(self._home_hand_pose)
             pb.stepSimulation(physicsClientId=self._physics_client_id)
 
+            # create a constraint to keep the fingers centered
+            c = pb.createConstraint(parentBodyUniqueId=self.robot_id,
+                                    parentLinkIndex=9,
+                                    childBodyUniqueId=self.robot_id,
+                                    childLinkIndex=10,
+                                    jointType=pb.JOINT_GEAR,
+                                    jointAxis=[1, 0, 0],
+                                    parentFramePosition=[0, 0, 0],
+                                    childFramePosition=[0, 0, 0])
+
+            pb.changeConstraint(c, gearRatio=-1, erp=0.1, maxForce=50)
+
         self._world = ManipulationDomain(physics_client_id=self._physics_client_id,
                                          workspace_lim=self._workspace_lim)
 
-        self._world.load_object(obj_name="red_box",
-                                obj_init_position=np.array([+0.3, 0.2, 0.17/2 + self.sim_start_default_height]),
-                                obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+        # self._world.load_object(obj_name="red_box",
+        #                         obj_init_position=np.array([+0.45, +0.0, 0.17/2 + self.sim_start_default_height]),
+        #                         obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
 
         # self._world.load_object(obj_name="black_box",
         #                         obj_init_position=np.array([+0.3, 0.0, 0.6 + 0.17/2 + self.sim_start_default_height]),
@@ -225,13 +237,13 @@ class PandaSim:
                                      positionGain=0.5, velocityGain=1.0,
                                      physicsClientId=self._physics_client_id)
 
-    def pre_grasp(self):
-        self.apply_action_fingers([0.04, 0.04])
+    def pre_grasp(self, max_velocity: int = 1):
+        self.apply_action_fingers([0.04, 0.04], max_velocity)
 
-    def grasp(self, obj_id=None):
-        self.apply_action_fingers([0.0, 0.0], obj_id)
+    def grasp(self, obj_id: int = None, max_velocity: int = 1):
+        self.apply_action_fingers([0.0, 0.0], max_velocity, obj_id)
 
-    def apply_action_fingers(self, action, obj_id=None):
+    def apply_action_fingers(self, action, max_velocity, obj_id: int = None):
         # move finger joints in position control
         assert len(action) == 2, ('finger joints are 2! The number of actions you passed is ', len(action))
 
@@ -253,8 +265,8 @@ class PandaSim:
                                      idx,
                                      pb.POSITION_CONTROL,
                                      targetPosition=action[i],
-                                     force=10,
-                                     maxVelocity=1,
+                                     force=30,
+                                     maxVelocity=max_velocity,
                                      physicsClientId=self._physics_client_id)
 
     def check_contact_fingertips(self, obj_id):
@@ -311,60 +323,4 @@ class PandaSim:
 if __name__ == "__main__":
 
     physics_client = pb.connect(pb.GUI)
-
     panda = PandaSim(physics_client, use_IK=1)
-    # panda.render()
-
-
-    # panda_sim.world.get_object_ids()
-    # obj_shape_info = panda_sim.world.get_object_shape_info(3)
-    _, pos, orn = panda.world.get_obj_attr(3)
-
-    # let do trail run
-    panda.pre_grasp()
-    pb.stepSimulation()
-    for _ in range(100):
-        pb.stepSimulation()
-        time.sleep(0.01)
-
-    # 1. go above the object
-    _pos = [pos[0], pos[1], pos[2] + 0.3]
-    panda.apply_action(action=_pos, max_vel=2)
-    panda.pre_grasp()
-
-    for _ in range(400):
-        pb.stepSimulation()
-        time.sleep(0.01)
-
-    # 2. go down towards the object
-    _pos = [pos[0], pos[1], pos[2] + 0.07]
-    panda.apply_action(action=_pos, max_vel=1)
-
-    for _ in range(600):
-        pb.stepSimulation()
-        time.sleep(0.01)
-
-    # 3. grab the object
-    _pos = [pos[0], pos[1], pos[2] + 0.3]
-    panda.apply_action(action=_pos, max_vel=1)
-    panda.grasp(obj_id=3)
-
-    for _ in range(400):
-        pb.stepSimulation()
-        time.sleep(0.01)
-
-    # 4. pick and place it somewhere else
-    _pos = [pos[0], pos[1], pos[2] + 0.07]
-    panda.apply_action(action=_pos, max_vel=2)
-    panda.grasp(obj_id=3)
-
-    for _ in range(100):
-        pb.stepSimulation()
-        time.sleep(0.01)
-
-    # release
-    panda.pre_grasp()
-    for _ in range(100):
-        pb.stepSimulation()
-        time.sleep(0.01)
-
