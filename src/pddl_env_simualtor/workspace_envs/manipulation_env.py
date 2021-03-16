@@ -131,6 +131,37 @@ class ManipulationDomain:
 
         self._objs.update({obj_id: (urdf_name, obj_name, obj_init_position, obj_init_orientation)})
 
+    def load_markers(self, marker_loc: np.ndarray, marker_len: float = 0.05, marker_width: float = 0.05):
+        """
+        A helper method to create visual placeholder for the blocks in the simulation world. By default we are creating
+        a (very) thin (static) box with mass = 0.
+
+        @param marker_loc: [x_pos, y_pos, z]. Keep z = 0 as we add table height by default in our simulation.
+        @param marker_len: This parameter represents the half length of the shape. So the actual length is 2 times
+        @param marker_width: This parameter represents the half width of the shape. So the actual length is 2 times
+        """
+        marker_loc[2] += self.table_height
+
+        visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
+                                               halfExtents=[marker_len, marker_width, 0.001],
+                                               rgbaColor=[0, 0, 1, 0.6],
+                                               specularColor=[0.4, .4, 0],
+                                               visualFramePosition=marker_loc/2,
+                                               physicsClientId=self._physics_client_id)
+
+        # collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
+        #                                              halfExtents=[0.05, 0.05, 0.001],
+        #                                              collisionFramePosition=_loc/2,
+        #                                              physicsClientId=self._physics_client_id)
+
+        pb.createMultiBody(baseMass=0,
+                           # baseInertialFramePosition=[0, 0, 0],
+                           # baseCollisionShapeIndex=collision_shape_id,
+                           baseVisualShapeIndex=visual_shape_id,
+                           basePosition=marker_loc/2,
+                           baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
+                           physicsClientId=self._physics_client_id)
+
     def get_object_shape_info(self, obj_id):
         info = list(pb.getCollisionShapeData(obj_id, -1, physicsClientId=self._physics_client_id)[0])
         info[4] = pb.getVisualShapeData(obj_id, -1, physicsClientId=self._physics_client_id)[0][4]

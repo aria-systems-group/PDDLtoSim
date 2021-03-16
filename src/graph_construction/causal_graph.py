@@ -61,6 +61,9 @@ class CausalGraph:
     def causal_graph(self):
         return self._causal_graph
 
+    def get_task_name(self):
+        return self._task.name
+
     def build_causal_graph(self, add_cooccuring_edges: bool = False):
         """
         A method that gets the task, dumps the respective data in a yaml file and build a graph using the

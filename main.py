@@ -1,5 +1,6 @@
 import os
 import time
+import yaml
 import copy
 import sys
 import math
@@ -7,25 +8,31 @@ import warnings
 import pybullet as pb
 import numpy as np
 
+from typing import Tuple, Optional, List, Dict
+
 from src.graph_construction.causal_graph import CausalGraph
 from src.graph_construction.transition_system import FiniteTransitionSystem
 from src.graph_construction.two_player_game import TwoPlayerGame
 
 # call the regret synthesis code
+from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 from regret_synthesis_toolbox.src.payoff import payoff_factory
 from regret_synthesis_toolbox.src.strategy_synthesis import RegMinStrSyn
 
 from src.pddl_env_simualtor.envs.panda_sim import PandaSim
 
+# define a constant to dump the yaml file
+ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
-def compute_reg_strs(product_graph: TwoPlayerGame) -> list:
+
+def compute_reg_strs(product_graph: TwoPlayerGame) -> Tuple[list, np.int32, TwoPlayerGraph]:
     # _init_state = product_graph.get_initial_states()[0][0]
 
     payoff = payoff_factory.get("cumulative", graph=product_graph)
 
     # build an instance of regret strategy minimization class
     reg_syn_handle = RegMinStrSyn(product_graph, payoff)
-    reg_str = reg_syn_handle.edge_weighted_arena_finite_reg_solver(minigrid_instance=None,
+    reg_str, reg_val = reg_syn_handle.edge_weighted_arena_finite_reg_solver(minigrid_instance=None,
                                                                    purge_states=True,
                                                                    plot=False)
     twa_game = reg_syn_handle.graph_of_alternatives
@@ -50,7 +57,7 @@ def compute_reg_strs(product_graph: TwoPlayerGame) -> list:
     for _action in _action_seq:
         print(_action)
 
-    return _action_seq
+    return _action_seq, reg_val, twa_game
 
 
 def execture_str(actions: list,
@@ -180,96 +187,121 @@ def initialize_simulation(causal_graph: CausalGraph,
                                 obj_name=f"b{_idx}",
                                 obj_init_position=copy.copy(loc_dict.get(_loc)),
                                 obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+
+    for _loc in box_locs:
+        _visual_marker_loc = copy.copy(loc_dict.get(_loc))
+        _visual_marker_loc[2] = 0
+        panda.world.load_markers(marker_loc=_visual_marker_loc)
+
     return panda
 
 
+# def _pre_loaded_pick_and_place_action(pos):
+#     _wait_pos_left = [-0.2, 0.0, 0.9, math.pi, 0, math.pi]
+#     _wait_pos_right = [0.2, 0.0, 0.9, math.pi, 0, math.pi]
+#
+#     # give pose and orientation
+#     panda.apply_high_level_action("openEE", [])
+#
+#     panda.apply_high_level_action("transit", _wait_pos_left, vel=0.5)
+#
+#     _pos = [pos[0], pos[1], pos[2] + 0.3, math.pi, 0, math.pi]
+#     panda.apply_high_level_action("transit", _pos, vel=0.5)
+#
+#     # # 2. go down towards the object
+#     _pos = [pos[0], pos[1], pos[2] + 0.05, math.pi, 0, math.pi]
+#     panda.apply_high_level_action("transit", _pos, vel=0.5)
+#
+#     panda.apply_high_level_action("closeEE", [], vel=0.5)
+#
+#     # # 3. grab the object
+#     _pos = [pos[0], pos[1], pos[2] + 0.3,  math.pi, 0, math.pi]
+#     panda.apply_high_level_action("transfer", _pos, vel=0.5)
+#
+#     panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+#
+#     _pos = [-pos[0], pos[1], pos[2] + 0.05, math.pi, 0, math.pi]
+#     panda.apply_high_level_action("transfer", _pos, vel=0.5)
+#
+#     panda.apply_high_level_action("openEE", [], vel=0.5)
 
-def _pre_loaded_pick_and_place_action(pos):
-    _wait_pos_left = [-0.2, 0.0, 0.9, math.pi, 0, math.pi]
-    _wait_pos_right = [0.2, 0.0, 0.9, math.pi, 0, math.pi]
+def save_str(causal_graph: CausalGraph,
+             transition_system: FiniteTransitionSystem,
+             two_player_game: TwoPlayerGame,
+             regret_graph_of_alternatives: TwoPlayerGraph,
+             game_reg_value: np.int32,
+             pos_seq: list):
+    """
+    A helper method that dumps the regret value and the corresponding strategy computed for given abstraction and an
+    LTL formula. This method creates a yaml file which is then dumped in the saved_strs folder at the root of the
+    project. The file naming convention is
+    <task_name>_<# of boxes>_<# of locs>_<# of possible human intervention>_<reg_value>.
 
-    # give pose and orientation
-    panda.apply_high_level_action("openEE", [])
+    The stuff being dumped is :
+        1. Task Name
+        2. # of boxes along with the names
+        3. # of locs along with the names
+        4. # of possible human interventions
+        5. # of nodes in the game
+        6. # of edges in the game
+        7. LTL Formula used
+        8. strategy compute (a sequence of actions)
+    """
+    
+    _task_name: str = causal_graph.get_task_name()
+    _boxes = causal_graph.task_objects
+    _locations = causal_graph.task_locations
 
-    panda.apply_high_level_action("transit", _wait_pos_left, vel=0.5)
+    _reg_value: int = game_reg_value.item()
 
-    # panda.apply_action(panda._home_hand_pose)
-    # # panda.apply_action(action=_pos, max_vel=0.5)
-    # for _ in range(1400):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
+    _possible_human_interventions: int = two_player_game.human_interventions
 
-    _pos = [pos[0], pos[1], pos[2] + 0.3, math.pi, 0, math.pi]
-    panda.apply_high_level_action("transit", _pos, vel=0.5)
-    # panda.apply_action(action=_pos, max_vel=2)
-    # panda.pre_grasp(max_velocity=2)
-    #
-    # for _ in range(800):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
-    #
-    # # 2. go down towards the object
-    _pos = [pos[0], pos[1], pos[2] + 0.05, math.pi, 0, math.pi]
-    panda.apply_high_level_action("transit", _pos, vel=0.5)
-    # panda.apply_action(action=_pos, max_vel=0.5)
-    #
-    # for _ in range(600):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
-    #
-    # panda.grasp(obj_id=3)
-    panda.apply_high_level_action("closeEE", [], vel=0.5)
-    # for _ in range(300):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
-    #
-    # # 3. grab the object
-    _pos = [pos[0], pos[1], pos[2] + 0.3,  math.pi, 0, math.pi]
-    panda.apply_high_level_action("transfer", _pos, vel=0.5)
-    # panda.apply_action(action=_pos, max_vel=0.5)
-    # panda.grasp(obj_id=3)
-    #
-    # for _ in range(400):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
-    panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+    # transition system nodes and edges
+    _trans_sys_nodes = len(transition_system.transition_system._graph.nodes())
+    _trans_sys_edges = len(transition_system.transition_system._graph.edges())
 
-    _pos = [-pos[0], pos[1], pos[2] + 0.05, math.pi, 0, math.pi]
-    panda.apply_high_level_action("transfer", _pos, vel=0.5)
+    # product graph nodes and edges
+    _prod_nodes = len(two_player_game.two_player_game._graph.nodes())
+    _prod_edges = len(two_player_game.two_player_game._graph.edges())
 
-    panda.apply_high_level_action("openEE", [], vel=0.5)
+    # graph of alternatives nodes and edges
+    _graph_of_alts_nodes = len(regret_graph_of_alternatives._graph.nodes())
+    _graph_of_alts_edges = len(regret_graph_of_alternatives._graph.edges())
 
-    # _pre_pose = [0.2, 0.0, 0.9,
-    #             min(math.pi, max(-math.pi, math.pi)),
-    #             min(math.pi, max(-math.pi, 0)),
-    #             min(math.pi, max(-math.pi, 0))]
-    #
-    # panda.apply_action(_pre_pose)
-    # panda.grasp(obj_id=3)
-    # for _ in range(1400):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
-    #
-    # # 4. pick and place it somewhere else
-    # _pos = [-pos[0], pos[1], pos[2] + 0.05]
-    # panda.apply_action(action=_pos, max_vel=0.5)
-    # panda.grasp(obj_id=3)
-    #
-    # for _ in range(800):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
-    #
-    # # release
-    # panda.pre_grasp()
-    # for _ in range(300):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
-    #
-    # panda.apply_action(panda._home_hand_pose)
-    # # panda.apply_action(action=_pos, max_vel=0.5)
-    # for _ in range(1400):
-    #     pb.stepSimulation()
-    #     time.sleep(0.01)
+    _ltl_formula = two_player_game.formula
+
+    # create a data dict to dump it
+    data_dict: Dict = dict(
+        task_name=_task_name,
+        no_of_boxes=len(_boxes),
+        no_of_loc=len(_locations),
+        max_human_int=_possible_human_interventions,
+        ltl_formula=_ltl_formula,
+        abstractions={
+            'transition_system_nodes': _trans_sys_nodes,
+            'transition_system_edges': _trans_sys_edges,
+            'two_player_game_nodes': _prod_nodes,
+            'two_player_game_edges': _prod_edges,
+            'graph_of_alts_nodes': _graph_of_alts_nodes,
+            'graph_of_alts_edges': _graph_of_alts_edges,
+        },
+        reg_val=_reg_value,
+        reg_str=pos_seq
+    )
+
+    # now dump the data in a file
+    _file_name: str =\
+    f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_{_possible_human_interventions}_h_{_reg_value}_reg.yaml"
+
+    _file_path = ROOT_PATH + _file_name
+    try:
+        with open(_file_path, 'w') as outfile:
+            yaml.dump(data_dict, outfile, default_flow_style=False, sort_keys=False)
+
+    except FileNotFoundError:
+        print(FileNotFoundError)
+        print(f"The file {_file_path} could not be found."
+              f" This could be because I could not find the folder to dump in")
 
 
 def load_pre_built_loc_info(exp_name: str):
@@ -295,6 +327,7 @@ def load_pre_built_loc_info(exp_name: str):
 
 if __name__ == "__main__":
     record = False
+    dump_strs = True
 
     # build the product automaton
     _project_root = os.path.dirname(os.path.abspath(__file__))
@@ -322,7 +355,7 @@ if __name__ == "__main__":
     two_player_instance.set_appropriate_ap_attribute_name()
     # two_player_instance.modify_ap_w_object_types()
 
-    dfa = two_player_instance.build_LTL_automaton(formula="F(l2 & l4 & l3)")
+    dfa = two_player_instance.build_LTL_automaton(formula="F(l1)")
     product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
     relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
     # relabelled_graph.plot_graph()
@@ -332,7 +365,16 @@ if __name__ == "__main__":
     print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
 
     # compute strs
-    actions = compute_reg_strs(product_graph)
+    actions, reg_val, graph_of_alts = compute_reg_strs(product_graph)
+
+    # save strs
+    if dump_strs:
+        save_str(causal_graph=causal_graph_instance,
+                 transition_system=transition_system_instance,
+                 two_player_game=two_player_instance,
+                 regret_graph_of_alternatives=graph_of_alts,
+                 game_reg_value=reg_val,
+                 pos_seq=actions)
 
     # simulate the str
     execture_str(actions=actions,
@@ -347,16 +389,75 @@ if __name__ == "__main__":
     #     physics_client = pb.connect(pb.GUI)
     #
     # panda = PandaSim(physics_client, use_IK=1)
-    # _loc_dict = load_pre_built_loc_info("diag")
+    # # _loc_dict = load_pre_built_loc_info("diag")
+    # _loc_dict = {
+    #     # 0: np.array([-0.5, -0.2, 0.17 / 2]),
+    #     2: np.array([-0.5, 0.2, 0.17 / 2]),
+    #     3: np.array([-0.3, -0.2, 0.17 / 2]),
+    #     1: np.array([-0.3, 0.2, 0.17 / 2]),
+    #     4: np.array([-0.4, 0.0, 0.17 / 2])
+    # }
     # _obj_loc = []
+    # for i in range(1):
+    #     _obj_loc.append(_loc_dict.get(2))
+    #     panda.world.load_object(urdf_name="red_box",
+    #                             obj_name=f"red_box_{2}",
+    #                             obj_init_position=_loc_dict.get(2),
+    #                             obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+
+    #     _loc = copy.copy(_loc_dict.get(i))
+    #
+    #     _loc[2] = 0.625
+    #
+    #     visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
+    #                          halfExtents=[0.05, 0.05, 0.001],
+    #                          rgbaColor=[0, 0, 1, 0.6],
+    #                          specularColor=[0.4, .4, 0],
+    #                          visualFramePosition=_loc/2,
+    #                          physicsClientId=panda._physics_client_id)
+    #
+    #     collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
+    #                                                  halfExtents=[0.05, 0.05, 0.001],
+    #                                                  collisionFramePosition=_loc/2,
+    #                                                  physicsClientId=panda._physics_client_id)
+    #
+    #     pb.createMultiBody(baseMass=0,
+    #                        # baseInertialFramePosition=[0, 0, 0],
+    #                        # baseCollisionShapeIndex=collision_shape_id,
+    #                        baseVisualShapeIndex=visual_shape_id,
+    #                        basePosition=_loc/2,
+    #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
+    #                        physicsClientId=panda._physics_client_id)
+    #
     # for i in range(3):
     #     _obj_loc.append(_loc_dict.get(i))
-    #     panda.world.load_object(urdf_name="red_box",
-    #                             obj_name=f"red_box_{i}",
-    #                             obj_init_position=_loc_dict.get(i),
-    #                             obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+    #     _loc = copy.copy(_loc_dict.get(i))
     #
-    # # for _ in range(1500):
+    #     _loc[2] = 0.625
+    #     _loc[0] = -1 * _loc[0]
+    #
+    #     visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
+    #                                            halfExtents=[0.05, 0.05, 0.001],
+    #                                            rgbaColor=[0, 0, 1, 0.6],
+    #                                            specularColor=[0.4, .4, 0],
+    #                                            visualFramePosition=_loc / 2,
+    #                                            physicsClientId=panda._physics_client_id)
+    #
+    #     collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
+    #                                                  halfExtents=[0.05, 0.05, 0.001],
+    #                                                  collisionFramePosition=_loc / 2,
+    #                                                  physicsClientId=panda._physics_client_id)
+    #
+    #     pb.createMultiBody(baseMass=0,
+    #                        # baseInertialFramePosition=[0, 0, 0],
+    #                        # baseCollisionShapeIndex=collision_shape_id,
+    #                        baseVisualShapeIndex=visual_shape_id,
+    #                        basePosition=_loc / 2,
+    #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
+    #                        physicsClientId=panda._physics_client_id)
+
+
+    # for _ in range(1500):
     # for i, loc in enumerate(_obj_loc):
     #     # if i != 0:
     #     #     panda.apply_action(panda._home_hand_pose)

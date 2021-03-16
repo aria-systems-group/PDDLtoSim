@@ -1,0 +1,18 @@
+task_name: 5loc_problem
+no_of_boxes: 1
+no_of_loc: 2
+max_human_int: 2
+ltl_formula: F(l1)
+abstractions:
+  transition_system_nodes: 9
+  transition_system_edges: 11
+  two_player_game_nodes: 68
+  two_player_game_edges: 82
+  graph_of_alts_nodes: 13
+  graph_of_alts_edges: 12
+reg_val: 0
+reg_str:
+- (transit b0 else l0)
+- (grasp b0 l0)
+- (transfer b0 l0 l1)
+- (release b0 l1)

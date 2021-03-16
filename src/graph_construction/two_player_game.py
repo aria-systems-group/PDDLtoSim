@@ -39,6 +39,14 @@ class TwoPlayerGame:
             warnings.warn("The Two player game is of type of None. Please build the game before accessing it")
         return self._two_player_game
 
+    @property
+    def human_interventions(self):
+        return self._human_interventions
+
+    @property
+    def formula(self):
+        return self._formula
+
     def build_two_player_game(self,
                               human_intervention: int = 1,
                               human_intervention_cost: int = 0,
@@ -52,6 +60,7 @@ class TwoPlayerGame:
         node that belongs to the Two player game has the same node as well as the edge attributes as their counterparts
         in the Transition System.
         """
+        self._human_interventions = human_intervention
         _init_state = self._transition_system.transition_system.get_initial_states()[0][0]
 
         eve_node_lst = []
@@ -617,6 +626,7 @@ class TwoPlayerGame:
         """
         A method to construct automata using the regret_synthesis_tool.
         """
+        self._formula = formula
 
         if not isinstance(formula, str):
             warnings.warn("Please make sure the input formula is of type string.")
