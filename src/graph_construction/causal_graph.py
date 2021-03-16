@@ -149,10 +149,4 @@ if __name__ == "__main__":
     pddl_test_obj = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
 
     # build causal graph
-    # pddl_test_obj.build_causal_graph()
-
-    # build the ltl automata
-    # pddl_test_obj.build_LTL_automato(formula="F(on_rb_l_2) & F(on_bb_1_l_0)")
-
-    # compose the above two graphs
-    # pddl_test_obj.build_product()
+    pddl_test_obj.build_causal_graph()

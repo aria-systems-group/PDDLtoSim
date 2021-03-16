@@ -58,18 +58,19 @@ class ManipulationDomain:
                           f" {self._objs.keys()}")
 
         _obj_attrs = self._objs.get(obj_id)
-        _obj_name = _obj_attrs[0]
+        _urdf_name = _obj_attrs[0]
+        _obj_name = _obj_attrs[1]
         _obj_curr_pose = pb.getBasePositionAndOrientation(obj_id)
 
-        return _obj_name, _obj_curr_pose[0], _obj_curr_pose[1]
+        return _urdf_name, _obj_name, _obj_curr_pose[0], _obj_curr_pose[1]
 
     def get_obj_id(self, obj_name: str):
         """
         A helper function that returns the id of the obj given an object name
         """
 
-        for _obj_id, _obj_attrs in self.objs:
-            if _obj_attrs[0] == obj_name:
+        for _obj_id, _obj_attrs in self.objs.items():
+            if _obj_attrs[1] == obj_name:
                 return _obj_id
 
         warnings.warn(f"Could not find an object with the name {obj_name}")
@@ -128,7 +129,7 @@ class ManipulationDomain:
                              flags=pb.URDF_USE_MATERIAL_COLORS_FROM_MTL,
                              physicsClientId=self._physics_client_id)
 
-        self._objs.update({obj_id: (obj_name, obj_init_position, obj_init_orientation)})
+        self._objs.update({obj_id: (urdf_name, obj_name, obj_init_position, obj_init_orientation)})
 
     def get_object_shape_info(self, obj_id):
         info = list(pb.getCollisionShapeData(obj_id, -1, physicsClientId=self._physics_client_id)[0])

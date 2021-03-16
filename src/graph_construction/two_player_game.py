@@ -52,6 +52,7 @@ class TwoPlayerGame:
         node that belongs to the Two player game has the same node as well as the edge attributes as their counterparts
         in the Transition System.
         """
+        _init_state = self._transition_system.transition_system.get_initial_states()[0][0]
 
         eve_node_lst = []
         adam_node_lst = []
@@ -85,6 +86,10 @@ class TwoPlayerGame:
 
                 if _single_player_sys_node is not None:
                     self._two_player_game.add_state(_u, **_single_player_sys_node)
+                    self._two_player_game._graph.nodes[_u]['init'] = False
+
+                    if _u[0] == _init_state and _u[1] == human_intervention:
+                        self._two_player_game._graph.nodes[_u]['init'] = True
 
         # for each edge create a human node and then add valid human transition from that human state
         for _e in self._transition_system.transition_system._graph.edges():
@@ -608,7 +613,7 @@ class TwoPlayerGame:
 
             self._two_player_game._graph.nodes[_n]['ap'] = _tmp_lst_ap
 
-    def build_LTL_automaton(self, formula: str, debug: bool=False):
+    def build_LTL_automaton(self, formula: str, debug: bool = False):
         """
         A method to construct automata using the regret_synthesis_tool.
         """

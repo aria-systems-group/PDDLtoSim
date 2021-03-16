@@ -209,8 +209,7 @@ class PandaSim:
         if action_type == "openEE":
             # apply action
             self.pre_grasp(vel)
-            # while not self.done_action(_ee_target_pos, _ee_target_quat_orn):
-            for _ in range (500):
+            for _ in range(500):
                 # simulate it
                 pb.stepSimulation()
                 time.sleep(self._time_step)
@@ -218,8 +217,6 @@ class PandaSim:
         elif action_type == "closeEE":
             # apply action
             self.grasp(max_velocity=vel)
-
-            # while not self.done_action:
             for _ in range(500):
                 # simulate it
                 pb.stepSimulation()
