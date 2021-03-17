@@ -154,7 +154,7 @@ class FiniteTransitionSystem:
         The edge between two states that belong to the Transition System has the following attributes:
 
             1) actions = The edge action name. The name is same the one in the Causal graph
-            2) weight = The weight to take that action given the actio_to_cost dictionary
+            2) weight = The weight to take that action given the action_to_cost dictionary
         """
 
         # determine the action, create a valid label for the successor state and add it to successor node.
@@ -509,6 +509,34 @@ class FiniteTransitionSystem:
         _ap_str = separator.join(ap)
 
         return _ap_str
+
+    def modify_edge_weights(self):
+        """
+        A helper function in which I modify weights corresponding to actions that transit to a safe state from which
+        the human cannot intervene. The actions could be evolving from outside to this set or actions that are evolving
+        within this set.
+        """
+
+        # get the set of locations that are of type - "box-loc"
+        _non_intervening_locs = self._causal_graph.task_non_intervening_locations
+
+        # iterate through all edge and multiply the weight by 4 for edges as per the doc string
+        for _e in self._transition_system._graph.edges():
+            _u = _e[0]
+            _v = _e[1]
+            _edge_action = self._transition_system._graph[_u][_v][0].get('actions')
+
+            # get the from and to loc
+            _, _locs = self._get_multiple_box_location(_edge_action)
+
+            if len(_locs) == 2:
+                _from_loc = _locs[0]
+                _to_loc = _locs[1]
+            else:
+                _to_loc = _locs[0]
+
+            if _to_loc in _non_intervening_locs:
+                self._transition_system._graph[_u][_v][0]['weight'] = 5
 
 
 if __name__ == "__main__":

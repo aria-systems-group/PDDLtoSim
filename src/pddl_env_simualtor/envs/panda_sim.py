@@ -22,7 +22,7 @@ class PandaSim:
     def __init__(self,
                  physics_client_id,
                  use_IK: int = 0,
-                 base_position: iter =(0.0, -0.4, 0.6),
+                 base_position: iter = (0.0, -0.4, 0.6),
                  control_orientation: int = 1,
                  joint_action_space: int = 7,
                  record: bool = False):

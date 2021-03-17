@@ -325,6 +325,8 @@ class TwoPlayerGame:
                 # check if this is a valid human action or not by checking if the add_effect
                 # (predicate that becomes true)is possible given the current configuration of the world
                 for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                    if _succ_node == _state:
+                        continue
                     _add_effect: str = tuple(
                         self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
 
@@ -356,6 +358,8 @@ class TwoPlayerGame:
                 # check if this is a valid human action or not by checking if the add_effect
                 # (predicate that becomes)is possible given the current configuration of the world
                 for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                    if _succ_node == _state:
+                        continue
                     _add_effect: str = tuple(
                         self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
 
@@ -384,6 +388,8 @@ class TwoPlayerGame:
                 # check if this is a valid human action or not by checking if the add_effect
                 # (predicate that becomes)is possible given the current configuration of the world
                 for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                    if _succ_node == _state:
+                        continue
                     _add_effect: str = tuple(
                         self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
 
@@ -412,6 +418,8 @@ class TwoPlayerGame:
                 # check if this is a valid human action or not by checking if the add_effect
                 # (predicate that becomes)is possible given the current configuration of the world
                 for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                    if _succ_node == _state:
+                        continue
                     _add_effect: str = tuple(
                         self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
 

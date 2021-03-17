@@ -33,8 +33,8 @@ def compute_reg_strs(product_graph: TwoPlayerGame) -> Tuple[list, np.int32, TwoP
     # build an instance of regret strategy minimization class
     reg_syn_handle = RegMinStrSyn(product_graph, payoff)
     reg_str, reg_val = reg_syn_handle.edge_weighted_arena_finite_reg_solver(minigrid_instance=None,
-                                                                   purge_states=True,
-                                                                   plot=False)
+                                                                            purge_states=True,
+                                                                            plot=False)
     twa_game = reg_syn_handle.graph_of_alternatives
     _init_state = twa_game.get_initial_states()[0][0]
     # the reg str is dict that one from one state to another. Lets convert this to print a sequence of edge actions
@@ -62,7 +62,9 @@ def compute_reg_strs(product_graph: TwoPlayerGame) -> Tuple[list, np.int32, TwoP
 
 def execture_str(actions: list,
                  causal_graph: CausalGraph,
-                 transition_system: FiniteTransitionSystem):
+                 transition_system: FiniteTransitionSystem,
+                 record_sim: bool = False,
+                 debug: bool = False):
     # determine the action type first
     _action_type = ""
     _loc_dict = load_pre_built_loc_info("diag")
@@ -75,8 +77,8 @@ def execture_str(actions: list,
     panda_handle = initialize_simulation(causal_graph=causal_graph,
                                          transition_system=transition_system,
                                          loc_dict=_loc_dict,
-                                         record_sim=True,
-                                         debug=False)
+                                         record_sim=record_sim,
+                                         debug=debug)
 
     # loop and add the const table height to all valid loc
     for _loc in _loc_dict.values():
@@ -254,6 +256,9 @@ def save_str(causal_graph: CausalGraph,
 
     _reg_value: int = game_reg_value.item()
 
+    _init_state = transition_system.transition_system.get_initial_states()[0][0]
+    _init_conf = transition_system.transition_system.get_state_w_attribute(_init_state, "list_ap")
+
     _possible_human_interventions: int = two_player_game.human_interventions
 
     # transition system nodes and edges
@@ -273,17 +278,24 @@ def save_str(causal_graph: CausalGraph,
     # create a data dict to dump it
     data_dict: Dict = dict(
         task_name=_task_name,
-        no_of_boxes=len(_boxes),
-        no_of_loc=len(_locations),
+        no_of_boxes={
+            'num': len(_boxes),
+            'objects': _boxes,
+        },
+        no_of_loc={
+            'num': len(_locations),
+            'objects': _locations
+        },
         max_human_int=_possible_human_interventions,
+        init_worl_conf=_init_conf,
         ltl_formula=_ltl_formula,
         abstractions={
-            'transition_system_nodes': _trans_sys_nodes,
-            'transition_system_edges': _trans_sys_edges,
-            'two_player_game_nodes': _prod_nodes,
-            'two_player_game_edges': _prod_edges,
-            'graph_of_alts_nodes': _graph_of_alts_nodes,
-            'graph_of_alts_edges': _graph_of_alts_edges,
+            'num_transition_system_nodes': _trans_sys_nodes,
+            'num_transition_system_edges': _trans_sys_edges,
+            'num_two_player_game_nodes': _prod_nodes,
+            'num_two_player_game_edges': _prod_edges,
+            'num_graph_of_alts_nodes': _graph_of_alts_nodes,
+            'num_graph_of_alts_edges': _graph_of_alts_edges,
         },
         reg_val=_reg_value,
         reg_str=pos_seq
@@ -314,9 +326,9 @@ def load_pre_built_loc_info(exp_name: str):
             # 'l4': np.array([0.45, 0.0, 0.17/2])
             'l0': np.array([-0.6, -0.2, 0.17 / 2]),
             'l2': np.array([-0.6, 0.2, 0.17 / 2]),
-            'l3': np.array([-0.4, -0.2, 0.17 / 2]),
+            'l3': np.array([0.4, -0.2, 0.17 / 2]),
             'l1': np.array([-0.4, 0.2, 0.17 / 2]),
-            'l4': np.array([-0.5, 0.0, 0.17 / 2])
+            'l4': np.array([0.5, 0.0, 0.17 / 2])
         }
     elif exp_name == "arch":
         pass
@@ -325,16 +337,33 @@ def load_pre_built_loc_info(exp_name: str):
 
     return loc_dict
 
+def load_data_from_yaml_file(file_add: str) -> Dict:
+    """
+    A helper function to load the sequence of strategies given a valid yaml file.
+    """
+
+    try:
+        with open(file_add, 'r') as stream:
+            graph_data = yaml.load(stream, Loader=yaml.Loader)
+
+    except FileNotFoundError as error:
+        print(error)
+        print(f"The file {file_name} does not exist")
+
+    return graph_data
+
+
 if __name__ == "__main__":
     record = False
     dump_strs = True
+    use_saved_str = False
 
     # build the product automaton
     _project_root = os.path.dirname(os.path.abspath(__file__))
 
     # Experimental stage - lets try calling the function within pyperplan
-    domain_file_path = _project_root + "/pddl_files/blocks_world/domain.pddl"
-    problem_file_ath = _project_root + "/pddl_files/blocks_world/problem.pddl"
+    domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
+    problem_file_ath = _project_root + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=False)
 
@@ -346,6 +375,7 @@ if __name__ == "__main__":
 
     transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
     transition_system_instance.build_transition_system(plot=False)
+    transition_system_instance.modify_edge_weights()
 
     print(f"No. of nodes in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
     print(f"No. of edges in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
@@ -353,9 +383,9 @@ if __name__ == "__main__":
     two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
     two_player_instance.build_two_player_game(human_intervention=2, plot_two_player_game=False)
     two_player_instance.set_appropriate_ap_attribute_name()
-    # two_player_instance.modify_ap_w_object_types()
+    two_player_instance.modify_ap_w_object_types()
 
-    dfa = two_player_instance.build_LTL_automaton(formula="F(l1)")
+    dfa = two_player_instance.build_LTL_automaton(formula="F((p01 & p12) || (p03 & p14))")
     product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
     relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
     # relabelled_graph.plot_graph()
@@ -364,22 +394,40 @@ if __name__ == "__main__":
     print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
     print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
 
-    # compute strs
-    actions, reg_val, graph_of_alts = compute_reg_strs(product_graph)
+    if not use_saved_str:
+        # compute strs
+        actions, reg_val, graph_of_alts = compute_reg_strs(product_graph)
 
-    # save strs
-    if dump_strs:
-        save_str(causal_graph=causal_graph_instance,
-                 transition_system=transition_system_instance,
-                 two_player_game=two_player_instance,
-                 regret_graph_of_alternatives=graph_of_alts,
-                 game_reg_value=reg_val,
-                 pos_seq=actions)
+        # save strs
+        if dump_strs:
+            save_str(causal_graph=causal_graph_instance,
+                     transition_system=transition_system_instance,
+                     two_player_game=two_player_instance,
+                     regret_graph_of_alternatives=graph_of_alts,
+                     game_reg_value=reg_val,
+                     pos_seq=actions)
 
-    # simulate the str
-    execture_str(actions=actions,
-                 causal_graph=causal_graph_instance,
-                 transition_system=transition_system_instance)
+        # simulate the str
+        execture_str(actions=actions,
+                     causal_graph=causal_graph_instance,
+                     transition_system=transition_system_instance,
+                     record_sim=record,
+                     debug=False)
+    else:
+
+        # get the actions from the yaml file
+        file_name = "/5loc_problem_1_box_2_loc_2_h_0_reg.yaml"
+        file_pth: str = ROOT_PATH + "/saved_strs" + file_name
+
+        yaml_dump = load_data_from_yaml_file(file_add=file_pth)
+        actions = yaml_dump.get("reg_str")
+
+        # TODO: Write a dedicated method to load all the data relevant to simulation from the yaml file alone.
+        execture_str(actions=actions,
+                     causal_graph=causal_graph_instance,
+                     transition_system=transition_system_instance,
+                     record_sim=record,
+                     debug=False)
 
     # build the simulator
     # if record:

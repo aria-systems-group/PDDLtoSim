@@ -7,11 +7,6 @@ from regret_synthesis_toolbox.src.graph import graph_factory
 # import pyperplan packages
 from pyperplan import _parse, _ground
 
-"""
-Lets write a class that build a causal graph from the given PDDL problem and domain files. And from this graph we try
-simulating it in a simulation env of our choice 
-"""
-
 
 class CausalGraph:
     """
@@ -24,11 +19,11 @@ class CausalGraph:
         self._domain_file = domain_file
         self._plot_graph = draw
         self._causal_graph = None
-        self._pddl_ltl_automata = None
-        self._product = None
         self._task = None
         self._problem = None
         self._task_objects: list = []
+        self._task_intervening_locations: list = []
+        self._task_non_intervening_locations: list = []
         self._task_locations: list = []
         self._get_task_and_problem()
         self._get_boxes_and_location_from_problem()
@@ -58,13 +53,21 @@ class CausalGraph:
         return self._task_locations
 
     @property
+    def task_intervening_locations(self):
+        return self._task_intervening_locations
+
+    @property
+    def task_non_intervening_locations(self):
+        return self._task_non_intervening_locations
+
+    @property
     def causal_graph(self):
         return self._causal_graph
 
     def get_task_name(self):
         return self._task.name
 
-    def build_causal_graph(self, add_cooccuring_edges: bool = False):
+    def build_causal_graph(self, add_cooccuring_edges: bool = False, debug: bool = False):
         """
         A method that gets the task, dumps the respective data in a yaml file and build a graph using the
         regret_synthesis_toolbox graph factory which reads the dumped yaml file.
@@ -112,7 +115,7 @@ class CausalGraph:
 
         raw_transition_system.add_initial_states_from(self._task.initial_state)
         raw_transition_system.add_accepting_states_from(self._task.goals)
-        raw_transition_system._sanity_check(debug=True)
+        raw_transition_system._sanity_check(debug=debug)
 
         self._causal_graph = raw_transition_system
 
@@ -135,6 +138,11 @@ class CausalGraph:
                 self._task_objects.append(_object)
 
             if _type.name == 'box_loc':
+                self._task_non_intervening_locations.append(_object)
+                self._task_locations.append(_object)
+
+            if _type.name == 'hbox_loc':
+                self._task_intervening_locations.append(_object)
                 self._task_locations.append(_object)
 
 
@@ -145,11 +153,13 @@ if __name__ == "__main__":
     _plotting = False
 
     # Define PDDL files
-    domain_file_path = _project_root + "/../.." + "/pddl_files/blocks_world/domain.pddl"
-    problem_file_ath = _project_root + "/../.." + "/pddl_files/blocks_world/problem.pddl"
+    domain_file_path = _project_root + "/../.." + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
+    problem_file_ath = _project_root + "/../.." + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
+    # domain_file_path = _project_root + "/../.." + "/pddl_files/blocks_world/domain.pddl"
+    # problem_file_ath = _project_root + "/../.." + "/pddl_files/blocks_world/problem.pddl"
 
     # Define problem and domain file, call the method for testing
     pddl_test_obj = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
 
     # build causal graph
-    pddl_test_obj.build_causal_graph()
+    pddl_test_obj.build_causal_graph(add_cooccuring_edges=False, debug=False)
