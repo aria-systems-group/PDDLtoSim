@@ -24,6 +24,7 @@ class TwoPlayerGame:
         self._causal_graph: CausalGraph = causal_graph
         self._transition_system: FiniteTransitionSystem = transition_system
         self._two_player_game: Optional[TwoPlayerGraph] = None
+        self._two_player_implicit_game: Optional[TwoPlayerGraph] = None
 
     @property
     def causal_graph(self):
@@ -38,6 +39,13 @@ class TwoPlayerGame:
         if isinstance(self._two_player_game, type(None)):
             warnings.warn("The Two player game is of type of None. Please build the game before accessing it")
         return self._two_player_game
+
+    @property
+    def two_player_implicit_game(self):
+        if isinstance(self._two_player_game, type(None)):
+            warnings.warn("The Two player implicit game is of type of None. Please build the explicit game before"
+                          "accessing it")
+        return self._two_player_implicit_game
 
     @property
     def human_interventions(self):
@@ -206,6 +214,105 @@ class TwoPlayerGame:
             else:
                 self._two_player_game.plot_graph()
             print("Done plotting")
+
+    def build_two_player_implicit_transition_system_from_explicit(self,
+                                                                  plot_two_player_implicit_game: bool = False,
+                                                                  relabel_nodes: bool = True):
+        """
+        A helper method to construct an Abstraction in which we do bound the number of times the human can intervene.
+
+        Thus, when a human intervenes you evolve to a Sys state in the same sub-graph. i.e there are no counters on the
+        states in the games that indicate the remaining human interventions.
+        """
+
+        _graph_name = "two_player_implicit" + self._causal_graph.task.name
+        _config_yaml = "/config/" + "two_player_implicit" + self._causal_graph.task.name
+
+        self._two_player_implicit_game = graph_factory.get("TwoPlayerGraph",
+                                                           graph_name=_graph_name,
+                                                           config_yaml=_config_yaml,
+                                                           save_flag=True,
+                                                           pre_built=False,
+                                                           plot=False)
+
+        # iterate through all the states that have counter i = max_human_intervention. Then Make a copy of that node
+        # without the human_intervention counter node[0], look at its neighbour and add them to the graph too similarly.
+        # if you are at a human state and human intervenes, then add that state too without the counter.
+
+        for _n in self._two_player_game._graph.nodes():
+            # restrict ourself to nodes with a fixed counter
+            if _n[1] == self._human_interventions:
+                _org_node = _n[0]
+                _org_node_attrs = self._two_player_game._graph.nodes[_n]
+
+                if not self._two_player_implicit_game._graph.has_node(_org_node):
+                    self._two_player_implicit_game.add_state(_org_node, **_org_node_attrs)
+
+                # look at it successors, add that successor and the corresponding edge
+                for _succ in self._two_player_game._graph.successors(_n):
+                    _org_succ = _succ[0]
+                    _org_succ_attrs = self._two_player_game._graph.nodes[_succ]
+
+                    if not self._two_player_implicit_game._graph.has_node(_org_succ):
+                        self._two_player_implicit_game.add_state(_org_succ, **_org_succ_attrs)
+
+                    _edge_attrs = self._two_player_game._graph.edges[_n, _succ, 0]
+
+                    if not self._two_player_implicit_game._graph.has_edge(_org_node, _org_succ):
+                        self._two_player_implicit_game.add_edge(u=_org_node,
+                                                                v=_org_succ,
+                                                                **_edge_attrs)
+
+        # coping so as to avoid dynamic dictionary change errors
+        _two_player_implicit_game_copy = copy.deepcopy(self._two_player_implicit_game)
+
+        # human could intervene and evolve to state that oly exists in the sub-graphs after intervening at least once.
+        # we iterate through the two_player_implicit_game, see if any states has zero outgoing edge. We then look for
+        # its counterpart in the graph with _max_human_counter - 1 state counter, look at its neighbour, add them and
+        # their edge
+        _human_int = self._human_interventions - 1
+        for _n in _two_player_implicit_game_copy._graph.nodes():
+            if len(list(_two_player_implicit_game_copy._graph.successors(_n))) == 0:
+                for _succ in self._two_player_game._graph.successors((_n, _human_int)):
+                    _org_succ = _succ[0]
+                    _org_succ_attrs = self._two_player_game._graph.nodes[_succ]
+
+                    if not self._two_player_implicit_game._graph.has_node(_org_succ):
+                        self._two_player_implicit_game.add_state(_org_succ, **_org_succ_attrs)
+
+                    _edge_attrs = self._two_player_game._graph.edges[(_n, _human_int), _succ, 0]
+
+                    if not self._two_player_implicit_game._graph.has_edge(_n, _org_succ):
+                        self._two_player_implicit_game.add_edge(u=_n,
+                                                                v=_org_succ,
+                                                                **_edge_attrs)
+
+                    for _succ_of_succ in self._two_player_game._graph.successors(_succ):
+                        if _succ_of_succ[1] == _human_int:
+                            _org_succ_of_succ = _succ_of_succ[0]
+                            _org_attrs = self._two_player_game._graph.nodes[_succ_of_succ]
+
+                            if not self._two_player_implicit_game._graph.has_node(_org_succ_of_succ):
+                                self._two_player_implicit_game.add_state(_org_succ_of_succ, **_org_attrs)
+                                warnings.warn("This should not happen")
+
+                            _edge_attrs = self._two_player_game._graph.edges[_succ, _succ_of_succ, 0]
+
+                            if not self._two_player_implicit_game._graph.has_edge(_org_succ, _org_succ_of_succ):
+                                self._two_player_implicit_game.add_edge(u=_org_succ,
+                                                                        v=_org_succ_of_succ,
+                                                                        **_edge_attrs)
+
+        if plot_two_player_implicit_game:
+            if relabel_nodes:
+                _relabelled_graph = self.internal_node_mapping(self._two_player_implicit_game)
+                _relabelled_graph.plot_graph()
+            else:
+                self._two_player_implicit_game.plot_graph()
+            print("Done plotting")
+
+
+
 
     def _add_valid_human_edges(self,
                                human_state_name: tuple,

@@ -53,8 +53,8 @@ class FiniteTransitionSystem:
         """
 
         _action_cost_mapping: Dict[str, int] = \
-            {"transit": 1,
-             "transfer": 1,
+            {"transit": 0,
+             "transfer": 0,
              "grasp": 1,
              "release": 1
              }
@@ -519,6 +519,7 @@ class FiniteTransitionSystem:
 
         # get the set of locations that are of type - "box-loc"
         _non_intervening_locs = self._causal_graph.task_non_intervening_locations
+        _intervening_locs = self._causal_graph.task_intervening_locations
 
         # iterate through all edge and multiply the weight by 4 for edges as per the doc string
         for _e in self._transition_system._graph.edges():
@@ -536,12 +537,16 @@ class FiniteTransitionSystem:
             else:
                 _to_loc = _locs[0]
 
-            if _to_loc != "" and _from_loc != "":
-                if _to_loc in _non_intervening_locs and _from_loc not in _non_intervening_locs:
-                    self._transition_system._graph[_u][_v][0]['weight'] = 0
+            if _from_loc != "":
+                # if _to_loc in _intervening_locs and _from_loc in _intervening_locs:
+                #     self._transition_system._graph[_u][_v][0]['weight'] = 0
 
                 if _to_loc not in _non_intervening_locs and _from_loc in _non_intervening_locs:
-                    self._transition_system._graph[_u][_v][0]['weight'] = 0
+                    self._transition_system._graph[_u][_v][0]['weight'] = 2
+
+            if _from_loc == "":
+                if _to_loc in _non_intervening_locs:
+                    self._transition_system._graph[_u][_v][0]['weight'] = 2
 
 
 if __name__ == "__main__":

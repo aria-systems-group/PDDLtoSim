@@ -697,12 +697,18 @@ if __name__ == "__main__":
         print(f"No. of edges in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
 
         two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
-        two_player_instance.build_two_player_game(human_intervention=3, plot_two_player_game=False)
+        two_player_instance.build_two_player_game(human_intervention=1,
+                                                  human_intervention_cost=0,
+                                                  plot_two_player_game=False)
+        two_player_instance.build_two_player_implicit_transition_system_from_explicit(
+            plot_two_player_implicit_game=False)
         two_player_instance.set_appropriate_ap_attribute_name()
-        two_player_instance.modify_ap_w_object_types()
+        # two_player_instance.modify_ap_w_object_types()
 
-        dfa = two_player_instance.build_LTL_automaton(formula="F((p00 & p13 & p22) || (p05 & p18 & p27))")
-        product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
+        dfa = two_player_instance.build_LTL_automaton(formula="F((l1 & l3) || (l5 & l6))")
+        # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
+        product_graph = two_player_instance.build_product(dfa=dfa,
+                                                          trans_sys=two_player_instance.two_player_implicit_game)
         relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
         # relabelled_graph.plot_graph()
 
