@@ -154,12 +154,12 @@ if __name__ == "__main__":
 
     # Define PDDL files
     domain_file_path = _project_root + "/../.." + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
-    problem_file_ath = _project_root + "/../.." + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
+    problem_file_path = _project_root + "/../.." + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
     # domain_file_path = _project_root + "/../.." + "/pddl_files/blocks_world/domain.pddl"
-    # problem_file_ath = _project_root + "/../.." + "/pddl_files/blocks_world/problem.pddl"
+    # problem_file_path = _project_root + "/../.." + "/pddl_files/blocks_world/problem.pddl"
 
     # Define problem and domain file, call the method for testing
-    pddl_test_obj = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=_plotting)
+    pddl_test_obj = CausalGraph(problem_file=problem_file_path, domain_file=domain_file_path, draw=_plotting)
 
     # build causal graph
     pddl_test_obj.build_causal_graph(add_cooccuring_edges=False, debug=False)

@@ -1,5 +1,8 @@
 import os
+import re
 import time
+import random
+import datetime
 import yaml
 import copy
 import sys
@@ -18,6 +21,7 @@ from src.graph_construction.two_player_game import TwoPlayerGame
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 from regret_synthesis_toolbox.src.payoff import payoff_factory
 from regret_synthesis_toolbox.src.strategy_synthesis import RegMinStrSyn
+from regret_synthesis_toolbox.src.strategy_synthesis import ValueIteration
 
 from src.pddl_env_simualtor.envs.panda_sim import PandaSim
 
@@ -25,8 +29,17 @@ from src.pddl_env_simualtor.envs.panda_sim import PandaSim
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
-def compute_reg_strs(product_graph: TwoPlayerGame) -> Tuple[list, np.int32, TwoPlayerGraph]:
-    # _init_state = product_graph.get_initial_states()[0][0]
+def compute_reg_strs(product_graph: TwoPlayerGame,
+                     coop_str: bool = False,
+                     epsilon: int = -1) -> Tuple[list, dict, TwoPlayerGraph]:
+    """
+    A method to compute strategies. We control the env's behavior by making it purely cooperative, pure adversarial, or
+    epsilon greedy.
+
+    @param coop_str: Set this to be true for purely cooperative behavior from the env
+    @param epsilon: Set this value to be 0 for purely adversarial behavior or with epsilon probability human picks
+     random actions.
+    """
 
     payoff = payoff_factory.get("cumulative", graph=product_graph)
 
@@ -43,16 +56,48 @@ def compute_reg_strs(product_graph: TwoPlayerGame) -> Tuple[list, np.int32, TwoP
 
     _action_seq.append(twa_game._graph[_init_state][_next_state][0].get("actions"))
 
-    print(_init_state)
-    print(_next_state)
-    while _next_state is not None:
-        _curr_state = _next_state
-        _next_state = reg_str.get(_curr_state)
-        if _next_state is not None:
-            _edge_act = twa_game._graph[_curr_state][_next_state][0].get("actions")
-            if _action_seq[-1] != _edge_act:
-                _action_seq.append(twa_game._graph[_curr_state][_next_state][0].get("actions"))
-            print(_next_state)
+    if coop_str:
+        # compute cooperative strs for the player
+        _coop_str_dict = compute_cooperative_actions_for_env(twa_game)
+        _max_coop_actions: int = 1
+
+        # print(f"{_init_state}: {reg_val[_init_state]}")
+        # print(f"{_next_state}: {reg_val[_init_state]}")
+        while _next_state is not None:
+            _curr_state = _next_state
+
+            if twa_game.get_state_w_attribute(_curr_state, attribute="player") == "eve":
+                _next_state = reg_str.get(_curr_state)
+            else:
+                if _max_coop_actions == 1:
+                    _next_state = _coop_str_dict[_curr_state]
+                    _max_coop_actions += 1
+                else:
+                    _next_state = reg_str.get(_curr_state)
+
+            if _next_state is not None:
+                _edge_act = twa_game._graph[_curr_state][_next_state][0].get("actions")
+                if _action_seq[-1] != _edge_act:
+                    _action_seq.append(twa_game._graph[_curr_state][_next_state][0].get("actions"))
+                # print(f"{_next_state}: {reg_val[_init_state]}")
+
+    elif 0 <= epsilon <= 1:
+        # we randomise human strategies
+        _new_str_dict = compute_epsilon_str_dict(epsilon=epsilon,
+                                                 reg_str_dict=reg_str,
+                                                 max_human_int=3, twa_game=twa_game)
+        while _next_state is not None:
+            _curr_state = _next_state
+
+            # if twa_game.get_state_w_attribute(_curr_state, attribute="player") == "eve":
+            _next_state = _new_str_dict.get(_curr_state)
+            # else:
+            #     _new
+
+            if _next_state is not None:
+                _edge_act = twa_game._graph[_curr_state][_next_state][0].get("actions")
+                if _action_seq[-1] != _edge_act:
+                    _action_seq.append(twa_game._graph[_curr_state][_next_state][0].get("actions"))
 
     for _action in _action_seq:
         print(_action)
@@ -60,11 +105,66 @@ def compute_reg_strs(product_graph: TwoPlayerGame) -> Tuple[list, np.int32, TwoP
     return _action_seq, reg_val, twa_game
 
 
-def execture_str(actions: list,
-                 causal_graph: CausalGraph,
-                 transition_system: FiniteTransitionSystem,
-                 record_sim: bool = False,
-                 debug: bool = False):
+def compute_cooperative_actions_for_env(product_graph: TwoPlayerGame) -> Dict:
+    """
+    A helper method to compute the cooperative strategies for the players.
+    """
+    coop_mcr_solver = ValueIteration(product_graph, competitive=False)
+    coop_mcr_solver.cooperative_solver(debug=False, plot=False)
+    coop_val_dict = coop_mcr_solver.state_value_dict
+    coop_str_dict = coop_mcr_solver.str_dict
+
+    return coop_str_dict
+
+
+def compute_epsilon_str_dict(epsilon: float, reg_str_dict: dict, max_human_int: int, twa_game: TwoPlayerGraph) -> dict:
+    """
+    A helper method that return the human action as per the Epsilon greedy algorithm.
+
+    Using this policy we either select a random human action with epsilon probability and the human can select the
+    optimal action (as given in the str dict if any) with 1-epsilon probability.
+
+    Epsilon = 0: Env is completely adversarial - Maximizing Sys player's regret
+    Epsilon = 1: Env is completely random
+    """
+
+    _new_str_dict = reg_str_dict
+    if epsilon == 0:
+        return _new_str_dict
+
+    _human_has_intervened: int = 0
+    for _from_state, _to_state in reg_str_dict.items():
+        if twa_game.get_state_w_attribute(_from_state, 'player') == "adam":
+            _succ_states: List[tuple] = [_state for _state in twa_game._graph.successors(_from_state)]
+
+            # if human can still intervene
+            # if max_human_int >= _human_has_intervened:
+
+                # act random
+            if np.random.rand() < epsilon:
+                _next_state = random.choice(_succ_states)
+                _new_str_dict[_from_state] = _next_state
+                # else:
+                #     _next_state = _new_str_dict[_from_state]
+                #     _human_int_counter = _from_state[0][0][0][1]
+                #     if _next_state[0][0][0][1] != _human_int_counter:
+                #         _human_has_intervened += 1
+
+            # if human exhausted the limit set by the user
+            # else:
+            #     _human_int_counter = _from_state[0][0][0][1]
+            #     for _succ in _succ_states:
+            #         if _succ[0][0][0][1] == _human_int_counter:
+            #             _new_str_dict[_from_state] = _succ
+
+    return _new_str_dict
+
+
+def execute_str(actions: list,
+                causal_graph: CausalGraph,
+                transition_system: FiniteTransitionSystem,
+                record_sim: bool = False,
+                debug: bool = False):
     # determine the action type first
     _action_type = ""
     _loc_dict = load_pre_built_loc_info("diag")
@@ -157,6 +257,145 @@ def execture_str(actions: list,
             sys.exit(-1)
 
 
+def execute_saved_str(yaml_data: dict,
+                      record_sim: bool = False,
+                      debug: bool = False):
+    """
+    A helper function to execute a saved simulation.
+    """
+    # determine the action type first
+    _action_type = ""
+    _loc_dict = load_pre_built_loc_info("diag")
+    actions = yaml_data.get("reg_str")
+
+    # some constants useful during simulation
+    _wait_pos_left = [-0.2, 0.0, 1.2, math.pi, 0, math.pi]
+    _wait_pos_right = [0.2, 0.0, 1.2, math.pi, 0, math.pi]
+
+    _boxes = yaml_data["no_of_boxes"].get("objects")
+    _box_locs = yaml_data["no_of_loc"].get("objects")
+    _init_conf = yaml_data.get("init_worl_conf")
+
+    # load the simulator env
+    panda_handle = initialized_saved_simulation(record_sim=record_sim,
+                                                boxes=_boxes,
+                                                box_locs=_box_locs,
+                                                init_conf=_init_conf,
+                                                loc_dict=_loc_dict,
+                                                debug=debug)
+
+    # loop and add the const table height to all valid loc
+    for _loc in _loc_dict.values():
+        _loc[2] = _loc[2] + panda_handle.world.table_height
+
+    for _action in actions:
+        _action_type = get_action_from_causal_graph_edge(_action)
+        _box_id, _loc = get_multiple_box_location(_action)
+        if len(_loc) == 2:
+            _from_loc = _loc[0]
+            _to_loc = _loc[1]
+        else:
+            _to_loc = _loc[0]
+        _loc = _loc_dict.get(_to_loc)
+
+        if _action_type == "transit":
+            # pre-image based on the object loc
+            if _loc[0] < 0:
+                panda_handle.apply_high_level_action("transit", _wait_pos_left, vel=0.5)
+            else:
+                panda_handle.apply_high_level_action("transit", _wait_pos_right, vel=0.5)
+            # every transfer and transit action will have a from and to location. Lets extract it.
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
+            # panda_handle.apply_high_level_action("openEE", [])
+            panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+        elif _action_type == "transfer":
+            # pre-image
+            # if _loc[0] < 0:
+            #     panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
+            # else:
+            #     panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
+            # panda_handle.apply_high_level_action("openEE", [])
+            panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+        elif _action_type == "grasp":
+            # pre-image
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, 0, math.pi]
+            panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+            panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
+
+            # move up
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
+            panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+        elif _action_type == "release":
+            # pre-image
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, 0, math.pi]
+            panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+            panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+
+            # post_image
+            _pos = [_loc[0], _loc[1], _loc[2] + 3, math.pi, 0, math.pi]
+            panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+        elif _action_type == "human-move":
+            # get the urdf name and remove the existing body
+            _obj_name = f"b{_box_id}"
+            _obj_id = panda_handle.world.get_obj_id(_obj_name)
+            _urdf_name, _, _, _ = panda_handle.world.get_obj_attr(_obj_id)
+            pb.removeBody(_obj_id)
+
+            # you have to subtract the table height
+            _loc[2] = _loc[2] - panda_handle.world.table_height
+
+            # add a new to the location that human moved-the obj too
+            panda_handle.world.load_object(urdf_name=_urdf_name,
+                                           obj_name=_obj_name,
+                                           obj_init_position=_loc,
+                                           obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+
+        else:
+            warnings.warn(f"The current action {_action} does not have a valid action type")
+            sys.exit(-1)
+
+
+def initialized_saved_simulation(record_sim: bool,
+                                 boxes: list,
+                                 box_locs: list,
+                                 init_conf: list,
+                                 loc_dict: dict,
+                                 debug: bool = False):
+    # build the simulator
+    if record_sim:
+        physics_client = pb.connect(pb.GUI,
+                                    options="--minGraphicsUpdateTimeMs=0 --mp4=\"experiment.mp4\" --mp4fps=240")
+    else:
+        physics_client = pb.connect(pb.GUI)
+
+    panda = PandaSim(physics_client, use_IK=1)
+
+    if debug:
+        print(f"# of boxes = {len(boxes)}; # of locs = {len(box_locs)}")
+
+    # initialize objects at the corresponding locs
+    for _idx, _loc in enumerate(init_conf):
+        if _idx == len(init_conf) - 1:
+            continue
+        panda.world.load_object(urdf_name="red_box",
+                                obj_name=f"b{_idx}",
+                                obj_init_position=copy.copy(loc_dict.get(_loc)),
+                                obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+
+    for _loc in box_locs:
+        _visual_marker_loc = copy.copy(loc_dict.get(_loc))
+        _visual_marker_loc[2] = 0
+        panda.world.load_markers(marker_loc=_visual_marker_loc)
+
+    return panda
+
+
 def initialize_simulation(causal_graph: CausalGraph,
                           transition_system: FiniteTransitionSystem,
                           loc_dict: dict,
@@ -178,7 +417,7 @@ def initialize_simulation(causal_graph: CausalGraph,
     if debug:
         print(f"# of boxes = {len(boxes)}; # of locs = {len(box_locs)}")
 
-    # intialize objects at the corresponding locs
+    # initialize objects at the corresponding locs
     _init_state = transition_system.transition_system.get_initial_states()[0][0]
     _init_conf = transition_system.transition_system.get_state_w_attribute(_init_state, "list_ap")
 
@@ -198,6 +437,66 @@ def initialize_simulation(causal_graph: CausalGraph,
     return panda
 
 
+def get_action_from_causal_graph_edge(causal_graph_edge_str: str) -> str:
+    """
+    A function to extract the appropriate action type given an edge string (a valid action) on the causal graph.
+    Currently the valid action types are:
+
+        1. transit
+        2. transfer
+        3. grasp
+        4. release
+        5. human-move
+    """
+    _transit_pattern = "\\btransit\\b"
+    _transfer_pattern = "\\btransfer\\b"
+    _grasp_pattern = "\\bgrasp\\b"
+    _release_pattern = "\\brelease\\b"
+    _human_move_pattern = "\\bhuman-move\\b"
+
+    if re.search(_transit_pattern, causal_graph_edge_str):
+        return "transit"
+
+    if re.search(_transfer_pattern, causal_graph_edge_str):
+        return "transfer"
+
+    if re.search(_grasp_pattern, causal_graph_edge_str):
+        return "grasp"
+
+    if re.search(_release_pattern, causal_graph_edge_str):
+        return "release"
+
+    if re.search(_human_move_pattern, causal_graph_edge_str):
+        return "human-move"
+
+    warnings.warn("The current string does not have valid action type")
+    sys.exit(-1)
+
+
+def get_multiple_box_location(multiple_box_location_str: str) -> Tuple[int, List[str]]:
+    """
+    A function that return multiple locations (if present) in a str.
+
+    In our construction of transition system, as per our pddl file naming convention, a human action is as follows
+    "human-action b# l# l#", the box # is placed on l# (1st one) and the human moves it to l# (2nd one).
+    """
+
+    _loc_pattern = "[l|L][\d]+"
+    try:
+        _loc_states: List[str] = re.findall(_loc_pattern, multiple_box_location_str)
+    except AttributeError:
+        print(f"The causal_state_string {multiple_box_location_str} dose not contain location of the box")
+
+    _box_pattern = "[b|B][\d]+"
+    try:
+        _box_state: str = re.search(_box_pattern, multiple_box_location_str).group()
+    except AttributeError:
+        print(f"The causal_state_string {multiple_box_location_str} dose not contain box id")
+
+    _box_id_pattern = "\d+"
+    _box_id: int = int(re.search(_box_id_pattern, _box_state).group())
+
+    return _box_id, _loc_states
 # def _pre_loaded_pick_and_place_action(pos):
 #     _wait_pos_left = [-0.2, 0.0, 0.9, math.pi, 0, math.pi]
 #     _wait_pos_right = [0.2, 0.0, 0.9, math.pi, 0, math.pi]
@@ -227,11 +526,12 @@ def initialize_simulation(causal_graph: CausalGraph,
 #
 #     panda.apply_high_level_action("openEE", [], vel=0.5)
 
+
 def save_str(causal_graph: CausalGraph,
              transition_system: FiniteTransitionSystem,
              two_player_game: TwoPlayerGame,
              regret_graph_of_alternatives: TwoPlayerGraph,
-             game_reg_value: np.int32,
+             game_reg_value: dict,
              pos_seq: list):
     """
     A helper method that dumps the regret value and the corresponding strategy computed for given abstraction and an
@@ -254,7 +554,8 @@ def save_str(causal_graph: CausalGraph,
     _boxes = causal_graph.task_objects
     _locations = causal_graph.task_locations
 
-    _reg_value: int = game_reg_value.item()
+    _init_state = regret_graph_of_alternatives.get_initial_states()[0][0]
+    _reg_value: int = game_reg_value.get(_init_state)
 
     _init_state = transition_system.transition_system.get_initial_states()[0][0]
     _init_conf = transition_system.transition_system.get_state_w_attribute(_init_state, "list_ap")
@@ -303,9 +604,16 @@ def save_str(causal_graph: CausalGraph,
 
     # now dump the data in a file
     _file_name: str =\
-    f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_{_possible_human_interventions}_h_{_reg_value}_reg.yaml"
+    f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_{_possible_human_interventions}_h_" \
+    f"{_reg_value}_reg_"
 
-    _file_path = ROOT_PATH + _file_name
+    _current_date_time_stamp = str(datetime.datetime.now())
+    #rmeove the seconds stamp
+    _time_stamp, *_ = _current_date_time_stamp.partition('.')
+    _time_stamp = _time_stamp.replace(" ", "_" )
+    _time_stamp = _time_stamp.replace(":", "_")
+    _time_stamp = _time_stamp.replace("-", "_")
+    _file_path = ROOT_PATH + _file_name + _time_stamp + ".yaml"
     try:
         with open(_file_path, 'w') as outfile:
             yaml.dump(data_dict, outfile, default_flow_style=False, sort_keys=False)
@@ -326,9 +634,14 @@ def load_pre_built_loc_info(exp_name: str):
             # 'l4': np.array([0.45, 0.0, 0.17/2])
             'l0': np.array([-0.6, -0.2, 0.17 / 2]),
             'l2': np.array([-0.6, 0.2, 0.17 / 2]),
-            'l3': np.array([0.4, -0.2, 0.17 / 2]),
+            'l3': np.array([-0.4, -0.2, 0.17 / 2]),
             'l1': np.array([-0.4, 0.2, 0.17 / 2]),
-            'l4': np.array([0.5, 0.0, 0.17 / 2])
+            'l4': np.array([-0.5, 0.0, 0.17 / 2]),
+            'l5': np.array([0.6, -0.2, 0.17 / 2]),
+            'l7': np.array([0.6, 0.2, 0.17 / 2]),
+            'l8': np.array([0.4, -0.2, 0.17 / 2]),
+            'l6': np.array([0.4, 0.2, 0.17 / 2]),
+            'l9': np.array([0.5, 0.0, 0.17 / 2]),
         }
     elif exp_name == "arch":
         pass
@@ -355,51 +668,56 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
 
 if __name__ == "__main__":
     record = False
-    dump_strs = True
+    # dump_strs = False
     use_saved_str = False
 
-    # build the product automaton
-    _project_root = os.path.dirname(os.path.abspath(__file__))
-
-    # Experimental stage - lets try calling the function within pyperplan
-    domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
-    problem_file_ath = _project_root + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
-
-    causal_graph_instance = CausalGraph(problem_file=problem_file_ath, domain_file=domain_file_path, draw=False)
-
-    causal_graph_instance.build_causal_graph(add_cooccuring_edges=False)
-    print(
-        f"No. of nodes in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
-    print(
-        f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
-
-    transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
-    transition_system_instance.build_transition_system(plot=False)
-    transition_system_instance.modify_edge_weights()
-
-    print(f"No. of nodes in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
-    print(f"No. of edges in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
-
-    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
-    two_player_instance.build_two_player_game(human_intervention=2, plot_two_player_game=False)
-    two_player_instance.set_appropriate_ap_attribute_name()
-    two_player_instance.modify_ap_w_object_types()
-
-    dfa = two_player_instance.build_LTL_automaton(formula="F((p01 & p12) || (p03 & p14))")
-    product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
-    relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
-    # relabelled_graph.plot_graph()
-
-    # print some details about the product graph
-    print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
-    print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
-
     if not use_saved_str:
+        # build the product automaton
+        _project_root = os.path.dirname(os.path.abspath(__file__))
+
+        # Experimental stage - lets try calling the function within pyperplan
+        domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
+        problem_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
+        # domain_file_path = _project_root + "/pddl_files/blocks_world/domain.pddl"
+        # problem_file_path = _project_root + "/pddl_files/blocks_world/problem.pddl"
+
+        causal_graph_instance = CausalGraph(problem_file=problem_file_path, domain_file=domain_file_path, draw=False)
+
+        causal_graph_instance.build_causal_graph(add_cooccuring_edges=False)
+        print(
+            f"No. of nodes in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
+        print(
+            f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
+
+        transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
+        transition_system_instance.build_transition_system(plot=False)
+        transition_system_instance.modify_edge_weights()
+
+        print(f"No. of nodes in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
+        print(f"No. of edges in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
+
+        two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+        two_player_instance.build_two_player_game(human_intervention=3, plot_two_player_game=False)
+        two_player_instance.set_appropriate_ap_attribute_name()
+        two_player_instance.modify_ap_w_object_types()
+
+        dfa = two_player_instance.build_LTL_automaton(formula="F((p00 & p13 & p22) || (p05 & p18 & p27))")
+        product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
+        relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
+        # relabelled_graph.plot_graph()
+
+        # print some details about the product graph
+        print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
+        print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
+
         # compute strs
-        actions, reg_val, graph_of_alts = compute_reg_strs(product_graph)
+        actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=True, epsilon=0)
+
+        # ask the user if they want to save the str or not
+        dump_strs = input("Do you want to save the strategy,Enter: Y/y")
 
         # save strs
-        if dump_strs:
+        if dump_strs == "y" or dump_strs == "Y":
             save_str(causal_graph=causal_graph_instance,
                      transition_system=transition_system_instance,
                      two_player_game=two_player_instance,
@@ -408,26 +726,23 @@ if __name__ == "__main__":
                      pos_seq=actions)
 
         # simulate the str
-        execture_str(actions=actions,
-                     causal_graph=causal_graph_instance,
-                     transition_system=transition_system_instance,
-                     record_sim=record,
-                     debug=False)
+        execute_str(actions=actions,
+                    causal_graph=causal_graph_instance,
+                    transition_system=transition_system_instance,
+                    record_sim=record,
+                    debug=False)
     else:
 
         # get the actions from the yaml file
-        file_name = "/5loc_problem_1_box_2_loc_2_h_0_reg.yaml"
+        file_name = "/diag_3_obj_2_tables_2_box_7_loc_2_h_7_reg_2021_03_17_20_47_08.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)
         actions = yaml_dump.get("reg_str")
 
-        # TODO: Write a dedicated method to load all the data relevant to simulation from the yaml file alone.
-        execture_str(actions=actions,
-                     causal_graph=causal_graph_instance,
-                     transition_system=transition_system_instance,
-                     record_sim=record,
-                     debug=False)
+        execute_saved_str(yaml_data=yaml_dump,
+                          record_sim=record,
+                          debug=False)
 
     # build the simulator
     # if record:

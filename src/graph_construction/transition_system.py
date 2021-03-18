@@ -528,15 +528,20 @@ class FiniteTransitionSystem:
 
             # get the from and to loc
             _, _locs = self._get_multiple_box_location(_edge_action)
-
+            _from_loc = ""
+            _to_loc = ""
             if len(_locs) == 2:
                 _from_loc = _locs[0]
                 _to_loc = _locs[1]
             else:
                 _to_loc = _locs[0]
 
-            if _to_loc in _non_intervening_locs:
-                self._transition_system._graph[_u][_v][0]['weight'] = 5
+            if _to_loc != "" and _from_loc != "":
+                if _to_loc in _non_intervening_locs and _from_loc not in _non_intervening_locs:
+                    self._transition_system._graph[_u][_v][0]['weight'] = 0
+
+                if _to_loc not in _non_intervening_locs and _from_loc in _non_intervening_locs:
+                    self._transition_system._graph[_u][_v][0]['weight'] = 0
 
 
 if __name__ == "__main__":

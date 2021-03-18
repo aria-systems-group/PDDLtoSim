@@ -665,7 +665,16 @@ class TwoPlayerGame:
                                                finite=False,
                                                plot=plot)
 
-        print("DOne build the Product Automaton")
+        print("Done building the Product Automaton")
+
+        # Add the accepting state "accept_all" in the product graph with player = "eve"
+        # should technically be only one if absorbing is true
+        _states = _product_automaton.get_accepting_states()
+
+        for _s in _states:
+            _product_automaton.add_state_attribute(_s,
+                                                   attribute_key="player",
+                                                   attribute_value="eve")
 
         return _product_automaton
 
