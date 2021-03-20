@@ -567,12 +567,67 @@ class FiniteTransitionSystem:
             # if _from_loc == "":
             #     if _to_loc in _non_intervening_locs:
             #         self._transition_system._graph[_u][_v][0]['weight'] = 3
+            # all action within the non_intervening loc are twice as expensive as the other region
             if _to_loc != "" and _from_loc != "":
-                if _to_loc == "l9" and _from_loc == "l7":
-                        self._transition_system._graph[_u][_v][0]['weight'] = 10
+                if _to_loc in _non_intervening_locs and _from_loc in _non_intervening_locs:
+                        self._transition_system._graph[_u][_v][0]['weight'] = 2
 
+            if "else" not in _edge_action:
+                if _from_loc == "" and _to_loc in _non_intervening_locs:
+                    self._transition_system._graph[_u][_v][0]['weight'] = 2
                 # if _to_loc in _non_intervening_locs and _from_loc not in _non_intervening_locs:
                 #     self._transition_system._graph[_u][_v][0]['weight'] = 10
+
+    def build_arch_abstraction(self,game: TwoPlayerGraph, support_loc: list, top_loc: list):
+        """
+        A helper method to create an abstraction in which there are no transfer actions to locations that are on the
+        top, unless you have supports below it.
+        """
+        _support_loc_1 = ["l8", "l9"]
+        _support_loc_2 = ["l3", "l2"]
+        _top_loc = ["l0", "l1"]
+
+        for _n in game._graph.nodes():
+            _current_world_config = game._graph.nodes[_n].get("list_ap")
+            _causal_state_name = game._graph.nodes[_n].get("causal_state_name")
+            if "holding" in _causal_state_name:
+                # check if you are holding b0
+                _box_id, _ = self._get_box_location(_causal_state_name)
+                if _box_id == 0:
+                    # check if the world satisfies the support config. if yes which one
+                    support_flag_1 = True
+                    for _loc in _support_loc_1:
+                        if _loc not in _current_world_config:
+                            support_flag_1 = False
+                            break
+
+                    support_flag_2 = True
+                    for _loc in _support_loc_2:
+                        if _loc not in _current_world_config:
+                            support_flag_2 = False
+
+                    if support_flag_1:
+                        _support_loc_fixed = _support_loc_1
+                    elif support_flag_2:
+                        _support_loc_fixed = _support_loc_2
+                    else:
+                        continue
+                    # add transfer edges that satisfy the support loc configuration to the top locs
+                    if support_flag_1:
+                        _new_causal_label = "to-loc b0 l1"
+                        _succ_state =  _new_causal_label + "gripper_l8_l9_b0"
+
+                        # create add edge
+
+                        # crate edge edge where it drop it. from this state to ready l1
+                    elif support_flag_2:
+                        # repeat the same process as above
+
+
+
+
+
+
 
 
 if __name__ == "__main__":

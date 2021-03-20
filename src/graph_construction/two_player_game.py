@@ -152,7 +152,7 @@ class TwoPlayerGame:
                                                 org_succ_state_name=(_v, i),
                                                 human_intervention_cost=human_intervention_cost)
 
-        self.__add_transition_from_new_sys_states()
+        self.__add_transition_from_new_sys_states(print_new_states=False)
 
         # after adding valid transitions from novel Sys states to existing Sys states. We need to once again add human
         # state associated with these edges.
@@ -205,7 +205,7 @@ class TwoPlayerGame:
                                             human_intervention_cost=human_intervention_cost)
 
         print("Iterating for the second time to check if human interventions created any new nodes")
-        self.__add_transition_from_new_sys_states()
+        self.__add_transition_from_new_sys_states(print_new_states=False)
 
         if plot_two_player_game:
             if relabel_nodes:
@@ -542,14 +542,15 @@ class TwoPlayerGame:
 
         return _valid_human_actions
 
-    def __add_transition_from_new_sys_states(self):
+    def __add_transition_from_new_sys_states(self, print_new_states: bool = False):
         """
         A helper method that identifies states that were created because of human interventions. We then add valid
         Sys transitions from these states.
         """
         for _n in self._two_player_game._graph.nodes():
             if self._two_player_game._graph.out_degree(_n) == 0:
-                print(_n)
+                if print_new_states:
+                    print(_n)
                 _curr_two_player_node = self._two_player_game._graph.nodes[_n]
                 _curr_world_confg = _curr_two_player_node.get("list_ap")
                 _curr_world_confg_str = _curr_two_player_node.get("ap")

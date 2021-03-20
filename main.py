@@ -199,7 +199,7 @@ def execute_str(actions: list,
                 debug: bool = False):
     # determine the action type first
     _action_type = ""
-    _loc_dict = load_pre_built_loc_info("diag")
+    _loc_dict = load_pre_built_loc_info("arch")
 
     # some constants useful during simulation
     _wait_pos_left = [-0.2, 0.0, 1.2, math.pi, 0, math.pi]
@@ -529,34 +529,45 @@ def get_multiple_box_location(multiple_box_location_str: str) -> Tuple[int, List
     _box_id: int = int(re.search(_box_id_pattern, _box_state).group())
 
     return _box_id, _loc_states
-# def _pre_loaded_pick_and_place_action(pos):
-#     _wait_pos_left = [-0.2, 0.0, 0.9, math.pi, 0, math.pi]
-#     _wait_pos_right = [0.2, 0.0, 0.9, math.pi, 0, math.pi]
-#
-#     # give pose and orientation
-#     panda.apply_high_level_action("openEE", [])
-#
-#     panda.apply_high_level_action("transit", _wait_pos_left, vel=0.5)
-#
-#     _pos = [pos[0], pos[1], pos[2] + 0.3, math.pi, 0, math.pi]
-#     panda.apply_high_level_action("transit", _pos, vel=0.5)
-#
-#     # # 2. go down towards the object
-#     _pos = [pos[0], pos[1], pos[2] + 0.05, math.pi, 0, math.pi]
-#     panda.apply_high_level_action("transit", _pos, vel=0.5)
-#
-#     panda.apply_high_level_action("closeEE", [], vel=0.5)
-#
-#     # # 3. grab the object
-#     _pos = [pos[0], pos[1], pos[2] + 0.3,  math.pi, 0, math.pi]
-#     panda.apply_high_level_action("transfer", _pos, vel=0.5)
-#
-#     panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
-#
-#     _pos = [-pos[0], pos[1], pos[2] + 0.05, math.pi, 0, math.pi]
-#     panda.apply_high_level_action("transfer", _pos, vel=0.5)
-#
-#     panda.apply_high_level_action("openEE", [], vel=0.5)
+
+
+def _pre_loaded_pick_and_place_action(pos, panda):
+    _wait_pos_left = [-0.2, 0.0, 0.9, math.pi, 0, math.pi]
+    _wait_pos_right = [0.2, 0.0, 0.9, math.pi, 0, math.pi]
+
+    # lets try grabbing from side and place on top of two objects
+    # give pose and orientation
+    panda.apply_high_level_action("openEE", [])
+
+    panda.apply_high_level_action("transit", _wait_pos_left, vel=0.5)
+
+    _pos = [pos[0], pos[1], pos[2] + 0.3, 0, math.pi/2, math.pi]
+    panda.apply_high_level_action("transit", _pos, vel=0.5)
+
+    # # 2. go down towards the object and grab it
+    _pos = [pos[0], pos[1], pos[2], 0, math.pi/2, math.pi]
+    panda.apply_high_level_action("transit", _pos, vel=0.5)
+
+    panda.apply_high_level_action("closeEE", [], vel=0.5)
+
+    # # 3. grab the object and take the appr stance
+    _pos = [pos[0], pos[1], pos[2] + 0.3,  math.pi, 0, 0]
+    panda.apply_high_level_action("transfer", _pos, vel=0.5)
+
+    _pos = [pos[0], pos[1], pos[2] + 0.3, math.pi, 0, math.pi/2]
+    panda.apply_high_level_action("transfer", _pos, vel=0.5)
+
+    # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+    _pos = [-0.5, 0.0, 0.625 + 0.20, math.pi, 0, math.pi / 2]
+    panda.apply_high_level_action("transfer", _pos, vel=0.5)
+
+    _pos = [-0.5, 0.0, 0.625 + 0.17, math.pi, 0, math.pi/2]
+    panda.apply_high_level_action("transfer", _pos, vel=0.25)
+
+    panda.apply_high_level_action("openEE", [], vel=0.25)
+
+    _pos = [-0.5, 0.0, 0.625 + 0.30, math.pi, 0, math.pi / 2]
+    panda.apply_high_level_action("transit", _pos, vel=0.25)
 
 
 def save_str(causal_graph: CausalGraph,
@@ -678,11 +689,24 @@ def load_pre_built_loc_info(exp_name: str):
             # 'l7': np.array([0.3, 0.0, 0.17 / 2]),
         }
     elif exp_name == "arch":
-        pass
+        # both locations are on the top
+        _loc_dict = {
+            'l0': [-0.5, 0.0, 0.625],
+            'l1': [0.5, 0.0, 0.625],
+            'l2': [-0.5, -0.14/2, 0.17/2],
+            'l3': [-0.5, 0.14/2, 0.17/2],
+            'l4': [0.3, 0.0, 0.17/2],
+            'l5': [0.0, -0.3, 0.17/2],
+            'l6': [0.0, +0.3, 0.17/2],
+            'l7': [0.0, 0.0, 0.17/2],
+            'l8': [0.5, 0.14/2, 0.17/2],
+            'l9': [0.5, -0.14/2, 0.17/2]
+        }
     else:
         warnings.warn("PLease enter a valid experiment name")
 
     return loc_dict
+
 
 def load_data_from_yaml_file(file_add: str) -> Dict:
     """
@@ -695,7 +719,7 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
 
     except FileNotFoundError as error:
         print(error)
-        print(f"The file {file_name} does not exist")
+        print(f"The file does not exist at the loc {file_add}")
 
     return graph_data
 
@@ -710,8 +734,10 @@ if __name__ == "__main__":
         _project_root = os.path.dirname(os.path.abspath(__file__))
 
         # Experimental stage - lets try calling the function within pyperplan
-        domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
-        problem_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
+        domain_file_path = _project_root + "/pddl_files/two_table_scenario/arch/domain.pddl"
+        problem_file_path = _project_root + "/pddl_files/two_table_scenario/arch/problem.pddl"
+        # domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
+        # problem_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
         # domain_file_path = _project_root + "/pddl_files/blocks_world/domain.pddl"
         # problem_file_path = _project_root + "/pddl_files/blocks_world/problem.pddl"
 
@@ -726,7 +752,7 @@ if __name__ == "__main__":
             f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
 
         transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
-        transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+        transition_system_instance.build_transition_system(plot=True, relabel_nodes=True)
         # transition_system_instance.modify_edge_weights()
 
         print(f"No. of nodes in the Transition System is :"
@@ -734,33 +760,35 @@ if __name__ == "__main__":
         print(f"No. of edges in the Transition System is :"
               f"{len(transition_system_instance.transition_system._graph.nodes())}")
 
+        sys.exit(-1)
+
         two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
         two_player_instance.build_two_player_game(human_intervention=2,
                                                   human_intervention_cost=0,
-                                                  plot_two_player_game=True)
+                                                  plot_two_player_game=False)
         two_player_instance.build_two_player_implicit_transition_system_from_explicit(
-            plot_two_player_implicit_game=True)
+            plot_two_player_implicit_game=False)
         two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
         two_player_instance.modify_ap_w_object_types(implicit=True)
 
-        dfa = two_player_instance.build_LTL_automaton(formula="F((p06))")
+        dfa = two_player_instance.build_LTL_automaton(formula="F((p22 & p13 & p04) || (p09 & p15 & p26))")
         # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
         product_graph = two_player_instance.build_product(dfa=dfa,
                                                           trans_sys=two_player_instance.two_player_implicit_game)
         relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
-        relabelled_graph.plot_graph()
+        # relabelled_graph.plot_graph()
 
         # print some details about the product graph
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
 
-        sys.exit(-1)
+        # sys.exit(-1)
 
         # compute strs
-        # actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
+        actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
 
         # adversarial strs
-        actions = compute_adv_strs(product_graph)
+        # actions = compute_adv_strs(product_graph)
 
         # ask the user if they want to save the str or not
         dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -795,29 +823,25 @@ if __name__ == "__main__":
                           debug=False)
 
     # build the simulator
-    # if record:
-    #     physics_client = pb.connect(pb.GUI,
-    #                                 options="--minGraphicsUpdateTimeMs=0 --mp4=\"experiment.mp4\" --mp4fps=240")
-    # else:
-    #     physics_client = pb.connect(pb.GUI)
+    # physics_client = pb.connect(pb.GUI)
     #
     # panda = PandaSim(physics_client, use_IK=1)
     # # _loc_dict = load_pre_built_loc_info("diag")
     # _loc_dict = {
     #     # 0: np.array([-0.5, -0.2, 0.17 / 2]),
-    #     2: np.array([-0.5, 0.2, 0.17 / 2]),
-    #     3: np.array([-0.3, -0.2, 0.17 / 2]),
-    #     1: np.array([-0.3, 0.2, 0.17 / 2]),
-    #     4: np.array([-0.4, 0.0, 0.17 / 2])
+    #     1: np.array([-0.5, 0.14/2, 0.17 / 2]),
+    #     2: np.array([-0.5, -0.14/2, 0.17 / 2]),
+    #     0: np.array([-0.3, 0.2, 0.17 / 2]),
+    #     # 4: np.array([-0.4, 0.0, 0.17 / 2])
     # }
     # _obj_loc = []
-    # for i in range(1):
-    #     _obj_loc.append(_loc_dict.get(2))
-    #     panda.world.load_object(urdf_name="red_box",
-    #                             obj_name=f"red_box_{2}",
-    #                             obj_init_position=_loc_dict.get(2),
+    # for i in range(3):
+    #     _obj_loc.append(_loc_dict.get(i))
+    #     panda.world.load_object(urdf_name="black_box",
+    #                             obj_name=f"red_box_{i}",
+    #                             obj_init_position=_loc_dict.get(i),
     #                             obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
-
+    #
     #     _loc = copy.copy(_loc_dict.get(i))
     #
     #     _loc[2] = 0.625
@@ -842,35 +866,33 @@ if __name__ == "__main__":
     #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
     #                        physicsClientId=panda._physics_client_id)
     #
-    # for i in range(3):
-    #     _obj_loc.append(_loc_dict.get(i))
-    #     _loc = copy.copy(_loc_dict.get(i))
+    # # for i in range(3):
+    # #     _obj_loc.append(_loc_dict.get(i))
+    # #     _loc = copy.copy(_loc_dict.get(i))
+    # #
+    # #     _loc[2] = 0.625
+    # #     _loc[0] = -1 * _loc[0]
+    # #
+    # #     visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
+    # #                                            halfExtents=[0.05, 0.05, 0.001],
+    # #                                            rgbaColor=[0, 0, 1, 0.6],
+    # #                                            specularColor=[0.4, .4, 0],
+    # #                                            visualFramePosition=_loc / 2,
+    # #                                            physicsClientId=panda._physics_client_id)
+    # #
+    # #     collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
+    # #                                                  halfExtents=[0.05, 0.05, 0.001],
+    # #                                                  collisionFramePosition=_loc / 2,
+    # #                                                  physicsClientId=panda._physics_client_id)
+    # #
+    # #     pb.createMultiBody(baseMass=0,
+    # #                        # baseInertialFramePosition=[0, 0, 0],
+    # #                        # baseCollisionShapeIndex=collision_shape_id,
+    # #                        baseVisualShapeIndex=visual_shape_id,
+    # #                        basePosition=_loc / 2,
+    # #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
+    # #                        physicsClientId=panda._physics_client_id)
     #
-    #     _loc[2] = 0.625
-    #     _loc[0] = -1 * _loc[0]
-    #
-    #     visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
-    #                                            halfExtents=[0.05, 0.05, 0.001],
-    #                                            rgbaColor=[0, 0, 1, 0.6],
-    #                                            specularColor=[0.4, .4, 0],
-    #                                            visualFramePosition=_loc / 2,
-    #                                            physicsClientId=panda._physics_client_id)
-    #
-    #     collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
-    #                                                  halfExtents=[0.05, 0.05, 0.001],
-    #                                                  collisionFramePosition=_loc / 2,
-    #                                                  physicsClientId=panda._physics_client_id)
-    #
-    #     pb.createMultiBody(baseMass=0,
-    #                        # baseInertialFramePosition=[0, 0, 0],
-    #                        # baseCollisionShapeIndex=collision_shape_id,
-    #                        baseVisualShapeIndex=visual_shape_id,
-    #                        basePosition=_loc / 2,
-    #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
-    #                        physicsClientId=panda._physics_client_id)
-
-
-    # for _ in range(1500):
     # for i, loc in enumerate(_obj_loc):
     #     # if i != 0:
     #     #     panda.apply_action(panda._home_hand_pose)
@@ -878,4 +900,4 @@ if __name__ == "__main__":
     #     #         pb.stepSimulation()
     #     #         time.sleep(0.01)
     #     # for _ in range(2):
-    #     _pre_loaded_pick_and_place_action(loc)
+    #     _pre_loaded_pick_and_place_action(loc, panda)
