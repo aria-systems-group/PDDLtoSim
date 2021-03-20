@@ -29,9 +29,40 @@ from src.pddl_env_simualtor.envs.panda_sim import PandaSim
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
+def compute_adv_strs(product_graph: TwoPlayerGraph) -> List:
+    """
+    A method to play the adversarial game.
+    """
+    comp_mcr_solver = ValueIteration(product_graph, competitive=True)
+    comp_mcr_solver.solve(debug=False, plot=False)
+    # coop_val_dict = coop_mcr_solver.state_value_dict
+    comp_str_dict = comp_mcr_solver.str_dict
+
+    _init_state = product_graph.get_initial_states()[0][0]
+    _next_state = comp_str_dict[_init_state]
+    _action_seq = []
+
+    _action_seq.append(product_graph._graph[_init_state][_next_state][0].get("actions"))
+
+    while _next_state is not None:
+            _curr_state = _next_state
+
+            _next_state = comp_str_dict.get(_curr_state)
+
+            if _next_state is not None:
+                _edge_act = product_graph._graph[_curr_state][_next_state][0].get("actions")
+                if _action_seq[-1] != _edge_act:
+                    _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
+
+    for _action in _action_seq:
+        print(_action)
+
+    return _action_seq
+
+
 def compute_reg_strs(product_graph: TwoPlayerGame,
                      coop_str: bool = False,
-                     epsilon: int = -1) -> Tuple[list, dict, TwoPlayerGraph]:
+                     epsilon: float = -1) -> Tuple[list, dict, TwoPlayerGraph]:
     """
     A method to compute strategies. We control the env's behavior by making it purely cooperative, pure adversarial, or
     epsilon greedy.
@@ -69,8 +100,9 @@ def compute_reg_strs(product_graph: TwoPlayerGame,
             if twa_game.get_state_w_attribute(_curr_state, attribute="player") == "eve":
                 _next_state = reg_str.get(_curr_state)
             else:
-                if _max_coop_actions == 1:
+                if _max_coop_actions <= 0:
                     _next_state = _coop_str_dict[_curr_state]
+                    # only increase the counter when the human moves
                     _max_coop_actions += 1
                 else:
                     _next_state = reg_str.get(_curr_state)
@@ -311,10 +343,10 @@ def execute_saved_str(yaml_data: dict,
 
         elif _action_type == "transfer":
             # pre-image
-            # if _loc[0] < 0:
-            #     panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
-            # else:
-            #     panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+            if _loc[0] < 0:
+                panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
+            else:
+                panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
 
             _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
             # panda_handle.apply_high_level_action("openEE", [])
@@ -639,9 +671,11 @@ def load_pre_built_loc_info(exp_name: str):
             'l4': np.array([-0.5, 0.0, 0.17 / 2]),
             'l5': np.array([0.6, -0.2, 0.17 / 2]),
             'l7': np.array([0.6, 0.2, 0.17 / 2]),
+            # 'l9': np.array([0.6, 0.2, 0.17 / 2]),
             'l8': np.array([0.4, -0.2, 0.17 / 2]),
             'l6': np.array([0.4, 0.2, 0.17 / 2]),
             'l9': np.array([0.5, 0.0, 0.17 / 2]),
+            # 'l7': np.array([0.3, 0.0, 0.17 / 2]),
         }
     elif exp_name == "arch":
         pass
@@ -681,43 +715,52 @@ if __name__ == "__main__":
         # domain_file_path = _project_root + "/pddl_files/blocks_world/domain.pddl"
         # problem_file_path = _project_root + "/pddl_files/blocks_world/problem.pddl"
 
-        causal_graph_instance = CausalGraph(problem_file=problem_file_path, domain_file=domain_file_path, draw=False)
+        causal_graph_instance = CausalGraph(problem_file=problem_file_path,
+                                            domain_file=domain_file_path,
+                                            draw=False)
 
-        causal_graph_instance.build_causal_graph(add_cooccuring_edges=False)
+        causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
         print(
             f"No. of nodes in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
         print(
             f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
 
         transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
-        transition_system_instance.build_transition_system(plot=False)
-        transition_system_instance.modify_edge_weights()
+        transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+        # transition_system_instance.modify_edge_weights()
 
-        print(f"No. of nodes in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
-        print(f"No. of edges in the Transition System is :{len(transition_system_instance.transition_system._graph.nodes())}")
+        print(f"No. of nodes in the Transition System is :"
+              f"{len(transition_system_instance.transition_system._graph.nodes())}")
+        print(f"No. of edges in the Transition System is :"
+              f"{len(transition_system_instance.transition_system._graph.nodes())}")
 
         two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
-        two_player_instance.build_two_player_game(human_intervention=1,
+        two_player_instance.build_two_player_game(human_intervention=2,
                                                   human_intervention_cost=0,
-                                                  plot_two_player_game=False)
+                                                  plot_two_player_game=True)
         two_player_instance.build_two_player_implicit_transition_system_from_explicit(
-            plot_two_player_implicit_game=False)
-        two_player_instance.set_appropriate_ap_attribute_name()
-        # two_player_instance.modify_ap_w_object_types()
+            plot_two_player_implicit_game=True)
+        two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
+        two_player_instance.modify_ap_w_object_types(implicit=True)
 
-        dfa = two_player_instance.build_LTL_automaton(formula="F((l1 & l3) || (l5 & l6))")
+        dfa = two_player_instance.build_LTL_automaton(formula="F((p06))")
         # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
         product_graph = two_player_instance.build_product(dfa=dfa,
                                                           trans_sys=two_player_instance.two_player_implicit_game)
         relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
-        # relabelled_graph.plot_graph()
+        relabelled_graph.plot_graph()
 
         # print some details about the product graph
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
 
+        sys.exit(-1)
+
         # compute strs
-        actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=True, epsilon=0)
+        # actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
+
+        # adversarial strs
+        actions = compute_adv_strs(product_graph)
 
         # ask the user if they want to save the str or not
         dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -740,7 +783,8 @@ if __name__ == "__main__":
     else:
 
         # get the actions from the yaml file
-        file_name = "/diag_3_obj_2_tables_2_box_7_loc_2_h_7_reg_2021_03_17_20_47_08.yaml"
+        # file_name = "/diag_3_obj_2_tables_2_box_7_loc_2_h_7_reg_2021_03_17_20_47_08.yaml"
+        file_name = "/diag_3_obj_2_tables_1_box_5_loc_1_h_1_reg_2021_03_18_21_30_42.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)

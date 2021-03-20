@@ -5,11 +5,13 @@ import os
 import copy
 import networkx as nx
 
+from bidict import bidict
 from collections import deque, defaultdict
 from typing import Tuple, Dict, List, Optional
 
 from regret_synthesis_toolbox.src.graph import graph_factory
 from regret_synthesis_toolbox.src.graph import FiniteTransSys
+from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 
 # import local packages
 from .causal_graph import CausalGraph
@@ -53,14 +55,14 @@ class FiniteTransitionSystem:
         """
 
         _action_cost_mapping: Dict[str, int] = \
-            {"transit": 0,
-             "transfer": 0,
+            {"transit": 1,
+             "transfer": 1,
              "grasp": 1,
              "release": 1
              }
         return _action_cost_mapping
 
-    def build_transition_system(self, plot: bool = False):
+    def build_transition_system(self, plot: bool = False, relabel_nodes: bool = True):
         """
         A function that builds the transition system given a causal graph.
 
@@ -138,7 +140,11 @@ class FiniteTransitionSystem:
             done_stack.append(_game_current_node)
 
         if plot:
-            self._transition_system.plot_graph()
+            if relabel_nodes:
+                _relabelled_graph = self.internal_node_mapping(self._transition_system)
+                _relabelled_graph.plot_graph()
+            else:
+                self._transition_system.plot_graph()
 
     def _add_transition_to_transition_system(self,
                                              causal_current_node,
@@ -510,6 +516,20 @@ class FiniteTransitionSystem:
 
         return _ap_str
 
+    def internal_node_mapping(self, game: TwoPlayerGraph) -> TwoPlayerGraph:
+        """
+        A helper function that created a node to int dictionary. This helps in plotting as the node names in
+        two_player_pddl_ts_game are huge.
+        """
+
+        _node_int_map = bidict({state: index for index, state in enumerate(game._graph.nodes)})
+        _modified_two_player_pddl_ts = copy.deepcopy(game)
+
+        _relabelled_graph = nx.relabel_nodes(game._graph, _node_int_map, copy=True)
+        _modified_two_player_pddl_ts._graph = _relabelled_graph
+
+        return _modified_two_player_pddl_ts
+
     def modify_edge_weights(self):
         """
         A helper function in which I modify weights corresponding to actions that transit to a safe state from which
@@ -537,16 +557,22 @@ class FiniteTransitionSystem:
             else:
                 _to_loc = _locs[0]
 
-            if _from_loc != "":
-                # if _to_loc in _intervening_locs and _from_loc in _intervening_locs:
-                #     self._transition_system._graph[_u][_v][0]['weight'] = 0
+            # if _from_loc != "":
+            #     # if _to_loc in _intervening_locs and _from_loc in _intervening_locs:
+            #     #     self._transition_system._graph[_u][_v][0]['weight'] = 0
+            #
+            #     if _to_loc in _non_intervening_locs or _from_loc in _non_intervening_locs:
+            #         self._transition_system._graph[_u][_v][0]['weight'] = 3
+            #
+            # if _from_loc == "":
+            #     if _to_loc in _non_intervening_locs:
+            #         self._transition_system._graph[_u][_v][0]['weight'] = 3
+            if _to_loc != "" and _from_loc != "":
+                if _to_loc == "l9" and _from_loc == "l7":
+                        self._transition_system._graph[_u][_v][0]['weight'] = 10
 
-                if _to_loc not in _non_intervening_locs and _from_loc in _non_intervening_locs:
-                    self._transition_system._graph[_u][_v][0]['weight'] = 2
-
-            if _from_loc == "":
-                if _to_loc in _non_intervening_locs:
-                    self._transition_system._graph[_u][_v][0]['weight'] = 2
+                # if _to_loc in _non_intervening_locs and _from_loc not in _non_intervening_locs:
+                #     self._transition_system._graph[_u][_v][0]['weight'] = 10
 
 
 if __name__ == "__main__":

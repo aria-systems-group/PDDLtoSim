@@ -1,0 +1,30 @@
+task_name: diag_3_obj_2_tables
+no_of_boxes:
+  num: 2
+  objects:
+  - b0
+  - b1
+no_of_loc:
+  num: 2
+  objects:
+  - l3
+  - l4
+max_human_int: 1
+init_worl_conf:
+- l0
+- l1
+- free
+ltl_formula: F((l1 & l2) || (l3 & l4))
+abstractions:
+  num_transition_system_nodes: 161
+  num_transition_system_edges: 322
+  num_two_player_game_nodes: 966
+  num_two_player_game_edges: 1288
+  num_graph_of_alts_nodes: 33
+  num_graph_of_alts_edges: 32
+reg_val: 0
+reg_str:
+- (transit b0 else l0)
+- (grasp b0 l0)
+- (transfer b0 l0 l2)
+- (release b0 l2)

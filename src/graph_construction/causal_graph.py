@@ -1,5 +1,8 @@
 import os
+import copy
 import warnings
+from bidict import bidict
+import networkx as nx
 
 # import reg_syn_packages
 from regret_synthesis_toolbox.src.graph import graph_factory
@@ -67,7 +70,10 @@ class CausalGraph:
     def get_task_name(self):
         return self._task.name
 
-    def build_causal_graph(self, add_cooccuring_edges: bool = False, debug: bool = False):
+    def build_causal_graph(self,
+                           add_cooccuring_edges: bool = False,
+                           debug: bool = False,
+                           relabel: bool = True):
         """
         A method that gets the task, dumps the respective data in a yaml file and build a graph using the
         regret_synthesis_toolbox graph factory which reads the dumped yaml file.
@@ -119,8 +125,16 @@ class CausalGraph:
 
         self._causal_graph = raw_transition_system
 
-        if self._plot_graph:
+        if self._plot_graph and not relabel:
             raw_transition_system.plot_graph()
+
+        if self._plot_graph and relabel:
+            _node_int_map = bidict({state: index for index, state in enumerate(self._causal_graph._graph.nodes)})
+            _modified_two_player_pddl_ts = copy.deepcopy(self._causal_graph)
+
+            _relabelled_graph = nx.relabel_nodes(self._causal_graph._graph, _node_int_map, copy=True)
+            _modified_two_player_pddl_ts._graph = _relabelled_graph
+            _modified_two_player_pddl_ts.plot_graph()
 
     def _get_task_and_problem(self):
         self._problem = _parse(self._domain_file, self._problem_file)

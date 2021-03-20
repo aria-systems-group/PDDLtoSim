@@ -694,25 +694,30 @@ class TwoPlayerGame:
 
         return _modified_two_player_pddl_ts
 
-    def set_appropriate_ap_attribute_name(self):
+    def set_appropriate_ap_attribute_name(self, implicit: bool = True):
         """
         A helper function that iterates through every node in the two player game, removes the list ap attribute
         and replaces the ap attribute with that list ap. We also add a new node attribute str_ap that stores the string
         form of the list ap attribute corresponding to that node.
         """
 
-        for _n in self._two_player_game._graph.nodes():
-            _node_atts = self._two_player_game._graph.nodes[_n]
+        if implicit:
+            game = self._two_player_implicit_game
+        else:
+            game = self._two_player_game
+
+        for _n in game._graph.nodes():
+            _node_atts = game._graph.nodes[_n]
             _tmp_ap = _node_atts.get("list_ap")
             _tmp_str_ap = _node_atts.get("ap")
 
-            self._two_player_game._graph.nodes[_n]['ap'] = _tmp_ap
-            self._two_player_game._graph.nodes[_n]['str_ap'] = _tmp_str_ap
+            game._graph.nodes[_n]['ap'] = _tmp_ap
+            game._graph.nodes[_n]['str_ap'] = _tmp_str_ap
 
             # delete the list_ap node attribute
-            del self._two_player_game._graph.nodes[_n]['list_ap']
+            del game._graph.nodes[_n]['list_ap']
 
-    def modify_ap_w_object_types(self):
+    def modify_ap_w_object_types(self, implicit: bool = True):
         """
         A function that modifies the list of atomic propositions that are true at a given state with the box type
 
@@ -722,9 +727,13 @@ class TwoPlayerGame:
         NOTE: Before calling this function, make sure we call the set_appropriate_ap_attribute_name() method that swaps
          the list_ap node with ap attribute.
         """
+        if implicit:
+            game = self._two_player_implicit_game
+        else:
+            game = self._two_player_game
 
-        for _n in self._two_player_game._graph.nodes():
-            _list_ap = self._two_player_game.get_state_w_attribute(_n, "ap")
+        for _n in game._graph.nodes():
+            _list_ap = game.get_state_w_attribute(_n, "ap")
             _tmp_lst_ap = _list_ap.copy()
 
             for _idx, _box_loc in enumerate(_list_ap):
@@ -735,7 +744,7 @@ class TwoPlayerGame:
                     _new_ap_str = f"p{_idx}{_loc[0]}"
                     _tmp_lst_ap[_idx] = _new_ap_str
 
-            self._two_player_game._graph.nodes[_n]['ap'] = _tmp_lst_ap
+            game._graph.nodes[_n]['ap'] = _tmp_lst_ap
 
     def build_LTL_automaton(self, formula: str, debug: bool = False):
         """
