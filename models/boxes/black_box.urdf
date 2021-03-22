@@ -15,7 +15,7 @@
         <box size="0.03 0.03 0.16" />
       </geometry>
       <material name="black">
-        <color rgba="0.1 0.1 0.1 0.9" />
+        <color rgba="0.1 0.1 0.1 1" />
       </material>
     </visual>
 

@@ -100,7 +100,7 @@ def compute_reg_strs(product_graph: TwoPlayerGame,
             if twa_game.get_state_w_attribute(_curr_state, attribute="player") == "eve":
                 _next_state = reg_str.get(_curr_state)
             else:
-                if _max_coop_actions <= 0:
+                if _max_coop_actions <= 2:
                     _next_state = _coop_str_dict[_curr_state]
                     # only increase the counter when the human moves
                     _max_coop_actions += 1
@@ -199,7 +199,7 @@ def execute_str(actions: list,
                 debug: bool = False):
     # determine the action type first
     _action_type = ""
-    _loc_dict = load_pre_built_loc_info("arch")
+    _loc_dict: dict = load_pre_built_loc_info("diag")
 
     # some constants useful during simulation
     _wait_pos_left = [-0.2, 0.0, 1.2, math.pi, 0, math.pi]
@@ -223,6 +223,7 @@ def execute_str(actions: list,
             _from_loc = _loc[0]
             _to_loc = _loc[1]
         else:
+            _from_loc = ""
             _to_loc = _loc[0]
         _loc = _loc_dict.get(_to_loc)
 
@@ -234,18 +235,18 @@ def execute_str(actions: list,
                 panda_handle.apply_high_level_action("transit", _wait_pos_right, vel=0.5)
             # every transfer and transit action will have a from and to location. Lets extract it.
             _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
-            # panda_handle.apply_high_level_action("openEE", [])
+
             panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
         elif _action_type == "transfer":
             # pre-image
-            # if _loc[0] < 0:
-            #     panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
-            # else:
-            #     panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+            if _loc[0] < 0:
+                panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
+            else:
+                panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
 
             _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
-            # panda_handle.apply_high_level_action("openEE", [])
+
             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
         elif _action_type == "grasp":
             # pre-image
@@ -324,10 +325,11 @@ def execute_saved_str(yaml_data: dict,
         _action_type = get_action_from_causal_graph_edge(_action)
         _box_id, _loc = get_multiple_box_location(_action)
         if len(_loc) == 2:
-            _from_loc = _loc[0]
-            _to_loc = _loc[1]
+            _from_loc: str = _loc[0]
+            _to_loc: str = _loc[1]
         else:
-            _to_loc = _loc[0]
+            _from_loc: str = ""
+            _to_loc: str = _loc[0]
         _loc = _loc_dict.get(_to_loc)
 
         if _action_type == "transit":
@@ -336,9 +338,9 @@ def execute_saved_str(yaml_data: dict,
                 panda_handle.apply_high_level_action("transit", _wait_pos_left, vel=0.5)
             else:
                 panda_handle.apply_high_level_action("transit", _wait_pos_right, vel=0.5)
-            # every transfer and transit action will have a from and to location. Lets extract it.
+
             _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
-            # panda_handle.apply_high_level_action("openEE", [])
+
             panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
         elif _action_type == "transfer":
@@ -349,7 +351,7 @@ def execute_saved_str(yaml_data: dict,
                 panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
 
             _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
-            # panda_handle.apply_high_level_action("openEE", [])
+
             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
         elif _action_type == "grasp":
             # pre-image
@@ -399,6 +401,13 @@ def initialized_saved_simulation(record_sim: bool,
                                  init_conf: list,
                                  loc_dict: dict,
                                  debug: bool = False):
+    # obj to URDF mapping
+    _box_id_to_urdf = {
+        "b0": "black_box",
+        "b1": "grey_box",
+        "b2": "white_box"
+    }
+
     # build the simulator
     if record_sim:
         physics_client = pb.connect(pb.GUI,
@@ -415,7 +424,8 @@ def initialized_saved_simulation(record_sim: bool,
     for _idx, _loc in enumerate(init_conf):
         if _idx == len(init_conf) - 1:
             continue
-        panda.world.load_object(urdf_name="red_box",
+        _urdf_name = _box_id_to_urdf.get(f"b{_idx}")
+        panda.world.load_object(urdf_name=_urdf_name,
                                 obj_name=f"b{_idx}",
                                 obj_init_position=copy.copy(loc_dict.get(_loc)),
                                 obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
@@ -433,6 +443,13 @@ def initialize_simulation(causal_graph: CausalGraph,
                           loc_dict: dict,
                           record_sim: bool = False,
                           debug: bool = False):
+    # obj to URDF mapping
+    _box_id_to_urdf = {
+        "b0": "black_box",
+        "b1": "grey_box",
+        "b2": "white_box"
+    }
+
     # build the simulator
     if record_sim:
         physics_client = pb.connect(pb.GUI,
@@ -456,7 +473,8 @@ def initialize_simulation(causal_graph: CausalGraph,
     for _idx, _loc in enumerate(_init_conf):
         if _idx == len(_init_conf) - 1:
             continue
-        panda.world.load_object(urdf_name="red_box",
+        _urdf_name = _box_id_to_urdf.get(f"b{_idx}")
+        panda.world.load_object(urdf_name=_urdf_name,
                                 obj_name=f"b{_idx}",
                                 obj_init_position=copy.copy(loc_dict.get(_loc)),
                                 obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
@@ -573,9 +591,10 @@ def _pre_loaded_pick_and_place_action(pos, panda):
 def save_str(causal_graph: CausalGraph,
              transition_system: FiniteTransitionSystem,
              two_player_game: TwoPlayerGame,
-             regret_graph_of_alternatives: TwoPlayerGraph,
-             game_reg_value: dict,
-             pos_seq: list):
+             pos_seq: list,
+             regret_graph_of_alternatives: Optional[TwoPlayerGraph] = None,
+             game_reg_value: Optional[dict] = None,
+             adversarial: bool = False):
     """
     A helper method that dumps the regret value and the corresponding strategy computed for given abstraction and an
     LTL formula. This method creates a yaml file which is then dumped in the saved_strs folder at the root of the
@@ -598,7 +617,10 @@ def save_str(causal_graph: CausalGraph,
     _locations = causal_graph.task_locations
 
     _init_state = regret_graph_of_alternatives.get_initial_states()[0][0]
-    _reg_value: int = game_reg_value.get(_init_state)
+    if not adversarial:
+        _reg_value: Optional[int] = game_reg_value.get(_init_state)
+    else:
+        _reg_value = None
 
     _init_state = transition_system.transition_system.get_initial_states()[0][0]
     _init_conf = transition_system.transition_system.get_state_w_attribute(_init_state, "list_ap")
@@ -613,9 +635,14 @@ def save_str(causal_graph: CausalGraph,
     _prod_nodes = len(two_player_game.two_player_game._graph.nodes())
     _prod_edges = len(two_player_game.two_player_game._graph.edges())
 
-    # graph of alternatives nodes and edges
-    _graph_of_alts_nodes = len(regret_graph_of_alternatives._graph.nodes())
-    _graph_of_alts_edges = len(regret_graph_of_alternatives._graph.edges())
+    if not adversarial:
+        # graph of alternatives nodes and edges
+        _graph_of_alts_nodes = len(regret_graph_of_alternatives._graph.nodes())
+        _graph_of_alts_edges = len(regret_graph_of_alternatives._graph.edges())
+    else:
+        # graph of alternatives nodes and edges
+        _graph_of_alts_nodes = None
+        _graph_of_alts_edges = None
 
     _ltl_formula = two_player_game.formula
 
@@ -667,7 +694,7 @@ def save_str(causal_graph: CausalGraph,
               f" This could be because I could not find the folder to dump in")
 
 
-def load_pre_built_loc_info(exp_name: str):
+def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
     if exp_name == "diag":
         loc_dict = {
             # 'l0': np.array([-0.7, -0.2, 0.17/2]),
@@ -675,17 +702,17 @@ def load_pre_built_loc_info(exp_name: str):
             # 'l1': np.array([-0.4, -0.2, 0.17/2]),
             # 'l3': np.array([0.6, -0.2, 0.17/2]),
             # 'l4': np.array([0.45, 0.0, 0.17/2])
-            'l0': np.array([-0.6, -0.2, 0.17 / 2]),
-            'l2': np.array([-0.6, 0.2, 0.17 / 2]),
-            'l3': np.array([-0.4, -0.2, 0.17 / 2]),
-            'l1': np.array([-0.4, 0.2, 0.17 / 2]),
-            'l4': np.array([-0.5, 0.0, 0.17 / 2]),
-            'l5': np.array([0.6, -0.2, 0.17 / 2]),
-            'l7': np.array([0.6, 0.2, 0.17 / 2]),
+            'l0': np.array([-0.5, -0.2, 0.17 / 2]),
+            'l2': np.array([-0.5, 0.2, 0.17 / 2]),
+            'l3': np.array([-0.3, -0.2, 0.17 / 2]),
+            'l1': np.array([-0.3, 0.2, 0.17 / 2]),
+            'l4': np.array([-0.4, 0.0, 0.17 / 2]),
+            'l5': np.array([0.5, -0.2, 0.17 / 2]),
+            'l7': np.array([0.5, 0.2, 0.17 / 2]),
             # 'l9': np.array([0.6, 0.2, 0.17 / 2]),
-            'l8': np.array([0.4, -0.2, 0.17 / 2]),
-            'l6': np.array([0.4, 0.2, 0.17 / 2]),
-            'l9': np.array([0.5, 0.0, 0.17 / 2]),
+            'l8': np.array([0.3, -0.2, 0.17 / 2]),
+            'l6': np.array([0.3, 0.2, 0.17 / 2]),
+            'l9': np.array([0.4, 0.0, 0.17 / 2]),
             # 'l7': np.array([0.3, 0.0, 0.17 / 2]),
         }
     elif exp_name == "arch":
@@ -752,7 +779,8 @@ if __name__ == "__main__":
             f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
 
         transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
-        transition_system_instance.build_transition_system(plot=True, relabel_nodes=True)
+        transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+        transition_system_instance.build_arch_abstraction()
         # transition_system_instance.modify_edge_weights()
 
         print(f"No. of nodes in the Transition System is :"
@@ -760,7 +788,7 @@ if __name__ == "__main__":
         print(f"No. of edges in the Transition System is :"
               f"{len(transition_system_instance.transition_system._graph.nodes())}")
 
-        sys.exit(-1)
+        # sys.exit(-1)
 
         two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
         two_player_instance.build_two_player_game(human_intervention=2,
@@ -771,7 +799,7 @@ if __name__ == "__main__":
         two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
         two_player_instance.modify_ap_w_object_types(implicit=True)
 
-        dfa = two_player_instance.build_LTL_automaton(formula="F((p22 & p13 & p04) || (p09 & p15 & p26))")
+        dfa = two_player_instance.build_LTL_automaton(formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
         # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
         product_graph = two_player_instance.build_product(dfa=dfa,
                                                           trans_sys=two_player_instance.two_player_implicit_game)
@@ -785,10 +813,10 @@ if __name__ == "__main__":
         # sys.exit(-1)
 
         # compute strs
-        actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
+        # actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=True, epsilon=0)
 
         # adversarial strs
-        # actions = compute_adv_strs(product_graph)
+        actions = compute_adv_strs(product_graph)
 
         # ask the user if they want to save the str or not
         dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -812,7 +840,8 @@ if __name__ == "__main__":
 
         # get the actions from the yaml file
         # file_name = "/diag_3_obj_2_tables_2_box_7_loc_2_h_7_reg_2021_03_17_20_47_08.yaml"
-        file_name = "/diag_3_obj_2_tables_1_box_5_loc_1_h_1_reg_2021_03_18_21_30_42.yaml"
+        # file_name = "/diag_3_obj_2_tables_1_box_5_loc_1_h_1_reg_2021_03_18_21_30_42.yaml"
+        file_name = "/crucial_strs/diag_3_obj_2_tables_3_box_6_loc_2_h_13_reg_2021_03_21_19_44_09.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)
