@@ -590,6 +590,8 @@ class FiniteTransitionSystem:
         _support_loc_1 = ["l8", "l9"]
         _support_loc_2 = ["l3", "l2"]
         _top_loc = ["l0", "l1"]
+        _done_support_1: bool = False
+        _done_support_2: bool = False
 
         for _n in game._graph.nodes():
             _current_world_config = game._graph.nodes[_n].get("list_ap")
@@ -597,7 +599,7 @@ class FiniteTransitionSystem:
             _curr_node_list_lbl = game._graph.nodes[_n].get("list_ap")
             if "holding" in _causal_state_name:
                 # check if you are holding b0
-                _box_id, _ = self._get_box_location(_causal_state_name)
+                _box_id, _curr_loc = self._get_box_location(_causal_state_name)
                 if _box_id == 0:
                     # check if the world satisfies the support config. if yes which one
                     support_flag_1 = True
@@ -626,7 +628,7 @@ class FiniteTransitionSystem:
                         _succ_node_list_lbl[-1] = "l1"
                         _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
                         _game_succ_node = _causal_succ_node + _succ_node_lbl
-                        _edge_action = "transfer b0 l1"
+                        _edge_action = f"transfer b0 {_curr_loc} l1"
                         _cost = self._action_to_cost.get("transfer")
 
                         if _game_succ_node not in self._transition_system._graph.nodes:
@@ -635,8 +637,6 @@ class FiniteTransitionSystem:
                                                               player="eve",
                                                               list_ap=_succ_node_list_lbl.copy(),
                                                               ap=_succ_node_lbl)
-                        else:
-                            warnings.warn("This should not happen")
 
                         if (_n, _game_succ_node) not in self._transition_system._graph.edges:
                             self._transition_system.add_edge(_n,
@@ -646,39 +646,131 @@ class FiniteTransitionSystem:
                         else:
                             warnings.warn("This should not happen")
 
-                        # crate edge edge where it drop it. from this state to ready l1
-                        _new_game_curr_node = _game_succ_node
-                        _causal_succ_node = "(ready l1)"
-                        _succ_node_list_lbl = _succ_node_list_lbl.copy()
-                        _succ_node_list_lbl[0] = "l1"
-                        _succ_node_list_lbl[-1] = "free"
+                        if not _done_support_2:
+                            # create edge edge where it drop it. from this state to ready l1
+                            _new_game_curr_node = _game_succ_node
+                            _causal_succ_node = "(ready l1)"
+                            _succ_node_list_lbl = _succ_node_list_lbl.copy()
+                            _succ_node_list_lbl[0] = "l1"
+                            _succ_node_list_lbl[-1] = "free"
 
-                        _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
-                        _game_succ_node = _causal_succ_node + _succ_node_lbl
-                        _edge_action = "release b0 l1"
-                        _cost = self._action_to_cost.get("release")
+                            _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                            _game_succ_node = _causal_succ_node + _succ_node_lbl
+                            _edge_action = "release b0 l1"
+                            _cost = self._action_to_cost.get("release")
 
-                        if _game_succ_node not in self._transition_system._graph.nodes:
-                            self._transition_system.add_state(_game_succ_node,
-                                                              causal_state_name=_causal_succ_node,
-                                                              player="eve",
-                                                              list_ap=_succ_node_list_lbl.copy(),
-                                                              ap=_succ_node_lbl)
-                        else:
-                            warnings.warn("This should not happen")
+                            if _game_succ_node not in self._transition_system._graph.nodes:
+                                self._transition_system.add_state(_game_succ_node,
+                                                                  causal_state_name=_causal_succ_node,
+                                                                  player="eve",
+                                                                  list_ap=_succ_node_list_lbl.copy(),
+                                                                  ap=_succ_node_lbl)
+                            else:
+                                warnings.warn("This should not happen")
 
-                        if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
-                            self._transition_system.add_edge(_new_game_curr_node,
-                                                             _game_succ_node,
-                                                             actions=_edge_action,
-                                                             weight=_cost)
-                        else:
-                            warnings.warn("This should not happen")
+                            if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
+                                self._transition_system.add_edge(_new_game_curr_node,
+                                                                 _game_succ_node,
+                                                                 actions=_edge_action,
+                                                                 weight=_cost)
+                            else:
+                                warnings.warn("This should not happen")
 
-                        # from the ready state you need to add out-going edges e.g ["l1", "l3", "l2", "free"].
-                        # then add outgoing edges of type (to-obj b0 l1)l1_l3_l2_free and from this state move it to an
-                        # (holding b0 l1)gripper_l3_l2_b0 state. From here move to an existing state like the empty
-                        # locations in the world e.g. (to loc b0 l8)gripper_l3_l2_l8 state. This state will exixst
+                            # from the ready state you need to add out-going edges e.g ["l1", "l3", "l2", "free"].
+                            # then add outgoing edges of type (to-obj b0 l1)l1_l3_l2_free and from this state move it to an
+                            # (holding b0 l1)gripper_l3_l2_b0 state. From here move to an existing state like the empty
+                            # locations in the world e.g. (to loc b0 l8)gripper_l3_l2_l8 state. This state will exists
+
+                            # create a node where the robot b0 from l1
+                            _new_game_curr_node = _game_succ_node
+                            _causal_succ_node = "(to-obj b0 l1)"
+                            _succ_node_list_lbl = _succ_node_list_lbl.copy()
+
+                            _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                            _game_succ_node = _causal_succ_node + _succ_node_lbl
+                            _edge_action = "transit b0 l1 l1"
+                            _cost = self._action_to_cost.get("transit")
+
+                            if _game_succ_node not in self._transition_system._graph.nodes:
+                                self._transition_system.add_state(_game_succ_node,
+                                                                  causal_state_name=_causal_succ_node,
+                                                                  player="eve",
+                                                                  list_ap=_succ_node_list_lbl.copy(),
+                                                                  ap=_succ_node_lbl)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
+                                self._transition_system.add_edge(_new_game_curr_node,
+                                                                 _game_succ_node,
+                                                                 actions=_edge_action,
+                                                                 weight=_cost)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            # forgot the grasp state completely idiot!
+                            _new_game_curr_node = _game_succ_node
+                            _causal_succ_node = "(holding b0 l1)"
+                            _succ_node_list_lbl = _succ_node_list_lbl.copy()
+                            _succ_node_list_lbl[0] = "gripper"
+                            _succ_node_list_lbl[-1] = "b0"
+
+                            _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                            _game_succ_node = _causal_succ_node + _succ_node_lbl
+                            _edge_action = "grasp b0 l1"
+                            _cost = self._action_to_cost.get("grasp")
+
+                            if _game_succ_node not in self._transition_system._graph.nodes:
+                                self._transition_system.add_state(_game_succ_node,
+                                                                  causal_state_name=_causal_succ_node,
+                                                                  player="eve",
+                                                                  list_ap=_succ_node_list_lbl.copy(),
+                                                                  ap=_succ_node_lbl)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
+                                self._transition_system.add_edge(_new_game_curr_node,
+                                                                 _game_succ_node,
+                                                                 actions=_edge_action,
+                                                                 weight=_cost)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            # finally from this state merge into our existing graph
+                            _new_game_curr_node = _game_succ_node
+                            _succ_node_list_lbl = _succ_node_list_lbl.copy()
+                            _succ_node_list_lbl[0] = "gripper"
+                            # all locations except for l3, l2 and l1 will be available
+                            _empty_locs: set = set(self._causal_graph.task_locations) - {"l1", "l2", "l3"}
+
+                            for _loc in _empty_locs:
+                                _causal_succ_node = f"(to-loc b0 {_loc})"
+                                _succ_node_list_lbl[-1] = _loc
+
+                                _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                                _game_succ_node = _causal_succ_node + _succ_node_lbl
+                                _edge_action = f"transfer b0 l1 {_loc}"
+                                _cost = self._action_to_cost.get("transfer")
+
+                                if _game_succ_node not in self._transition_system._graph.nodes:
+                                    self._transition_system.add_state(_game_succ_node,
+                                                                      causal_state_name=_causal_succ_node,
+                                                                      player="eve",
+                                                                      list_ap=_succ_node_list_lbl.copy(),
+                                                                      ap=_succ_node_lbl)
+                                    warnings.warn("This should not happen")
+
+                                if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
+                                    self._transition_system.add_edge(_new_game_curr_node,
+                                                                     _game_succ_node,
+                                                                     actions=_edge_action,
+                                                                     weight=_cost)
+                                else:
+                                    warnings.warn("This should not happen")
+
+                            # set the done falg true
+                            _done_support_2 = True
 
                     elif support_flag_1:
                         # add an edge to the top loc - l0 in this case
@@ -688,7 +780,7 @@ class FiniteTransitionSystem:
                         _succ_node_list_lbl[-1] = "l0"
                         _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
                         _game_succ_node = _causal_succ_node + _succ_node_lbl
-                        _edge_action = "transfer b0 l0"
+                        _edge_action = f"transfer b0 {_curr_loc} l0"
                         _cost = self._action_to_cost.get("transfer")
 
                         if _game_succ_node not in self._transition_system._graph.nodes:
@@ -703,35 +795,128 @@ class FiniteTransitionSystem:
                                                              _game_succ_node,
                                                              actions=_edge_action,
                                                              weight=_cost)
-
-                        # crate edge edge where it drop it. from this state to ready l1
-                        _new_game_curr_node = _game_succ_node
-                        _causal_succ_node = "(ready l0)"
-                        _succ_node_list_lbl = _succ_node_list_lbl.copy()
-                        _succ_node_list_lbl[0] = "l0"
-                        _succ_node_list_lbl[-1] = "free"
-
-                        _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
-                        _game_succ_node = _causal_succ_node + _succ_node_lbl
-                        _edge_action = "release b0 l0"
-                        _cost = self._action_to_cost.get("release")
-
-                        if _game_succ_node not in self._transition_system._graph.nodes:
-                            self._transition_system.add_state(_game_succ_node,
-                                                              causal_state_name=_causal_succ_node,
-                                                              player="eve",
-                                                              list_ap=_succ_node_list_lbl.copy(),
-                                                              ap=_succ_node_lbl)
                         else:
                             warnings.warn("This should not happen")
 
-                        if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
-                            self._transition_system.add_edge(_new_game_curr_node,
-                                                             _game_succ_node,
-                                                             actions=_edge_action,
-                                                             weight=_cost)
-                        else:
-                            warnings.warn("This should not happen")
+                        if not _done_support_1:
+                            # crate edge edge where it drop it. from this state to ready l1
+                            _new_game_curr_node = _game_succ_node
+                            _causal_succ_node = "(ready l0)"
+                            _succ_node_list_lbl = _succ_node_list_lbl.copy()
+                            _succ_node_list_lbl[0] = "l0"
+                            _succ_node_list_lbl[-1] = "free"
+
+                            _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                            _game_succ_node = _causal_succ_node + _succ_node_lbl
+                            _edge_action = "release b0 l0"
+                            _cost = self._action_to_cost.get("release")
+
+                            if _game_succ_node not in self._transition_system._graph.nodes:
+                                self._transition_system.add_state(_game_succ_node,
+                                                                  causal_state_name=_causal_succ_node,
+                                                                  player="eve",
+                                                                  list_ap=_succ_node_list_lbl.copy(),
+                                                                  ap=_succ_node_lbl)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
+                                self._transition_system.add_edge(_new_game_curr_node,
+                                                                 _game_succ_node,
+                                                                 actions=_edge_action,
+                                                                 weight=_cost)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            # create a node where the robot b0 from l1
+                            _new_game_curr_node = _game_succ_node
+                            _causal_succ_node = "(to-obj b0 l0)"
+                            _succ_node_list_lbl = _succ_node_list_lbl.copy()
+
+                            _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                            _game_succ_node = _causal_succ_node + _succ_node_lbl
+                            _edge_action = "transit b0 l0 l0"
+                            _cost = self._action_to_cost.get("transit")
+
+                            if _game_succ_node not in self._transition_system._graph.nodes:
+                                self._transition_system.add_state(_game_succ_node,
+                                                                  causal_state_name=_causal_succ_node,
+                                                                  player="eve",
+                                                                  list_ap=_succ_node_list_lbl.copy(),
+                                                                  ap=_succ_node_lbl)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
+                                self._transition_system.add_edge(_new_game_curr_node,
+                                                                 _game_succ_node,
+                                                                 actions=_edge_action,
+                                                                 weight=_cost)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            # forgot the grasp state completely idiot!
+                            _new_game_curr_node = _game_succ_node
+                            _causal_succ_node = "(holding b0 l0)"
+                            _succ_node_list_lbl = _succ_node_list_lbl.copy()
+                            _succ_node_list_lbl[0] = "gripper"
+                            _succ_node_list_lbl[-1] = "b0"
+
+                            _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                            _game_succ_node = _causal_succ_node + _succ_node_lbl
+                            _edge_action = "grasp b0 l0"
+                            _cost = self._action_to_cost.get("grasp")
+
+                            if _game_succ_node not in self._transition_system._graph.nodes:
+                                self._transition_system.add_state(_game_succ_node,
+                                                                  causal_state_name=_causal_succ_node,
+                                                                  player="eve",
+                                                                  list_ap=_succ_node_list_lbl.copy(),
+                                                                  ap=_succ_node_lbl)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
+                                self._transition_system.add_edge(_new_game_curr_node,
+                                                                 _game_succ_node,
+                                                                 actions=_edge_action,
+                                                                 weight=_cost)
+                            else:
+                                warnings.warn("This should not happen")
+
+                            # finally from this state merge into our existing graph
+                            _new_game_curr_node = _game_succ_node
+                            _succ_node_list_lbl = _succ_node_list_lbl.copy()
+                            _succ_node_list_lbl[0] = "gripper"
+                            # all locations except for l8, l9 and l0 will be available
+                            _empty_locs: set = set(self._causal_graph.task_locations) - {"l0", "l8", "l9"}
+
+                            for _loc in _empty_locs:
+                                _causal_succ_node = f"(to-loc b0 {_loc})"
+                                _succ_node_list_lbl[-1] = _loc
+
+                                _succ_node_lbl = self._convert_list_ap_to_str(_succ_node_list_lbl)
+                                _game_succ_node = _causal_succ_node + _succ_node_lbl
+                                _edge_action = f"transfer b0 l0 {_loc}"
+                                _cost = self._action_to_cost.get("transfer")
+
+                                if _game_succ_node not in self._transition_system._graph.nodes:
+                                    self._transition_system.add_state(_game_succ_node,
+                                                                      causal_state_name=_causal_succ_node,
+                                                                      player="eve",
+                                                                      list_ap=_succ_node_list_lbl.copy(),
+                                                                      ap=_succ_node_lbl)
+                                    warnings.warn("This should not happen")
+
+                                if (_new_game_curr_node, _game_succ_node) not in self._transition_system._graph.edges:
+                                    self._transition_system.add_edge(_new_game_curr_node,
+                                                                     _game_succ_node,
+                                                                     actions=_edge_action,
+                                                                     weight=_cost)
+                                else:
+                                    warnings.warn("This should not happen")
+
+                            _done_support_1 = True
 
 
 if __name__ == "__main__":

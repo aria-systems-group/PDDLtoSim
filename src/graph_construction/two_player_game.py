@@ -60,7 +60,8 @@ class TwoPlayerGame:
                               human_intervention_cost: int = 0,
                               human_non_intervention_cost: int = 0,
                               plot_two_player_game: bool = False,
-                              relabel_nodes: bool = True):
+                              relabel_nodes: bool = True,
+                              arch_construction: bool = False):
         """
         A function that build a Two Player Game based on a Transition System built from causal graph.
 
@@ -150,9 +151,10 @@ class TwoPlayerGame:
                     # now get add all the valid human interventions
                     self._add_valid_human_edges(human_state_name=_env_node,
                                                 org_succ_state_name=(_v, i),
-                                                human_intervention_cost=human_intervention_cost)
+                                                human_intervention_cost=human_intervention_cost,
+                                                arch_construction=arch_construction)
 
-        self.__add_transition_from_new_sys_states(print_new_states=False)
+        self.__add_transition_from_new_sys_states(print_new_states=False, arch_construction=arch_construction)
 
         # after adding valid transitions from novel Sys states to existing Sys states. We need to once again add human
         # state associated with these edges.
@@ -202,10 +204,11 @@ class TwoPlayerGame:
                 # now get add all the valid human interventions
                 self._add_valid_human_edges(human_state_name=_env_node,
                                             org_succ_state_name=_v,
-                                            human_intervention_cost=human_intervention_cost)
+                                            human_intervention_cost=human_intervention_cost,
+                                            arch_construction=arch_construction)
 
         print("Iterating for the second time to check if human interventions created any new nodes")
-        self.__add_transition_from_new_sys_states(print_new_states=False)
+        self.__add_transition_from_new_sys_states(print_new_states=False, arch_construction=arch_construction)
 
         if plot_two_player_game:
             if relabel_nodes:
@@ -311,13 +314,11 @@ class TwoPlayerGame:
                 self._two_player_implicit_game.plot_graph()
             print("Done plotting")
 
-
-
-
     def _add_valid_human_edges(self,
                                human_state_name: tuple,
                                org_succ_state_name: tuple,
-                               human_intervention_cost: int):
+                               human_intervention_cost: int,
+                               arch_construction: bool):
         """
         A helper method that adds valid human intervention edges given the current human state, and the original
         successor state if the human decided not to intervene.
@@ -327,6 +328,12 @@ class TwoPlayerGame:
 
         :param org_succ_state_name: The original successor state that game would have evolved if human did not intervene
 
+        :param arch_construction: If this flag, thta mean we are constructing an arch. For the arch building scenario,
+        I have fixed the support as well as the top locations. l8 and l9 are support locations and the location on top
+        of these is l0 while l3 and l2 are support locations for l1. Thus l2 and l1 are reserved locations for b0 which
+        can only go on top. Thus we ignore any human intervention when the arch is built or the robot is about to drop
+        a box at the top location.
+
         This function gets all the valid actions for human intervention given the current robot action,
         world configuration, and evolves the game as per the intervention.
         """
@@ -334,7 +341,8 @@ class TwoPlayerGame:
         _org_succ_node: dict = self._two_player_game._graph.nodes[org_succ_state_name]
         _succ_world_conf: list = _org_succ_node["list_ap"]
         _valid_human_actions: list = self.__get_all_valid_human_intervention(human_node=_human_node,
-                                                                             org_succ_node=_org_succ_node)
+                                                                             org_succ_node=_org_succ_node,
+                                                                             arch_construction=arch_construction)
         _curr_succ_idx: int = org_succ_state_name[1]
 
         # now add that human edge to the transition system and accordingly update the list_ap and ap attributes of the
@@ -367,7 +375,7 @@ class TwoPlayerGame:
                                                actions=_human_action,
                                                weight=human_intervention_cost)
 
-    def __get_all_valid_human_intervention(self, human_node: dict, org_succ_node: dict) -> list:
+    def __get_all_valid_human_intervention(self, human_node: dict, org_succ_node: dict, arch_construction: bool ) -> list:
         """
         A helper function that looks up the valid human actions in the causal graph and validate those intervention
         given then current configuration of the world.
@@ -394,7 +402,8 @@ class TwoPlayerGame:
             # the end effector is not performing a grab action
             if "holding" not in _succ_causal_state_name:
                 _possible_human_action: list = \
-                    self.__get_valid_human_actions_under_transit(current_world_conf=_current_world_conf)
+                    self.__get_valid_human_actions_under_transit(current_world_conf=_current_world_conf,
+                                                                 arch_construction=arch_construction)
             # the end effector is performing a grab.
             else:
                 _possible_human_action: list = \
@@ -415,15 +424,21 @@ class TwoPlayerGame:
                     self.__get_valid_human_actions_under_transfer(current_world_conf=_current_world_conf)
             else:
                 _possible_human_action: list = \
-                    self.__get_valid_human_actions_under_release(current_world_conf=_current_world_conf)
+                    self.__get_valid_human_actions_under_release(current_world_conf=_current_world_conf,
+                                                                 arch_construction=arch_construction)
 
         return _possible_human_action
 
-    def __get_valid_human_actions_under_transit(self, current_world_conf: list) -> list:
+    def __get_valid_human_actions_under_transit(self, current_world_conf: list, arch_construction: bool) -> list:
         """
         A function that returns a list all possible human action when the robot is trying to perform a transit action
         """
         _valid_human_actions: list = []
+
+        # human cannot intervene once the arch is build or a box is at location l0 or l1
+        if arch_construction:
+            if "l0" in current_world_conf or "l1" in current_world_conf:
+                return _valid_human_actions
 
         for _box_idx, _box_loc in enumerate(current_world_conf):
             if _box_idx != len(current_world_conf) - 1:
@@ -431,21 +446,22 @@ class TwoPlayerGame:
 
                 # check if this is a valid human action or not by checking if the add_effect
                 # (predicate that becomes true)is possible given the current configuration of the world
-                for _succ_node in self._causal_graph.causal_graph._graph[_state]:
-                    if _succ_node == _state:
-                        continue
-                    _add_effect: str = tuple(
-                        self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
+                if self._causal_graph.causal_graph._graph.has_node(_state):
+                    for _succ_node in self._causal_graph.causal_graph._graph[_state]:
+                        if _succ_node == _state:
+                            continue
+                        _add_effect: str = tuple(
+                            self._causal_graph.causal_graph._graph[_state][_succ_node][0]["add_effects"])[0]
 
-                    # get the box location where it is being moved to
-                    _, _box_loc = self._get_box_location(_add_effect)
+                        # get the box location where it is being moved to
+                        _, _box_loc = self._get_box_location(_add_effect)
 
-                    # if a box is already at this location then this is not a valid human action
-                    if _box_loc in current_world_conf:
-                        pass
-                    else:
-                        _valid_human_actions.append(
-                            self._causal_graph.causal_graph._graph[_state][_succ_node][0]["actions"])
+                        # if a box is already at this location then this is not a valid human action
+                        if _box_loc in current_world_conf:
+                            pass
+                        else:
+                            _valid_human_actions.append(
+                                self._causal_graph.causal_graph._graph[_state][_succ_node][0]["actions"])
 
         return _valid_human_actions
 
@@ -512,11 +528,16 @@ class TwoPlayerGame:
 
         return _valid_human_actions
 
-    def __get_valid_human_actions_under_release(self, current_world_conf: list):
+    def __get_valid_human_actions_under_release(self, current_world_conf: list, arch_construction: bool):
         """
         A function that returns a list of all possible human actions when the robot is trying to drop an object
         """
         _valid_human_actions: list = []
+
+        # human cannot intervene once the arch is build or a box is at location l0 or l1
+        if arch_construction:
+            if "l0" in current_world_conf or "l1" in current_world_conf:
+                return _valid_human_actions
 
         for _box_idx, _box_loc in enumerate(current_world_conf):
             if _box_loc != "gripper" and _box_idx != len(current_world_conf) - 1:
@@ -542,7 +563,7 @@ class TwoPlayerGame:
 
         return _valid_human_actions
 
-    def __add_transition_from_new_sys_states(self, print_new_states: bool = False):
+    def __add_transition_from_new_sys_states(self, print_new_states: bool = False, arch_construction: bool = False):
         """
         A helper method that identifies states that were created because of human interventions. We then add valid
         Sys transitions from these states.
@@ -607,8 +628,43 @@ class TwoPlayerGame:
                                                        weight=_transfer_cost)
 
                 else:
-                    warnings.warn(f"Encountered a Sys state due to human intervention which was unaccounted for. "
-                                  f" The Sys state is {_n}")
+                    if not arch_construction:
+                        warnings.warn(f"Encountered a Sys state due to human intervention which was unaccounted for. "
+                                      f" The Sys state is {_n}")
+                    else:
+                        if "holding" in _n[0]:
+                            # from holding state you can transfer to another "to-loc b0 {empty loc states}"
+                            _transfer_cost: int = _cost_dict.get("transfer")
+                            _occupied_locs: set = set()
+                            _succ_world_conf = _curr_world_confg.copy()
+                            for _idx, _loc in enumerate(_curr_world_confg):
+                                if _idx != len(_curr_world_confg) - 1 and _loc != "gripper":
+                                    _occupied_locs.add(_loc)
+
+                            _free_loc = set(self._causal_graph.task_locations) - _occupied_locs
+
+                            for _loc in _free_loc:
+                                _succ_world_conf[-1] = _loc
+                                _succ_world_conf_str = self._convert_list_ap_to_str(ap=_succ_world_conf)
+                                # this could be to-loc b0 {_loc}. But that's fine
+                                _valid_state_to_transit: tuple = (
+                                f'(to-loc b{_curr_box_id} {_loc}){_succ_world_conf_str}',
+                                _intervention_remaining)
+
+                                if not self._two_player_game._graph.has_node(_valid_state_to_transit):
+                                    warnings.warn(f"Adding a transition from {_n} to {_valid_state_to_transit}."
+                                                  f" The state {_valid_state_to_transit} does not already exist")
+
+                                _edge_action = f"transfer b{_curr_box_id} {_curr_robo_loc} {_loc}"
+                                self._two_player_game.add_edge(u=_n,
+                                                               v=_valid_state_to_transit,
+                                                               actions=_edge_action,
+                                                               weight=_transfer_cost)
+                        else:
+                            warnings.warn(
+                                f"Encountered a Sys state due to human intervention which was unaccounted for during"
+                                f" arch construction abstraction. The Sys state is {_n}")
+
 
     def _get_multiple_box_location(self, multiple_box_location_str: str) -> Tuple[int, List[str]]:
         """

@@ -199,7 +199,7 @@ def execute_str(actions: list,
                 debug: bool = False):
     # determine the action type first
     _action_type = ""
-    _loc_dict: dict = load_pre_built_loc_info("diag")
+    _loc_dict: dict = load_pre_built_loc_info(exp_name="arch")
 
     # some constants useful during simulation
     _wait_pos_left = [-0.2, 0.0, 1.2, math.pi, 0, math.pi]
@@ -298,7 +298,7 @@ def execute_saved_str(yaml_data: dict,
     """
     # determine the action type first
     _action_type = ""
-    _loc_dict = load_pre_built_loc_info("diag")
+    _loc_dict = load_pre_built_loc_info(exp_name="diag")
     actions = yaml_data.get("reg_str")
 
     # some constants useful during simulation
@@ -443,11 +443,17 @@ def initialize_simulation(causal_graph: CausalGraph,
                           loc_dict: dict,
                           record_sim: bool = False,
                           debug: bool = False):
-    # obj to URDF mapping
+    # obj to URDF mapping for diag case
+    # _box_id_to_urdf = {
+    #     "b0": "black_box",
+    #     "b1": "grey_box",
+    #     "b2": "white_box"
+    # }
+
     _box_id_to_urdf = {
-        "b0": "black_box",
-        "b1": "grey_box",
-        "b2": "white_box"
+        "b0": "white_box",
+        "b1": "black_box",
+        "b2": "black_box"
     }
 
     # build the simulator
@@ -696,7 +702,7 @@ def save_str(causal_graph: CausalGraph,
 
 def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
     if exp_name == "diag":
-        loc_dict = {
+        _loc_dict = {
             # 'l0': np.array([-0.7, -0.2, 0.17/2]),
             # 'l2': np.array([-0.4, 0.2, 0.17/2]),
             # 'l1': np.array([-0.4, -0.2, 0.17/2]),
@@ -718,21 +724,22 @@ def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
     elif exp_name == "arch":
         # both locations are on the top
         _loc_dict = {
-            'l0': [-0.5, 0.0, 0.625],
-            'l1': [0.5, 0.0, 0.625],
-            'l2': [-0.5, -0.14/2, 0.17/2],
-            'l3': [-0.5, 0.14/2, 0.17/2],
-            'l4': [0.3, 0.0, 0.17/2],
-            'l5': [0.0, -0.3, 0.17/2],
-            'l6': [0.0, +0.3, 0.17/2],
-            'l7': [0.0, 0.0, 0.17/2],
-            'l8': [0.5, 0.14/2, 0.17/2],
-            'l9': [0.5, -0.14/2, 0.17/2]
+            'l0': np.array([0.5, 0.0, 0.625]),
+            'l1': np.array([-0.5, 0.0, 0.625]),
+            'l2': np.array([-0.5, -0.14/2, 0.17/2]),
+            'l3': np.array([-0.5, 0.14/2, 0.17/2]),
+            'l4': np.array([0.3, 0.0, 0.17/2]),
+            'l5': np.array([0.0, -0.3, 0.17/2]),
+            'l6': np.array([0.0, +0.3, 0.17/2]),
+            'l7': np.array([0.0, 0.0, 0.17/2]),
+            'l8': np.array([0.5, 0.14/2, 0.17/2]),
+            'l9': np.array([0.5, -0.14/2, 0.17/2])
         }
     else:
+        _loc_dict: dict = {}
         warnings.warn("PLease enter a valid experiment name")
 
-    return loc_dict
+    return _loc_dict
 
 
 def load_data_from_yaml_file(file_add: str) -> Dict:
@@ -793,16 +800,23 @@ if __name__ == "__main__":
         two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
         two_player_instance.build_two_player_game(human_intervention=2,
                                                   human_intervention_cost=0,
-                                                  plot_two_player_game=False)
-        two_player_instance.build_two_player_implicit_transition_system_from_explicit(
-            plot_two_player_implicit_game=False)
-        two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-        two_player_instance.modify_ap_w_object_types(implicit=True)
+                                                  plot_two_player_game=False,
+                                                  arch_construction=True)
+        # reg case
+        # two_player_instance.build_two_player_implicit_transition_system_from_explicit(
+        #     plot_two_player_implicit_game=False)
+        # two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
+        # two_player_instance.modify_ap_w_object_types(implicit=True)
 
-        dfa = two_player_instance.build_LTL_automaton(formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
-        # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
-        product_graph = two_player_instance.build_product(dfa=dfa,
-                                                          trans_sys=two_player_instance.two_player_implicit_game)
+        # adv cas
+        two_player_instance.set_appropriate_ap_attribute_name(implicit=False)
+        # two_player_instance.modify_ap_w_object_types(implicit=True)
+
+        # dfa = two_player_instance.build_LTL_automaton(formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
+        dfa = two_player_instance.build_LTL_automaton(formula="F((l3 & l2 & l1) || (l8 & l9 & l0))")
+        product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
+        # product_graph = two_player_instance.build_product(dfa=dfa,
+        #                                                   trans_sys=two_player_instance.two_player_implicit_game)
         relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
         # relabelled_graph.plot_graph()
 
@@ -813,7 +827,7 @@ if __name__ == "__main__":
         # sys.exit(-1)
 
         # compute strs
-        # actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=True, epsilon=0)
+        # actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
 
         # adversarial strs
         actions = compute_adv_strs(product_graph)
