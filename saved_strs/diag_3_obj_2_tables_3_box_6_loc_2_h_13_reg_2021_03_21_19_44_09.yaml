@@ -1,0 +1,67 @@
+task_name: diag_3_obj_2_tables
+no_of_boxes:
+  num: 3
+  objects:
+  - b0
+  - b1
+  - b2
+no_of_loc:
+  num: 6
+  objects:
+  - l2
+  - l3
+  - l4
+  - l5
+  - l6
+  - l9
+max_human_int: 2
+init_worl_conf:
+- l3
+- l4
+- l9
+- free
+ltl_formula: F((p22 & p14 & p03) || (p05 & p19 & p26))
+abstractions:
+  num_transition_system_nodes: 1441
+  num_transition_system_edges: 3243
+  num_two_player_game_nodes: 16680
+  num_two_player_game_edges: 35742
+  num_graph_of_alts_nodes: 227573
+  num_graph_of_alts_edges: 507455
+reg_val: !!python/object/apply:numpy.core.multiarray.scalar
+- !!python/object/apply:numpy.dtype
+  args:
+  - i8
+  - 0
+  - 1
+  state: !!python/tuple
+  - 3
+  - <
+  - null
+  - null
+  - null
+  - -1
+  - -1
+  - 0
+- !!binary |
+  DQAAAAAAAAA=
+reg_str:
+- (transit b2 else l9)
+- (grasp b2 l9)
+- (transfer b2 l9 l2)
+- (human-move b0 l3 l2)
+- transfer b2 l2 l6
+- (release b2 l6)
+- (transit b1 l6 l4)
+- (human-move b1 l4 l3)
+- transit b0 l4 l2
+- (grasp b0 l2)
+- (transfer b0 l2 l5)
+- (release b0 l5)
+- (transit b1 l5 l3)
+- (human-move b1 l3 l4)
+- transit b1 l3 l4
+- (grasp b1 l4)
+- (transfer b1 l4 l9)
+- (release b1 l9)
+- (transit b2 l9 l6)
