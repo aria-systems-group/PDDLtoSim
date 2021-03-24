@@ -39,6 +39,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph) -> List:
     comp_str_dict = comp_mcr_solver.str_dict
 
     _init_state = product_graph.get_initial_states()[0][0]
+
     _next_state = comp_str_dict[_init_state]
     _action_seq = []
 
@@ -60,7 +61,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph) -> List:
     return _action_seq
 
 
-def compute_reg_strs(product_graph: TwoPlayerGame,
+def compute_reg_strs(product_graph: TwoPlayerGraph,
                      coop_str: bool = False,
                      epsilon: float = -1) -> Tuple[list, dict, TwoPlayerGraph]:
     """
@@ -81,6 +82,8 @@ def compute_reg_strs(product_graph: TwoPlayerGame,
                                                                             plot=False)
     twa_game = reg_syn_handle.graph_of_alternatives
     _init_state = twa_game.get_initial_states()[0][0]
+    for _n in twa_game._graph.successors(_init_state):
+        print(f"Reg Val: {_n}: {reg_val[_n]}")
     # the reg str is dict that one from one state to another. Lets convert this to print a sequence of edge actions
     _next_state = reg_str[_init_state]
     _action_seq = []
@@ -214,7 +217,6 @@ def re_arrange_blocks(box_id: int, curr_loc, sim_handle):
                                  obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
 
 
-
 def execute_str(actions: list,
                 causal_graph: CausalGraph,
                 transition_system: FiniteTransitionSystem,
@@ -254,9 +256,6 @@ def execute_str(actions: list,
             _to_loc = _loc[0]
         _loc = _loc_dict.get(_to_loc)
         _org_loc_copy = copy.copy(_loc)
-
-        # before applying every action, rearrange each block
-        # re_arrange_blocks()
 
         # if you building an arch then lo and l1 are location on top of boxes. You need a different type of grab action
         # to execute this successfully.
@@ -474,27 +473,186 @@ def execute_saved_str(yaml_data: dict,
     _init_conf = yaml_data.get("init_worl_conf")
 
     # load the simulator env
-    panda_handle = initialized_saved_simulation(record_sim=record_sim,
-                                                boxes=_boxes,
-                                                box_locs=_box_locs,
-                                                init_conf=_init_conf,
-                                                loc_dict=_loc_dict,
-                                                debug=debug)
+    panda_handle = initialize_saved_simulation(record_sim=record_sim,
+                                               boxes=_boxes,
+                                               box_locs=_box_locs,
+                                               init_conf=_init_conf,
+                                               loc_dict=_loc_dict,
+                                               debug=debug)
 
+    # # loop and add the const table height to all valid loc
+    # for _loc in _loc_dict.values():
+    #     _loc[2] = _loc[2] + panda_handle.world.table_height
+    #
+    # for _action in actions:
+    #     _action_type = get_action_from_causal_graph_edge(_action)
+    #     _box_id, _loc = get_multiple_box_location(_action)
+    #     if len(_loc) == 2:
+    #         _from_loc: str = _loc[0]
+    #         _to_loc: str = _loc[1]
+    #     else:
+    #         _from_loc: str = ""
+    #         _to_loc: str = _loc[0]
+    #     _loc = _loc_dict.get(_to_loc)
+    #
+    #     # if you building an arch then lo and l1 are location on top of boxes. You need a different type of grab action
+    #     # to execute this successfully.
+    #     _transfer_to_top_loc: bool = False
+    #     if _to_loc in ["l0", "l1"]:
+    #         _transfer_to_top_loc = True
+    #
+    #     _transfer_from_top_loc = False
+    #     if _from_loc in ["l0", "l1"]:
+    #         _transfer_from_top_loc = True
+    #
+    #     if _action_type == "transit":
+    #         # pre-image based on the object loc
+    #         if _loc[0] < 0:
+    #             panda_handle.apply_high_level_action("transit", _wait_pos_left, vel=0.5)
+    #         else:
+    #             panda_handle.apply_high_level_action("transit", _wait_pos_right, vel=0.5)
+    #
+    #         _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
+    #
+    #         panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+    #
+    #     elif _action_type == "transfer":
+    #         if not _transfer_to_top_loc:
+    #             # pre-image
+    #             if _loc[0] < 0:
+    #                 panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
+    #             else:
+    #                 panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+    #
+    #             _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
+    #
+    #             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+    #
+    #         elif _transfer_to_top_loc:
+    #             # place it at an intermediate loc and grab it from side and then continue
+    #             panda_handle.apply_high_level_action("transfer", [0.0, 0.0, 0.625 + 0.2, math.pi, 0, math.pi], vel=0.5)
+    #             panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+    #             # grab it from side based on where you are going
+    #             if _loc[0] < 0:
+    #                 # going left
+    #                 _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, math.pi / 2, -math.pi]
+    #                 panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+    #
+    #                 # # 2. go down towards the object and grab it
+    #                 _pos = [0.0, 0.0, 0.625 + 0.17/2, 0, math.pi / 2, -math.pi]
+    #                 panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+    #
+    #             else:
+    #                 # going right
+    #                 _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, math.pi / 2, math.pi]
+    #                 panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+    #
+    #                 # # 2. go down towards the object and grab it
+    #                 _pos = [0.0, 0.0, 0.625 + 0.17/2, 0, math.pi / 2, math.pi]
+    #                 panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+    #
+    #             panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
+    #
+    #             # # 3. grab the object and take the appr stance
+    #             _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, math.pi, 0, 0]
+    #             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+    #
+    #             # _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, math.pi, 0, math.pi / 2]
+    #             # panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+    #
+    #             # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+    #             _org_loc = _loc
+    #             _pos = [_loc[0], _loc[1], _loc[2] + 0.20, math.pi, 0, math.pi / 2]
+    #             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+    #
+    #             _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, math.pi, 0, math.pi / 2]
+    #             panda_handle.apply_high_level_action("transfer", _pos, vel=0.25)
+    #
+    #         elif _transfer_from_top_loc:
+    #             # pre-image
+    #             if _loc[0] < 0:
+    #                 panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
+    #
+    #                 _pos = [_loc[0], _loc[1], _loc[2] + 0.3, -math.pi, math.pi / 2, math.pi]
+    #
+    #                 panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+    #
+    #             else:
+    #                 panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+    #
+    #                 _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, math.pi/2, math.pi]
+    #
+    #                 panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+    #         else:
+    #             warnings.warn("Encountered an error in type of transfer action being executed")
+    #
+    #     elif _action_type == "grasp":
+    #         # pre-image
+    #         _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, 0, math.pi]
+    #         panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+    #
+    #         panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
+    #
+    #         # move up
+    #         _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
+    #         panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+    #
+    #     elif _action_type == "release":
+    #         # release action is different when dropping at top location
+    #         if _transfer_to_top_loc:
+    #             panda_handle.apply_high_level_action("openEE", [], vel=0.25)
+    #
+    #             _pos = [_loc[0], _loc[1], _loc[2] + 0.30, math.pi, 0, math.pi / 2]
+    #             panda_handle.apply_high_level_action("transit", _pos, vel=0.25)
+    #
+    #         # pre-image
+    #         _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, 0, math.pi]
+    #         panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+    #
+    #         panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+    #
+    #         # post_image
+    #         _pos = [_loc[0], _loc[1], _loc[2] + 3, math.pi, 0, math.pi]
+    #         panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+    #
+    #     elif _action_type == "human-move":
+    #         # get the urdf name and remove the existing body
+    #         _obj_name = f"b{_box_id}"
+    #         _obj_id = panda_handle.world.get_obj_id(_obj_name)
+    #         _urdf_name, _, _, _ = panda_handle.world.get_obj_attr(_obj_id)
+    #         pb.removeBody(_obj_id)
+    #
+    #         # you have to subtract the table height
+    #         _loc[2] = _loc[2] - panda_handle.world.table_height
+    #
+    #         # add a new to the location that human moved-the obj too
+    #         panda_handle.world.load_object(urdf_name=_urdf_name,
+    #                                        obj_name=_obj_name,
+    #                                        obj_init_position=_loc,
+    #                                        obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
+    #
+    #     else:
+    #         warnings.warn(f"The current action {_action} does not have a valid action type")
+    #         sys.exit(-1)
     # loop and add the const table height to all valid loc
     for _loc in _loc_dict.values():
         _loc[2] = _loc[2] + panda_handle.world.table_height
 
+    _release_from_top_loc_to_right = False
+    _release_from_top_loc_to_left = False
+
     for _action in actions:
         _action_type = get_action_from_causal_graph_edge(_action)
         _box_id, _loc = get_multiple_box_location(_action)
+        # _current
         if len(_loc) == 2:
-            _from_loc: str = _loc[0]
-            _to_loc: str = _loc[1]
+            _from_loc = _loc[0]
+            _to_loc = _loc[1]
         else:
-            _from_loc: str = ""
-            _to_loc: str = _loc[0]
+            _from_loc = ""
+            _to_loc = _loc[0]
         _loc = _loc_dict.get(_to_loc)
+        _org_loc_copy = copy.copy(_loc)
 
         # if you building an arch then lo and l1 are location on top of boxes. You need a different type of grab action
         # to execute this successfully.
@@ -512,13 +670,104 @@ def execute_saved_str(yaml_data: dict,
                 panda_handle.apply_high_level_action("transit", _wait_pos_left, vel=0.5)
             else:
                 panda_handle.apply_high_level_action("transit", _wait_pos_right, vel=0.5)
-
+            # every transfer and transit action will have a from and to location. Lets extract it.
             _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
 
             panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
         elif _action_type == "transfer":
-            if not _transfer_to_top_loc:
+            if _transfer_to_top_loc:
+                # place it at an intermediate loc and grab it from side and then continue
+                panda_handle.apply_high_level_action("transfer", [0.0, 0.0, 0.65 + 0.17, math.pi, 0, math.pi], vel=0.5)
+                panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+
+                # grab it from side based on where you are going
+                if _loc[0] < 0:
+                    # going left
+                    _pos = [+0.1, 0.00, 0.625 + 0.2 + 0.4, 0, math.pi / 2, -math.pi]
+                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+                    re_arrange_blocks(box_id=_box_id, curr_loc=np.array([0.0, 0.0, 0.65 + 0.17 / 2]),
+                                      sim_handle=panda_handle)
+
+                    # _pos = [+0.1, 0.0, 0.625 + 0.17 / 2, 0, math.pi / 2, -math.pi]
+                    # panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+                    # 2. go down towards the object and grab it
+                    _pos = [0.03, 0.0, 0.625 + 0.17 / 2, 0, math.pi / 2, -math.pi]
+                    panda_handle.apply_high_level_action("transit", _pos, vel=0.25)
+
+                    _pos = [-0.01, 0.0, 0.625 + 0.17 / 2, 0, math.pi / 2, -math.pi]
+                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+                    panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
+
+                    # 3. grab the object and take the appr stance
+                    _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, math.pi / 2, -math.pi]
+                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                    # _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, -math.pi]
+                    # panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                    _org_loc = copy.copy(_loc)
+                    # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+                    _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0, math.pi, -math.pi / 2]
+                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                    _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, math.pi, -math.pi / 2]
+                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.25)
+
+                else:
+                    # going right
+                    _pos = [-0.1, 0.05, 0.625 + 0.2 + 0.4, 0, -math.pi / 2, -math.pi]
+                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+                    re_arrange_blocks(box_id=_box_id, curr_loc=np.array([0.0, 0.0, 0.65 + 0.17 / 2]),
+                                      sim_handle=panda_handle)
+
+                    # 2. go down towards the object and grab it
+                    _pos = [-0.03, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, -math.pi]
+                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+                    _pos = [0.0, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, -math.pi]
+                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+                    panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
+
+                    # 3. grab the object and take the appr stance
+                    _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, -math.pi]
+                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                    # _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, -math.pi]
+                    # panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                    _org_loc = copy.copy(_loc)
+                    # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+                    _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0, -math.pi, -math.pi / 2]
+                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                    _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, -math.pi, -math.pi / 2]
+                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.25)
+
+            elif _transfer_from_top_loc:
+                # pre-image
+                if _loc[0] < 0:
+                    panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
+
+                    _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, math.pi / 2, -math.pi]
+
+                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+                    _release_from_top_loc_to_left = True
+
+                else:
+                    panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+
+                    _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, math.pi / 2, math.pi]
+
+                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+                    _release_from_top_loc_to_right = True
+
+            else:
                 # pre-image
                 if _loc[0] < 0:
                     panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
@@ -528,64 +777,6 @@ def execute_saved_str(yaml_data: dict,
                 _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
 
                 panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
-
-            elif _transfer_to_top_loc:
-                # place it at an intermediate loc and grab it from side and then continue
-                panda_handle.apply_high_level_action("transfer", [0.0, 0.0, 0.625 + 0.2, math.pi, 0, math.pi], vel=0.5)
-                panda_handle.apply_high_level_action("openEE", [], vel=0.5)
-                # grab it from side based on where you are going
-                if _loc[0] < 0:
-                    # going left
-                    _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, math.pi / 2, -math.pi]
-                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
-
-                    # # 2. go down towards the object and grab it
-                    _pos = [0.0, 0.0, 0.625 + 0.17/2, 0, math.pi / 2, -math.pi]
-                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
-
-                else:
-                    # going right
-                    _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, math.pi / 2, math.pi]
-                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
-
-                    # # 2. go down towards the object and grab it
-                    _pos = [0.0, 0.0, 0.625 + 0.17/2, 0, math.pi / 2, math.pi]
-                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
-
-                panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
-
-                # # 3. grab the object and take the appr stance
-                _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, math.pi, 0, 0]
-                panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
-
-                # _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, math.pi, 0, math.pi / 2]
-                # panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
-
-                # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
-                _org_loc = _loc
-                _pos = [_loc[0], _loc[1], _loc[2] + 0.20, math.pi, 0, math.pi / 2]
-                panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
-
-                _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, math.pi, 0, math.pi / 2]
-                panda_handle.apply_high_level_action("transfer", _pos, vel=0.25)
-
-            elif _transfer_from_top_loc:
-                # pre-image
-                if _loc[0] < 0:
-                    panda_handle.apply_high_level_action("transfer", _wait_pos_left, vel=0.5)
-
-                    _pos = [_loc[0], _loc[1], _loc[2] + 0.3, -math.pi, math.pi / 2, math.pi]
-
-                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
-
-                else:
-                    panda_handle.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
-
-                    _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, math.pi/2, math.pi]
-
-                    panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
-            else:
-                warnings.warn("Encountered an error in type of transfer action being executed")
 
         elif _action_type == "grasp":
             # pre-image
@@ -605,16 +796,48 @@ def execute_saved_str(yaml_data: dict,
 
                 _pos = [_loc[0], _loc[1], _loc[2] + 0.30, math.pi, 0, math.pi / 2]
                 panda_handle.apply_high_level_action("transit", _pos, vel=0.25)
+                break
 
-            # pre-image
-            _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, 0, math.pi]
-            panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+            elif _release_from_top_loc_to_right:
+                _release_from_top_loc_to_right = False
 
-            panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+                _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, math.pi / 2, math.pi]
 
-            # post_image
-            _pos = [_loc[0], _loc[1], _loc[2] + 3, math.pi, 0, math.pi]
-            panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+                panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+                _pos = [_loc[0], _loc[1], _loc[2] + 0.30, math.pi, 0, math.pi / 2]
+                panda_handle.apply_high_level_action("transit", _pos, vel=0.25)
+
+                # _pos = [_loc[0], _loc[1], _loc[2] - 0.3 - 0.05]
+                re_arrange_blocks(box_id=_box_id, curr_loc=np.array(_org_loc_copy), sim_handle=panda_handle)
+
+            elif _release_from_top_loc_to_left:
+                _release_from_top_loc_to_left = False
+                _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, math.pi / 2, -math.pi]
+
+                panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+                _pos = [_loc[0], _loc[1], _loc[2] + 0.30, math.pi, 0, -math.pi]
+                panda_handle.apply_high_level_action("transit", _pos, vel=0.25)
+
+                _org_loc_copy[0] = _org_loc_copy[0] + 0.02
+                re_arrange_blocks(box_id=_box_id, curr_loc=np.array(_org_loc_copy), sim_handle=panda_handle)
+            else:
+
+                # pre-image
+                _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, 0, math.pi]
+                panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+                panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+
+                # post_image
+                _pos = [_loc[0], _loc[1], _loc[2] + 3, math.pi, 0, math.pi]
+                panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+                # _pos = [_loc[0], _loc[1], _loc[2] - 3 - 0.05]
+                re_arrange_blocks(box_id=_box_id, curr_loc=np.array(_org_loc_copy), sim_handle=panda_handle)
 
         elif _action_type == "human-move":
             # get the urdf name and remove the existing body
@@ -637,12 +860,12 @@ def execute_saved_str(yaml_data: dict,
             sys.exit(-1)
 
 
-def initialized_saved_simulation(record_sim: bool,
-                                 boxes: list,
-                                 box_locs: list,
-                                 init_conf: list,
-                                 loc_dict: dict,
-                                 debug: bool = False):
+def initialize_saved_simulation(record_sim: bool,
+                                boxes: list,
+                                box_locs: list,
+                                init_conf: list,
+                                loc_dict: dict,
+                                debug: bool = False):
     # obj to URDF mapping for diag case
     # _box_id_to_urdf = {
     #     "b0": "black_box",
@@ -974,9 +1197,9 @@ def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
         _loc_dict = {
             'l0': np.array([0.5, 0.0, 0.0]),
             'l1': np.array([-0.5, 0.0, 0.0]),
-            'l2': np.array([-0.5, -0.14/2, 0.17/2]),
-            'l3': np.array([-0.5, 0.14/2, 0.17/2]),
-            'l4': np.array([-0.3, 0.0, 0.17/2]),
+            'l2': np.array([-0.4, -0.14/2, 0.17/2]),
+            'l3': np.array([-0.4, 0.14/2, 0.17/2]),
+            'l4': np.array([-0.2, 0.0, 0.17/2]),
             'l5': np.array([0.0, -0.3, 0.17/2]),
             'l6': np.array([0.0, +0.3, 0.17/2]),
             'l7': np.array([0.3, 0.0, 0.17/2]),
@@ -1007,15 +1230,12 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
 
 
 if __name__ == "__main__":
-    record = True
-    # dump_strs = False
+    record = False
     use_saved_str = False
 
     if not use_saved_str:
-        # build the product automaton
         _project_root = os.path.dirname(os.path.abspath(__file__))
 
-        # Experimental stage - lets try calling the function within pyperplan
         domain_file_path = _project_root + "/pddl_files/two_table_scenario/arch/domain.pddl"
         problem_file_path = _project_root + "/pddl_files/two_table_scenario/arch/problem.pddl"
         # domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
@@ -1036,7 +1256,7 @@ if __name__ == "__main__":
         transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
         transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
         transition_system_instance.build_arch_abstraction()
-        # transition_system_instance.modify_edge_weights()
+        transition_system_instance.modify_edge_weights()
 
         print(f"No. of nodes in the Transition System is :"
               f"{len(transition_system_instance.transition_system._graph.nodes())}")
@@ -1075,10 +1295,10 @@ if __name__ == "__main__":
         # sys.exit(-1)
 
         # compute strs
-        # actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
+        actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
 
         # adversarial strs
-        actions = compute_adv_strs(product_graph)
+        # actions = compute_adv_strs(product_graph)
 
         # ask the user if they want to save the str or not
         dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -1088,10 +1308,10 @@ if __name__ == "__main__":
             save_str(causal_graph=causal_graph_instance,
                      transition_system=transition_system_instance,
                      two_player_game=two_player_instance,
-                     # regret_graph_of_alternatives=graph_of_alts,
-                     # game_reg_value=reg_val,
+                     regret_graph_of_alternatives=graph_of_alts,
+                     game_reg_value=reg_val,
                      pos_seq=actions,
-                     adversarial=True)
+                     adversarial=False)
 
         # simulate the str
         execute_str(actions=actions,
@@ -1105,7 +1325,8 @@ if __name__ == "__main__":
         # file_name = "/diag_3_obj_2_tables_2_box_7_loc_2_h_7_reg_2021_03_17_20_47_08.yaml"
         # file_name = "/diag_3_obj_2_tables_1_box_5_loc_1_h_1_reg_2021_03_18_21_30_42.yaml"
         # file_name = "/crucial_strs/diag_3_obj_2_tables_3_box_6_loc_2_h_13_reg_2021_03_21_19_44_09.yaml"
-        file_name = "/arch_2_tables_3_box_5_loc_2_h_None_reg_2021_03_22_18_47_51.yaml"
+        # file_name = "/arch_2_tables_3_box_5_loc_2_h_None_reg_2021_03_22_18_47_51.yaml"
+        file_name = "/arch_2_tables_3_box_6_loc_1_h_15_reg_2021_03_23_11_37_30.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)

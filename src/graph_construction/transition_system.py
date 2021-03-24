@@ -567,6 +567,15 @@ class FiniteTransitionSystem:
             # if _from_loc == "":
             #     if _to_loc in _non_intervening_locs:
             #         self._transition_system._graph[_u][_v][0]['weight'] = 3
+
+            # transition between the regions are also twice as expensive
+            if _to_loc != "" and _from_loc != "":
+                if _to_loc in _intervening_locs and _from_loc in _non_intervening_locs:
+                        self._transition_system._graph[_u][_v][0]['weight'] = 0
+
+                elif _to_loc in _non_intervening_locs and _from_loc in _intervening_locs:
+                        self._transition_system._graph[_u][_v][0]['weight'] = 0
+
             # all action within the non_intervening loc are twice as expensive as the other region
             if _to_loc != "" and _from_loc != "":
                 if _to_loc in _non_intervening_locs and _from_loc in _non_intervening_locs:
