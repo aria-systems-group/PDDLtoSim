@@ -29,7 +29,11 @@ from src.pddl_env_simualtor.envs.panda_sim import PandaSim
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
-def compute_adv_strs(product_graph: TwoPlayerGraph) -> List:
+def compute_adv_strs(product_graph: TwoPlayerGraph,
+                     purely_avd: bool = True,
+                     no_intervention: bool = False,
+                     cooperative: bool = False,
+                     print_sim_str: bool = True) -> List:
     """
     A method to play the adversarial game.
     """
@@ -45,7 +49,8 @@ def compute_adv_strs(product_graph: TwoPlayerGraph) -> List:
 
     _action_seq.append(product_graph._graph[_init_state][_next_state][0].get("actions"))
 
-    while _next_state is not None:
+    if purely_avd:
+        while _next_state is not None:
             _curr_state = _next_state
 
             _next_state = comp_str_dict.get(_curr_state)
@@ -55,8 +60,58 @@ def compute_adv_strs(product_graph: TwoPlayerGraph) -> List:
                 if _action_seq[-1] != _edge_act:
                     _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
 
-    for _action in _action_seq:
-        print(_action)
+    elif no_intervention:
+        while _next_state is not None:
+            _curr_state = _next_state
+
+            if product_graph.get_state_w_attribute(_curr_state, "player") == "adam":
+                # get the state that sys wanted to evolve to
+                for _succ in product_graph._graph.successors(_curr_state):
+                    _edge_action = product_graph._graph[_curr_state][_succ][0]["actions"]
+                    _edge_type = get_action_from_causal_graph_edge(_edge_action)
+                    if _edge_type != "human-move":
+                        _next_state = _succ
+                        break
+            else:
+                _next_state = comp_str_dict.get(_curr_state)
+
+            if _next_state is not None:
+                _edge_action = product_graph._graph[_curr_state][_next_state][0].get('actions')
+                if _action_seq[-1] != _edge_action:
+                    _action_seq.append(_edge_action)
+
+    elif cooperative:
+        _coop_str_dict = compute_cooperative_actions_for_env(product_graph)
+        _max_coop_actions: int = 0
+        while _next_state is not None:
+            _curr_state = _next_state
+
+            if product_graph.get_state_w_attribute(_curr_state, attribute="player") == "eve":
+                _next_state = comp_str_dict.get(_curr_state)
+            else:
+                if _max_coop_actions <= 2:
+                    _next_state = _coop_str_dict[_curr_state]
+                    # only increase the counter when the human moves
+                    _max_coop_actions += 1
+                else:
+                    for _succ in product_graph._graph.successors(_curr_state):
+                        _edge_action = product_graph._graph[_curr_state][_succ][0]["actions"]
+                        _edge_type = get_action_from_causal_graph_edge(_edge_action)
+                        if _edge_type != "human-move":
+                            _next_state = _succ
+                            break
+
+            if _next_state is not None:
+                _edge_act = product_graph._graph[_curr_state][_next_state][0].get("actions")
+                if _action_seq[-1] != _edge_act:
+                    _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
+
+    else:
+        warnings.warn("Please at-least one of the flags i.e Cooperative, no_intervention or purely_adversarial is True")
+
+    if print_sim_str:
+        for _action in _action_seq:
+            print(_action)
 
     return _action_seq
 
@@ -140,7 +195,7 @@ def compute_reg_strs(product_graph: TwoPlayerGraph,
     return _action_seq, reg_val, twa_game
 
 
-def compute_cooperative_actions_for_env(product_graph: TwoPlayerGame) -> Dict:
+def compute_cooperative_actions_for_env(product_graph: TwoPlayerGraph) -> Dict:
     """
     A helper method to compute the cooperative strategies for the players.
     """
@@ -318,20 +373,20 @@ def execute_str(actions: list,
 
                 else:
                     # going right
-                    _pos = [-0.1, 0.0, 0.625 + 0.2 + 0.4, 0, -math.pi / 2, -math.pi]
+                    _pos = [-0.1, 0.0, 0.625 + 0.2 + 0.4, 0, math.pi / 2, -math.pi]
                     panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
                     # 2. go down towards the object and grab it
-                    _pos = [-0.03, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, -math.pi]
+                    _pos = [-0.03, 0.0, 0.625 + 0.17 / 2, 0, math.pi / 2, -math.pi]
                     panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
-                    _pos = [0.0, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, -math.pi]
+                    _pos = [0.0, 0.0, 0.625 + 0.17 / 2, 0, math.pi / 2, -math.pi]
                     panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
                     panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
 
                     # 3. grab the object and take the appr stance
-                    _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi/2, -math.pi]
+                    _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, math.pi/2, -math.pi]
                     panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
                     # _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, -math.pi]
@@ -339,10 +394,10 @@ def execute_str(actions: list,
 
                     _org_loc = copy.copy(_loc)
                     # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
-                    _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0,  -math.pi, -math.pi / 2]
+                    _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0,  math.pi, -math.pi / 2]
                     panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
-                    _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, -math.pi, -math.pi / 2]
+                    _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, math.pi, -math.pi / 2]
                     panda_handle.apply_high_level_action("transfer", _pos, vel=0.25)
 
             elif _transfer_from_top_loc:
@@ -678,7 +733,8 @@ def execute_saved_str(yaml_data: dict,
         elif _action_type == "transfer":
             if _transfer_to_top_loc:
                 # place it at an intermediate loc and grab it from side and then continue
-                panda_handle.apply_high_level_action("transfer", [0.0, 0.0, 0.65 + 0.17, math.pi, 0, math.pi], vel=0.5)
+                panda_handle.apply_high_level_action("transfer", [0.0, 0.0, 0.62 + 0.17, math.pi, 0, math.pi], vel=0.5)
+                # time.sleep(3)
                 panda_handle.apply_high_level_action("openEE", [], vel=0.5)
 
                 # grab it from side based on where you are going
@@ -719,23 +775,23 @@ def execute_saved_str(yaml_data: dict,
 
                 else:
                     # going right
-                    _pos = [-0.1, 0.05, 0.625 + 0.2 + 0.4, 0, -math.pi / 2, -math.pi]
-                    panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+                    _pos = [-0.1, 0.0, 0.625 + 0.2 + 0.4, 0, -math.pi / 2, math.pi]
+                    panda_handle.apply_high_level_action("transit", _pos, vel=1)
 
                     re_arrange_blocks(box_id=_box_id, curr_loc=np.array([0.0, 0.0, 0.65 + 0.17 / 2]),
                                       sim_handle=panda_handle)
 
                     # 2. go down towards the object and grab it
-                    _pos = [-0.03, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, -math.pi]
+                    _pos = [-0.03, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, math.pi]
                     panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
-                    _pos = [0.0, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, -math.pi]
+                    _pos = [0.0, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, math.pi]
                     panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
                     panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
 
                     # 3. grab the object and take the appr stance
-                    _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, -math.pi]
+                    _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, math.pi]
                     panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
                     # _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, -math.pi]
@@ -743,10 +799,10 @@ def execute_saved_str(yaml_data: dict,
 
                     _org_loc = copy.copy(_loc)
                     # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
-                    _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0, -math.pi, -math.pi / 2]
+                    _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0, -math.pi, math.pi / 2]
                     panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
-                    _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, -math.pi, -math.pi / 2]
+                    _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, -math.pi, math.pi / 2]
                     panda_handle.apply_high_level_action("transfer", _pos, vel=0.25)
 
             elif _transfer_from_top_loc:
@@ -787,6 +843,7 @@ def execute_saved_str(yaml_data: dict,
 
             # move up
             _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
+            # _pos = [_loc[0], _loc[1], _loc[2] + 0.7, math.pi, 0, math.pi]
             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
         elif _action_type == "release":
@@ -1150,9 +1207,14 @@ def save_str(causal_graph: CausalGraph,
     )
 
     # now dump the data in a file
-    _file_name: str =\
-    f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_{_possible_human_interventions}_h_" \
-    f"{_reg_value}_reg_"
+    if adversarial:
+        _file_name: str = \
+            f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_{_possible_human_interventions}_h_" \
+            f"{_reg_value}_adv_"
+    else:
+        _file_name: str =\
+        f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_{_possible_human_interventions}_h_" \
+        f"{_reg_value}_reg_"
 
     _current_date_time_stamp = str(datetime.datetime.now())
     #rmeove the seconds stamp
@@ -1197,12 +1259,14 @@ def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
         _loc_dict = {
             'l0': np.array([0.5, 0.0, 0.0]),
             'l1': np.array([-0.5, 0.0, 0.0]),
-            'l2': np.array([-0.4, -0.14/2, 0.17/2]),
+            # 'l2': np.array([-0.4, -0.14/2, 0.17/2]),
+            'l2': np.array([-0.6, -0.2, 0.17 / 2]),
             'l3': np.array([-0.4, 0.14/2, 0.17/2]),
             'l4': np.array([-0.2, 0.0, 0.17/2]),
             'l5': np.array([0.0, -0.3, 0.17/2]),
             'l6': np.array([0.0, +0.3, 0.17/2]),
-            'l7': np.array([0.3, 0.0, 0.17/2]),
+            # 'l7': np.array([0.3, 0.0, 0.17/2]),
+            'l7': np.array([0.6, 0.0, 0.17 / 2]),
             'l8': np.array([0.5, 0.14/2, 0.17/2]),
             'l9': np.array([0.5, -0.14/2, 0.17/2])
         }
@@ -1281,7 +1345,9 @@ if __name__ == "__main__":
         # two_player_instance.modify_ap_w_object_types(implicit=True)
 
         # dfa = two_player_instance.build_LTL_automaton(formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
-        dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
+        # dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0 & free) || (l3 & l2 & l1))")
+        dfa = two_player_instance.build_LTL_automaton(formula=
+                                                      " F (((p13 & p22) || (p12 & p23) & F(p01)) || ((p18 & p29) || (p19 & p28) & F(p00)))", plot=True)
         # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
         product_graph = two_player_instance.build_product(dfa=dfa,
                                                           trans_sys=two_player_instance.two_player_implicit_game)
@@ -1295,10 +1361,14 @@ if __name__ == "__main__":
         # sys.exit(-1)
 
         # compute strs
-        actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
+        # actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
 
         # adversarial strs
-        # actions = compute_adv_strs(product_graph)
+        actions = compute_adv_strs(product_graph,
+                                   purely_avd=False,
+                                   no_intervention=False,
+                                   cooperative=True,
+                                   print_sim_str=True)
 
         # ask the user if they want to save the str or not
         dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -1308,10 +1378,10 @@ if __name__ == "__main__":
             save_str(causal_graph=causal_graph_instance,
                      transition_system=transition_system_instance,
                      two_player_game=two_player_instance,
-                     regret_graph_of_alternatives=graph_of_alts,
-                     game_reg_value=reg_val,
+                     # regret_graph_of_alternatives=graph_of_alts,
+                     # game_reg_value=reg_val,
                      pos_seq=actions,
-                     adversarial=False)
+                     adversarial=True)
 
         # simulate the str
         execute_str(actions=actions,
@@ -1326,7 +1396,7 @@ if __name__ == "__main__":
         # file_name = "/diag_3_obj_2_tables_1_box_5_loc_1_h_1_reg_2021_03_18_21_30_42.yaml"
         # file_name = "/crucial_strs/diag_3_obj_2_tables_3_box_6_loc_2_h_13_reg_2021_03_21_19_44_09.yaml"
         # file_name = "/arch_2_tables_3_box_5_loc_2_h_None_reg_2021_03_22_18_47_51.yaml"
-        file_name = "/arch_2_tables_3_box_6_loc_1_h_15_reg_2021_03_23_11_37_30.yaml"
+        file_name = "/arch_2_tables_3_box_6_loc_1_h_None_adv_2021_03_24_13_02_24.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)

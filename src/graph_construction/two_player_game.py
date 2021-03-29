@@ -803,7 +803,7 @@ class TwoPlayerGame:
 
             game._graph.nodes[_n]['ap'] = _tmp_lst_ap
 
-    def build_LTL_automaton(self, formula: str, debug: bool = False):
+    def build_LTL_automaton(self, formula: str, debug: bool = False, plot: bool = False, use_alias: bool = True):
         """
         A method to construct automata using the regret_synthesis_tool.
         """
@@ -817,8 +817,8 @@ class TwoPlayerGame:
                                            config_yaml="/config/pddl_ltl",
                                            save_flag=True,
                                            sc_ltl=formula,
-                                           use_alias=False,
-                                           plot=False)
+                                           use_alias=use_alias,
+                                           plot=plot)
 
         if debug:
             print(f"The pddl formula is : {formula}")
