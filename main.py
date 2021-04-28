@@ -158,7 +158,7 @@ def compute_reg_strs(product_graph: TwoPlayerGraph,
             if twa_game.get_state_w_attribute(_curr_state, attribute="player") == "eve":
                 _next_state = reg_str.get(_curr_state)
             else:
-                if _max_coop_actions <= 2:
+                if _max_coop_actions <= 3:
                     _next_state = _coop_str_dict[_curr_state]
                     # only increase the counter when the human moves
                     _max_coop_actions += 1
@@ -926,17 +926,20 @@ def initialize_saved_simulation(record_sim: bool,
                                 loc_dict: dict,
                                 debug: bool = False):
     # obj to URDF mapping for diag case
-    # _box_id_to_urdf = {
-    #     "b0": "black_box",
-    #     "b1": "grey_box",
-    #     "b2": "white_box"
-    # }
-
     _box_id_to_urdf = {
-        "b0": "white_box",
-        "b1": "black_box",
+        # "b0": "black_box",
+        # "b1": "grey_box",
+        # "b2": "white_box"
+        "b0": "black_box",
+        "b1": "grey_box",
         "b2": "black_box"
     }
+
+    # _box_id_to_urdf = {
+    #     "b0": "white_box",
+    #     "b1": "black_box",
+    #     "b2": "black_box"
+    # }
 
     # build the simulator
     if record_sim:
@@ -974,17 +977,21 @@ def initialize_simulation(causal_graph: CausalGraph,
                           record_sim: bool = False,
                           debug: bool = False):
     # obj to URDF mapping for diag case
-    # _box_id_to_urdf = {
-    #     "b0": "black_box",
-    #     "b1": "grey_box",
-    #     "b2": "white_box"
-    # }
-
     _box_id_to_urdf = {
-        "b0": "white_box",
-        "b1": "black_box",
-        "b2": "black_box"
+        "b0": "black_box",
+        "b1": "grey_box",
+        "b2": "black_box",
+        # "b3": "grey_box",
+        # "b4": "white_box"
     }
+
+    # _box_id_to_urdf = {
+    #     "b0": "white_box",
+    #     "b1": "black_box",
+    #     "b2": "black_box",
+    #     "b3": "black_box",
+    #     "b4": "black_box",
+    # }
 
     # build the simulator
     if record_sim:
@@ -1250,12 +1257,16 @@ def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
             'l1': np.array([-0.3, 0.2, 0.17 / 2]),
             'l4': np.array([-0.4, 0.0, 0.17 / 2]),
             'l5': np.array([0.5, -0.2, 0.17 / 2]),
-            'l7': np.array([0.5, 0.2, 0.17 / 2]),
-            # 'l9': np.array([0.6, 0.2, 0.17 / 2]),
-            'l8': np.array([0.3, -0.2, 0.17 / 2]),
-            'l6': np.array([0.3, 0.2, 0.17 / 2]),
-            'l9': np.array([0.4, 0.0, 0.17 / 2]),
+            'l6': np.array([0.2, 0.0, 0.17 / 2]),
+            'l9': np.array([0.5, 0.2, 0.17 / 2]),
+            # 'l8': np.array([0.3, -0.2, 0.17 / 2]),
+            'l8': np.array([0.1, -0.2, 0.17 / 2]),
+            # 'l6': np.array([0.3, 0.2, 0.17 / 2]),
+            'l7': np.array([-0.1, 0.0, 0.17 / 2]),
+            # 'l9': np.array([0.4, 0.0, 0.17 / 2]),
             # 'l7': np.array([0.3, 0.0, 0.17 / 2]),
+            'l10': np.array([0.0, -0.14/2, 0.17/2]),
+            'l11': np.array([0.0, 0.14 / 2, 0.17/2])
         }
     elif exp_name == "arch":
         # both locations are on the top
@@ -1271,7 +1282,9 @@ def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
             'l7': np.array([0.3, 0.0, 0.17/2]),
             # 'l7': np.array([0.6, 0.0, 0.17 / 2]),
             'l8': np.array([0.5, 0.14/2, 0.17/2]),
-            'l9': np.array([0.5, -0.14/2, 0.17/2])
+            'l9': np.array([0.5, -0.14/2, 0.17/2]),
+            'l10': np.array([0.0, -0.14 / 2, 0.17 / 2]),
+            'l11': np.array([0.0, 0.14 / 2, 0.17 / 2])
         }
     else:
         _loc_dict: dict = {}
@@ -1296,7 +1309,7 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
     return graph_data
 
 
-def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
+def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     _project_root = os.path.dirname(os.path.abspath(__file__))
 
     _domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
@@ -1316,6 +1329,7 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
 
     _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
     _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+    _transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
@@ -1335,7 +1349,7 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
     _two_player_instance.build_two_player_implicit_transition_system_from_explicit(
         plot_two_player_implicit_game=False)
     _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-    # _two_player_instance.modify_ap_w_object_types(implicit=True)
+    _two_player_instance.modify_ap_w_object_types(implicit=True)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
@@ -1343,9 +1357,11 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the Two player game is :"
               f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    _dfa = _two_player_instance.build_LTL_automaton(formula="F(l2 || l6)")
-    # _dfa = _two_player_instance.build_LTL_automaton(formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
-    # dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0 & free) || (l3 & l2 & l1))")
+    # _dfa = _two_player_instance.build_LTL_automaton(formula="F(l2 || l6)")
+    # _dfa = _two_player_instance.build_LTL_automaton(
+    #     formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
+    _dfa = _two_player_instance.build_LTL_automaton(
+        formula="F((p12 & p00) || (p20 & p12) || (p05 & p19) || (p25 & p19))")
 
     _product_graph = _two_player_instance.build_product(dfa=_dfa,
                                                         trans_sys=_two_player_instance.two_player_implicit_game)
@@ -1356,7 +1372,7 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
 
     # compute strs
-    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=True, epsilon=0)
 
     # adversarial strs
     _actions = compute_adv_strs(_product_graph,
@@ -1407,7 +1423,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
 
     _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
     _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
-    _transition_system_instance.build_arch_abstraction()
+    _transition_system_instance.build_arch_abstraction(plot=False, relabel_nodes=False)
     # _transition_system_instance.modify_edge_weights()
 
     if print_flag:
@@ -1417,7 +1433,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
               f"{len(_transition_system_instance.transition_system._graph.edges())}")
 
     _two_player_instance = TwoPlayerGame(_causal_graph_instance, _transition_system_instance)
-    _two_player_instance.build_two_player_game(human_intervention=3,
+    _two_player_instance.build_two_player_game(human_intervention=2,
                                                human_intervention_cost=0,
                                                plot_two_player_game=False,
                                                arch_construction=True)
@@ -1478,12 +1494,12 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    record = False
-    use_saved_str = False
+    record = True
+    use_saved_str = True
 
     if use_saved_str:
         # get the actions from the yaml file
-        file_name = "/arch_2_tables_3_box_6_loc_1_h_None_adv_2021_03_29_20_56_03.yaml"
+        file_name = "/diag_3_obj_2_tables_3_box_6_loc_2_h_None_adv_2021_04_27_21_22_51.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)
@@ -1494,8 +1510,8 @@ if __name__ == "__main__":
                           debug=False)
 
     else:
-        # diag_main(print_flag=False, record_flag=record)
-        arch_main(print_flag=True, record_flag=record)
+        daig_main(print_flag=True, record_flag=record)
+        # arch_main(print_flag=True, record_flag=record)
 
     # build the simulator
     # physics_client = pb.connect(pb.GUI)

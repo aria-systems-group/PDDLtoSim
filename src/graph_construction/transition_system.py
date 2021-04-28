@@ -587,12 +587,15 @@ class FiniteTransitionSystem:
                 # if _to_loc in _non_intervening_locs and _from_loc not in _non_intervening_locs:
                 #     self._transition_system._graph[_u][_v][0]['weight'] = 10
 
-    def build_arch_abstraction(self, game: Optional[TwoPlayerGraph] = None):
+    def build_arch_abstraction(self,
+                               game: Optional[TwoPlayerGraph] = None,
+                               plot: bool = False,
+                               relabel_nodes: bool = True):
         """
         A helper method to create an abstraction in which there are no transfer actions to locations that are on the
         top, unless you have supports below it.
         """
-        if game == None:
+        if game is None:
             game = copy.deepcopy(self._transition_system)
 
         # location l1 in on top of l3 and l2 while l0 is on top of l8 and l9
@@ -926,6 +929,12 @@ class FiniteTransitionSystem:
                                     warnings.warn("This should not happen")
 
                             _done_support_1 = True
+        if plot:
+            if relabel_nodes:
+                _relabelled_graph = self.internal_node_mapping(self._transition_system)
+                _relabelled_graph.plot_graph()
+            else:
+                self._transition_system.plot_graph()
 
 
 if __name__ == "__main__":
