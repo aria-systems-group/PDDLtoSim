@@ -754,7 +754,10 @@ class FiniteTransitionSystem:
                             _succ_node_list_lbl = _succ_node_list_lbl.copy()
                             _succ_node_list_lbl[0] = "gripper"
                             # all locations except for l3, l2 and l1 will be available
-                            _empty_locs: set = set(self._causal_graph.task_locations) - {"l1", "l2", "l3"}
+                            # _empty_locs: set = set(self._causal_graph.task_locations) - {"l1", "l2", "l3"}
+                            _occupied_locs = set(_succ_node_list_lbl[1:-1])
+                            _occupied_locs.add("l1")
+                            _empty_locs: set = set(self._causal_graph.task_locations) - _occupied_locs
 
                             for _loc in _empty_locs:
                                 _causal_succ_node = f"(to-loc b0 {_loc})"
@@ -901,7 +904,10 @@ class FiniteTransitionSystem:
                             _succ_node_list_lbl = _succ_node_list_lbl.copy()
                             _succ_node_list_lbl[0] = "gripper"
                             # all locations except for l8, l9 and l0 will be available
-                            _empty_locs: set = set(self._causal_graph.task_locations) - {"l0", "l8", "l9"}
+                            # _empty_locs: set = set(self._causal_graph.task_locations) - {"l0", "l8", "l9"}
+                            _occupied_locs = set(_succ_node_list_lbl[1:-1])
+                            _occupied_locs.add("l0")
+                            _empty_locs: set = set(self._causal_graph.task_locations) - _occupied_locs
 
                             for _loc in _empty_locs:
                                 _causal_succ_node = f"(to-loc b0 {_loc})"
