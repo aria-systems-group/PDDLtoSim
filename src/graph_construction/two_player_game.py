@@ -291,20 +291,20 @@ class TwoPlayerGame:
                                                                 **_edge_attrs)
 
                     for _succ_of_succ in self._two_player_game._graph.successors(_succ):
-                        if _succ_of_succ[1] == _human_int:
-                            _org_succ_of_succ = _succ_of_succ[0]
-                            _org_attrs = self._two_player_game._graph.nodes[_succ_of_succ]
+                        # if _succ_of_succ[1] == _human_int:
+                        _org_succ_of_succ = _succ_of_succ[0]
+                        _org_attrs = self._two_player_game._graph.nodes[_succ_of_succ]
 
-                            if not self._two_player_implicit_game._graph.has_node(_org_succ_of_succ):
-                                self._two_player_implicit_game.add_state(_org_succ_of_succ, **_org_attrs)
-                                warnings.warn("This should not happen")
+                        if not self._two_player_implicit_game._graph.has_node(_org_succ_of_succ):
+                            self._two_player_implicit_game.add_state(_org_succ_of_succ, **_org_attrs)
+                            warnings.warn("This should not happen")
 
-                            _edge_attrs = self._two_player_game._graph.edges[_succ, _succ_of_succ, 0]
+                        _edge_attrs = self._two_player_game._graph.edges[_succ, _succ_of_succ, 0]
 
-                            if not self._two_player_implicit_game._graph.has_edge(_org_succ, _org_succ_of_succ):
-                                self._two_player_implicit_game.add_edge(u=_org_succ,
-                                                                        v=_org_succ_of_succ,
-                                                                        **_edge_attrs)
+                        if not self._two_player_implicit_game._graph.has_edge(_org_succ, _org_succ_of_succ):
+                            self._two_player_implicit_game.add_edge(u=_org_succ,
+                                                                    v=_org_succ_of_succ,
+                                                                    **_edge_attrs)
 
         if plot_two_player_implicit_game:
             if relabel_nodes:
@@ -803,7 +803,7 @@ class TwoPlayerGame:
 
             game._graph.nodes[_n]['ap'] = _tmp_lst_ap
 
-    def build_LTL_automaton(self, formula: str, debug: bool = False, plot: bool = False, use_alias: bool = True):
+    def build_LTL_automaton(self, formula: str, debug: bool = False, plot: bool = False, use_alias: bool = False):
         """
         A method to construct automata using the regret_synthesis_tool.
         """

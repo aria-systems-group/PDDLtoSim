@@ -275,11 +275,12 @@ def re_arrange_blocks(box_id: int, curr_loc, sim_handle):
 def execute_str(actions: list,
                 causal_graph: CausalGraph,
                 transition_system: FiniteTransitionSystem,
+                exp_name: str,
                 record_sim: bool = False,
                 debug: bool = False):
     # determine the action type first
     _action_type = ""
-    _loc_dict: dict = load_pre_built_loc_info(exp_name="arch")
+    _loc_dict: dict = load_pre_built_loc_info(exp_name=exp_name)
 
     # some constants useful during simulation
     _wait_pos_left = [-0.2, 0.0, 1.2, math.pi, 0, math.pi]
@@ -509,6 +510,7 @@ def execute_str(actions: list,
 
 
 def execute_saved_str(yaml_data: dict,
+                      exp_name: str,
                       record_sim: bool = False,
                       debug: bool = False):
     """
@@ -516,7 +518,7 @@ def execute_saved_str(yaml_data: dict,
     """
     # determine the action type first
     _action_type = ""
-    _loc_dict = load_pre_built_loc_info(exp_name="arch")
+    _loc_dict = load_pre_built_loc_info(exp_name=exp_name)
     actions = yaml_data.get("reg_str")
 
     # some constants useful during simulation
@@ -733,7 +735,7 @@ def execute_saved_str(yaml_data: dict,
         elif _action_type == "transfer":
             if _transfer_to_top_loc:
                 # place it at an intermediate loc and grab it from side and then continue
-                panda_handle.apply_high_level_action("transfer", [0.0, 0.0, 0.62 + 0.17, math.pi, 0, math.pi], vel=0.5)
+                panda_handle.apply_high_level_action("transfer", [0.0, 0.0, 0.65 + 0.17, math.pi, 0, math.pi], vel=0.5)
                 # time.sleep(3)
                 panda_handle.apply_high_level_action("openEE", [], vel=0.5)
 
@@ -1217,7 +1219,8 @@ def save_str(causal_graph: CausalGraph,
         f"{_reg_value}_reg_"
 
     _current_date_time_stamp = str(datetime.datetime.now())
-    #rmeove the seconds stamp
+
+    # remove the seconds stamp
     _time_stamp, *_ = _current_date_time_stamp.partition('.')
     _time_stamp = _time_stamp.replace(" ", "_" )
     _time_stamp = _time_stamp.replace(":", "_")
@@ -1259,14 +1262,14 @@ def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
         _loc_dict = {
             'l0': np.array([0.5, 0.0, 0.0]),
             'l1': np.array([-0.5, 0.0, 0.0]),
-            # 'l2': np.array([-0.4, -0.14/2, 0.17/2]),
-            'l2': np.array([-0.6, -0.2, 0.17 / 2]),
+            'l2': np.array([-0.4, -0.14/2, 0.17/2]),
+            # 'l2': np.array([-0.6, -0.2, 0.17 / 2]),
             'l3': np.array([-0.4, 0.14/2, 0.17/2]),
             'l4': np.array([-0.2, 0.0, 0.17/2]),
             'l5': np.array([0.0, -0.3, 0.17/2]),
             'l6': np.array([0.0, +0.3, 0.17/2]),
-            # 'l7': np.array([0.3, 0.0, 0.17/2]),
-            'l7': np.array([0.6, 0.0, 0.17 / 2]),
+            'l7': np.array([0.3, 0.0, 0.17/2]),
+            # 'l7': np.array([0.6, 0.0, 0.17 / 2]),
             'l8': np.array([0.5, 0.14/2, 0.17/2]),
             'l9': np.array([0.5, -0.14/2, 0.17/2])
         }
@@ -1293,118 +1296,206 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
     return graph_data
 
 
+def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
+    _project_root = os.path.dirname(os.path.abspath(__file__))
+
+    _domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
+    _problem_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
+
+    _causal_graph_instance = CausalGraph(problem_file=_problem_file_path,
+                                         domain_file=_domain_file_path,
+                                         draw=False)
+
+    _causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
+
+    if print_flag:
+        print(
+            f"No. of nodes in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.nodes())}")
+        print(
+            f"No. of edges in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.edges())}")
+
+    _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
+    _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+
+    if print_flag:
+        print(f"No. of nodes in the Transition System is :"
+              f"{len(_transition_system_instance.transition_system._graph.nodes())}")
+        print(f"No. of edges in the Transition System is :"
+              f"{len(_transition_system_instance.transition_system._graph.edges())}")
+
+    _two_player_instance = TwoPlayerGame(_causal_graph_instance, _transition_system_instance)
+    _two_player_instance.build_two_player_game(human_intervention=2,
+                                               human_intervention_cost=0,
+                                               plot_two_player_game=False,
+                                               arch_construction=False)
+
+    # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
+
+    # for implicit construction, the human intervention should >=2
+    _two_player_instance.build_two_player_implicit_transition_system_from_explicit(
+        plot_two_player_implicit_game=False)
+    _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
+    # _two_player_instance.modify_ap_w_object_types(implicit=True)
+
+    if print_flag:
+        print(f"No. of nodes in the Two player game is :"
+              f"{len(_two_player_instance._two_player_implicit_game._graph.nodes())}")
+        print(f"No. of edges in the Two player game is :"
+              f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
+
+    _dfa = _two_player_instance.build_LTL_automaton(formula="F(l2 || l6)")
+    # _dfa = _two_player_instance.build_LTL_automaton(formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
+    # dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0 & free) || (l3 & l2 & l1))")
+
+    _product_graph = _two_player_instance.build_product(dfa=_dfa,
+                                                        trans_sys=_two_player_instance.two_player_implicit_game)
+    _relabelled_graph = _two_player_instance.internal_node_mapping(_product_graph)
+
+    if print_flag:
+        print(f"No. of nodes in the product graph is :{len(_relabelled_graph._graph.nodes())}")
+        print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
+
+    # compute strs
+    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+
+    # adversarial strs
+    _actions = compute_adv_strs(_product_graph,
+                                purely_avd=False,
+                                no_intervention=True,
+                                cooperative=False,
+                                print_sim_str=True)
+
+    # ask the user if they want to save the str or not
+    _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
+
+    # save strs
+    if _dump_strs == "y" or _dump_strs == "Y":
+        save_str(causal_graph=_causal_graph_instance,
+                 transition_system=_transition_system_instance,
+                 two_player_game=_two_player_instance,
+                 # regret_graph_of_alternatives=_graph_of_alts,
+                 # game_reg_value=_reg_val,
+                 pos_seq=_actions,
+                 adversarial=True)
+
+    # simulate the str
+    execute_str(actions=_actions,
+                causal_graph=_causal_graph_instance,
+                transition_system=_transition_system_instance,
+                exp_name="diag",
+                record_sim=record_flag,
+                debug=False)
+
+
+def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
+    _project_root = os.path.dirname(os.path.abspath(__file__))
+
+    _domain_file_path = _project_root + "/pddl_files/two_table_scenario/arch/domain.pddl"
+    _problem_file_path = _project_root + "/pddl_files/two_table_scenario/arch/problem.pddl"
+
+    _causal_graph_instance = CausalGraph(problem_file=_problem_file_path,
+                                         domain_file=_domain_file_path,
+                                         draw=False)
+
+    _causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
+
+    if print_flag:
+        print(
+            f"No. of nodes in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.nodes())}")
+        print(
+            f"No. of edges in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.edges())}")
+
+    _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
+    _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+    _transition_system_instance.build_arch_abstraction()
+    # _transition_system_instance.modify_edge_weights()
+
+    if print_flag:
+        print(f"No. of nodes in the Transition System is :"
+              f"{len(_transition_system_instance.transition_system._graph.nodes())}")
+        print(f"No. of edges in the Transition System is :"
+              f"{len(_transition_system_instance.transition_system._graph.edges())}")
+
+    _two_player_instance = TwoPlayerGame(_causal_graph_instance, _transition_system_instance)
+    _two_player_instance.build_two_player_game(human_intervention=3,
+                                               human_intervention_cost=0,
+                                               plot_two_player_game=False,
+                                               arch_construction=True)
+
+    # for implicit construction, the human intervention should >=2
+    _two_player_instance.build_two_player_implicit_transition_system_from_explicit(
+        plot_two_player_implicit_game=False)
+    _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
+    # two_player_instance.modify_ap_w_object_types(implicit=True)
+
+    if print_flag:
+        print(f"No. of nodes in the Two player game is :"
+              f"{len(_two_player_instance._two_player_implicit_game._graph.nodes())}")
+        print(f"No. of edges in the Two player game is :"
+              f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
+
+    _dfa = _two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0 & free) || (l3 & l2 & l1))")
+
+    _product_graph = _two_player_instance.build_product(dfa=_dfa,
+                                                        trans_sys=_two_player_instance.two_player_implicit_game)
+
+    _relabelled_graph = _two_player_instance.internal_node_mapping(_product_graph)
+
+    if print_flag:
+        print(f"No. of nodes in the product graph is :{len(_relabelled_graph._graph.nodes())}")
+        print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
+
+    # compute strs
+    _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+
+    # adversarial strs
+    # _actions = compute_adv_strs(_product_graph,
+    #                             purely_avd=False,
+    #                             no_intervention=True,
+    #                             cooperative=False,
+    #                             print_sim_str=True)
+
+    # ask the user if they want to save the str or not
+    _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
+
+    # save strs
+    if _dump_strs == "y" or _dump_strs == "Y":
+        save_str(causal_graph=_causal_graph_instance,
+                 transition_system=_transition_system_instance,
+                 two_player_game=_two_player_instance,
+                 regret_graph_of_alternatives=_graph_of_alts,
+                 game_reg_value=_reg_val,
+                 pos_seq=_actions,
+                 adversarial=False)
+
+    # simulate the str
+    execute_str(actions=_actions,
+                causal_graph=_causal_graph_instance,
+                transition_system=_transition_system_instance,
+                exp_name="arch",
+                record_sim=record_flag,
+                debug=False)
+
+
 if __name__ == "__main__":
     record = False
     use_saved_str = False
 
-    if not use_saved_str:
-        _project_root = os.path.dirname(os.path.abspath(__file__))
-
-        domain_file_path = _project_root + "/pddl_files/two_table_scenario/arch/domain.pddl"
-        problem_file_path = _project_root + "/pddl_files/two_table_scenario/arch/problem.pddl"
-        # domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
-        # problem_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
-        # domain_file_path = _project_root + "/pddl_files/blocks_world/domain.pddl"
-        # problem_file_path = _project_root + "/pddl_files/blocks_world/problem.pddl"
-
-        causal_graph_instance = CausalGraph(problem_file=problem_file_path,
-                                            domain_file=domain_file_path,
-                                            draw=False)
-
-        causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
-        print(
-            f"No. of nodes in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
-        print(
-            f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
-
-        transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
-        transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
-        transition_system_instance.build_arch_abstraction()
-        transition_system_instance.modify_edge_weights()
-
-        print(f"No. of nodes in the Transition System is :"
-              f"{len(transition_system_instance.transition_system._graph.nodes())}")
-        print(f"No. of edges in the Transition System is :"
-              f"{len(transition_system_instance.transition_system._graph.nodes())}")
-
-        # sys.exit(-1)
-
-        two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
-        two_player_instance.build_two_player_game(human_intervention=1,
-                                                  human_intervention_cost=0,
-                                                  plot_two_player_game=False,
-                                                  arch_construction=True)
-        # reg case
-        two_player_instance.build_two_player_implicit_transition_system_from_explicit(
-            plot_two_player_implicit_game=False)
-        two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-        # two_player_instance.modify_ap_w_object_types(implicit=True)
-
-        # adv cas
-        # two_player_instance.set_appropriate_ap_attribute_name(implicit=False)
-        # two_player_instance.modify_ap_w_object_types(implicit=True)
-
-        # dfa = two_player_instance.build_LTL_automaton(formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
-        # dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0 & free) || (l3 & l2 & l1))")
-        dfa = two_player_instance.build_LTL_automaton(formula=
-                                                      " F (((p13 & p22) || (p12 & p23) & F(p01)) || ((p18 & p29) || (p19 & p28) & F(p00)))", plot=True)
-        # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
-        product_graph = two_player_instance.build_product(dfa=dfa,
-                                                          trans_sys=two_player_instance.two_player_implicit_game)
-        relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
-        # relabelled_graph.plot_graph()
-
-        # print some details about the product graph
-        print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
-        print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
-
-        # sys.exit(-1)
-
-        # compute strs
-        # actions, reg_val, graph_of_alts = compute_reg_strs(product_graph, coop_str=False, epsilon=0)
-
-        # adversarial strs
-        actions = compute_adv_strs(product_graph,
-                                   purely_avd=False,
-                                   no_intervention=False,
-                                   cooperative=True,
-                                   print_sim_str=True)
-
-        # ask the user if they want to save the str or not
-        dump_strs = input("Do you want to save the strategy,Enter: Y/y")
-
-        # save strs
-        if dump_strs == "y" or dump_strs == "Y":
-            save_str(causal_graph=causal_graph_instance,
-                     transition_system=transition_system_instance,
-                     two_player_game=two_player_instance,
-                     # regret_graph_of_alternatives=graph_of_alts,
-                     # game_reg_value=reg_val,
-                     pos_seq=actions,
-                     adversarial=True)
-
-        # simulate the str
-        execute_str(actions=actions,
-                    causal_graph=causal_graph_instance,
-                    transition_system=transition_system_instance,
-                    record_sim=record,
-                    debug=False)
-    else:
-
+    if use_saved_str:
         # get the actions from the yaml file
-        # file_name = "/diag_3_obj_2_tables_2_box_7_loc_2_h_7_reg_2021_03_17_20_47_08.yaml"
-        # file_name = "/diag_3_obj_2_tables_1_box_5_loc_1_h_1_reg_2021_03_18_21_30_42.yaml"
-        # file_name = "/crucial_strs/diag_3_obj_2_tables_3_box_6_loc_2_h_13_reg_2021_03_21_19_44_09.yaml"
-        # file_name = "/arch_2_tables_3_box_5_loc_2_h_None_reg_2021_03_22_18_47_51.yaml"
-        file_name = "/arch_2_tables_3_box_6_loc_1_h_None_adv_2021_03_24_13_02_24.yaml"
+        file_name = "/arch_2_tables_3_box_6_loc_1_h_None_adv_2021_03_29_20_56_03.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)
-        actions = yaml_dump.get("reg_str")
 
         execute_saved_str(yaml_data=yaml_dump,
+                          exp_name="diag",
                           record_sim=record,
                           debug=False)
+
+    else:
+        # diag_main(print_flag=False, record_flag=record)
+        arch_main(print_flag=True, record_flag=record)
 
     # build the simulator
     # physics_client = pb.connect(pb.GUI)
@@ -1412,17 +1503,18 @@ if __name__ == "__main__":
     # panda = PandaSim(physics_client, use_IK=1)
     # # _loc_dict = load_pre_built_loc_info("diag")
     # _loc_dict = {
-    #     # 0: np.array([-0.5, -0.2, 0.17 / 2]),
-    #     1: np.array([-0.5, 0.14/2, 0.17 / 2]),
-    #     2: np.array([-0.5, -0.14/2, 0.17 / 2]),
-    #     0: np.array([-0.3, 0.2, 0.17 / 2]),
-    #     # 4: np.array([-0.4, 0.0, 0.17 / 2])
+    #     # # 0: np.array([-0.5, -0.2, 0.17 / 2]),
+    #     # 1: np.array([-0.5, 0.14/2, 0.17 / 2]),
+    #     # 2: np.array([-0.5, -0.14/2, 0.17 / 2]),
+    #     # 0: np.array([-0.3, 0.2, 0.17 / 2]),
+    #     # # 4: np.array([-0.4, 0.0, 0.17 / 2])
     # }
     # _obj_loc = []
-    # for i in range(3):
+    # for i in rnage(3):
     #     _obj_loc.append(_loc_dict.get(i))
+    #
     #     panda.world.load_object(urdf_name="black_box",
-    #                             obj_name=f"red_box_{i}",
+    #                             obj_name=f"black_box_{i}",
     #                             obj_init_position=_loc_dict.get(i),
     #                             obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
     #
