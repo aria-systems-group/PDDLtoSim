@@ -1,0 +1,63 @@
+task_name: arch_2_tables
+no_of_boxes:
+  num: 4
+  objects:
+  - b0
+  - b1
+  - b2
+  - b3
+no_of_loc:
+  num: 6
+  objects:
+  - l2
+  - l3
+  - l6
+  - l7
+  - l8
+  - l9
+max_human_int: 2
+init_worl_conf:
+- l7
+- l2
+- l6
+- l8
+- free
+ltl_formula: F((l8 & l9 & l0) || (l3 & l2 & l1))
+abstractions:
+  num_transition_system_nodes: 5815
+  num_transition_system_edges: 13120
+  num_two_player_game_nodes: 61451
+  num_two_player_game_edges: 101443
+  num_graph_of_alts_nodes: 53253
+  num_graph_of_alts_edges: 88911
+reg_val: !!python/object/apply:numpy.core.multiarray.scalar
+- !!python/object/apply:numpy.dtype
+  args:
+  - i8
+  - 0
+  - 1
+  state: !!python/tuple
+  - 3
+  - <
+  - null
+  - null
+  - null
+  - -1
+  - -1
+  - 0
+- !!binary |
+  AQAAAAAAAAA=
+reg_str:
+- (transit b2 else l6)
+- (grasp b2 l6)
+- (human-move b1 l2 l3)
+- (transfer b2 l6 l2)
+- (human-move b1 l3 l2)
+- transfer b2 l2 l3
+- (human-move b1 l2 l3)
+- transfer b2 l3 l9
+- (release b2 l9)
+- (transit b0 l9 l7)
+- (grasp b0 l7)
+- transfer b0 l7 l0
+- (release b0 l0)
