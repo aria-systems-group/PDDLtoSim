@@ -19,11 +19,14 @@ from src.graph_construction.two_player_game import TwoPlayerGame
 
 # call the regret synthesis code
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
-from regret_synthesis_toolbox.src.payoff import payoff_factory
 from regret_synthesis_toolbox.src.strategy_synthesis import RegMinStrSyn
 from regret_synthesis_toolbox.src.strategy_synthesis import ValueIteration
 
 from src.pddl_env_simualtor.envs.panda_sim import PandaSim
+
+import rospy
+from str_syn.srv import Strategy, StrategyResponse
+from ast import literal_eval
 
 # define a constant to dump the yaml file
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -33,7 +36,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
                      purely_avd: bool = True,
                      no_intervention: bool = False,
                      cooperative: bool = False,
-                     print_sim_str: bool = True) -> List:
+                     print_sim_str: bool = True) -> Tuple[List, dict]:
     """
     A method to play the adversarial game.
     """
@@ -115,12 +118,12 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
         for _action in _action_seq:
             print(_action)
 
-    return _action_seq
+    return _action_seq, comp_str_dict
 
 
 def compute_reg_strs(product_graph: TwoPlayerGraph,
                      coop_str: bool = False,
-                     epsilon: float = -1) -> Tuple[list, dict, TwoPlayerGraph]:
+                     epsilon: float = -1) -> Tuple[list, dict, TwoPlayerGraph,dict]:
     """
     A method to compute strategies. We control the env's behavior by making it purely cooperative, pure adversarial, or
     epsilon greedy.
@@ -160,7 +163,7 @@ def compute_reg_strs(product_graph: TwoPlayerGraph,
             if twa_game.get_state_w_attribute(_curr_state, attribute="player") == "eve":
                 _next_state = reg_str.get(_curr_state)
             else:
-                if _max_coop_actions <= 10:
+                if _max_coop_actions <= 100:
                     _next_state = _coop_str_dict[_curr_state]
                     # only increase the counter when the human moves
                     _max_coop_actions += 1
@@ -194,7 +197,7 @@ def compute_reg_strs(product_graph: TwoPlayerGraph,
     for _action in _action_seq:
         print(_action)
 
-    return _action_seq, reg_val, twa_game
+    return _action_seq, reg_val, twa_game, reg_str
 
 
 def compute_cooperative_actions_for_env(product_graph: TwoPlayerGraph) -> Dict:
@@ -732,23 +735,23 @@ def execute_saved_str(yaml_data: dict,
             panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
 
             # 3. grab the object and take the appr stance
-            _pos = [0.1, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi, -math.pi]
+            _pos = [0.1, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi/2, -math.pi]
             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
             # _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, -math.pi]
             # panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
-            _loc = np.array([-0.4, 0.0, 0.625])
+            _loc = np.array([0.5, 0.0, 0.625])
             _org_loc = copy.copy(_loc)
             # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
-            _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0, -math.pi, -math.pi / 2]
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0, -math.pi, math.pi / 2]
             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
-            _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, -math.pi, -math.pi / 2]
+            _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, -math.pi, math.pi / 2]
             panda_handle.apply_high_level_action("transfer", _pos, vel=0.25)
 
             panda_handle.apply_high_level_action("openEE", [], vel=0.5)
-            _pos = [_loc[0], _loc[1], _loc[2] + 0.30, -math.pi, 0, -math.pi / 2]
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.30, -math.pi, 0, math.pi / 2]
             panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
             break
 
@@ -1279,7 +1282,7 @@ def save_str(causal_graph: CausalGraph,
     _file_path = ROOT_PATH + _file_name + _time_stamp + ".yaml"
     try:
         with open(_file_path, 'w') as outfile:
-            yaml.dump(data_dict, outfile, default_flow_style=False, sort_keys=False)
+            yaml.dump(list(data_dict), outfile, default_flow_style=False, sort_keys=False)
 
     except FileNotFoundError:
         print(FileNotFoundError)
@@ -1351,7 +1354,9 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
     return graph_data
 
 
-def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
+def daig_main(print_flag: bool = False,
+              record_flag: bool = False,
+              execute_flag: bool = False) -> Tuple[dict, TwoPlayerGraph]:
     _project_root = os.path.dirname(os.path.abspath(__file__))
 
     _domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
@@ -1403,7 +1408,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     # _dfa = _two_player_instance.build_LTL_automaton(
     #     formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
     _dfa = _two_player_instance.build_LTL_automaton(
-        formula="F((p03 & p14 & p22) || (p05 & p19 & p26))")
+        # formula="F((p00 & p11 & p22) || (p34 & p45 & p26))")
+        formula="F(p00 & p11 || p23 & p14)")
     # _dfa = _two_player_instance.build_LTL_automaton(
     #     formula="F((p12 & p00) || (p20 & p12) || (p05 & p19) || (p25 & p19))")
 
@@ -1415,15 +1421,15 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of nodes in the product graph is :{len(_relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
 
-    # compute strs
-    _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=True, epsilon=0)
+    # compute reg strs
+    # _actions, _reg_val, _graph_of_alts, str_dict = compute_reg_strs(_product_graph, coop_str=True, epsilon=0)
 
     # adversarial strs
-    # _actions = compute_adv_strs(_product_graph,
-    #                             purely_avd=True,
-    #                             no_intervention=False,
-    #                             cooperative=False,
-    #                             print_sim_str=True)
+    _actions, str_dict = compute_adv_strs(_product_graph,
+                                          purely_avd=True,
+                                          no_intervention=False,
+                                          cooperative=False,
+                                          print_sim_str=True)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -1439,19 +1445,23 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
                  adversarial=False)
 
     # simulate the str
-    execute_str(actions=_actions,
-                causal_graph=_causal_graph_instance,
-                transition_system=_transition_system_instance,
-                exp_name="diag",
-                record_sim=record_flag,
-                debug=False)
+    if execute_flag:
+        execute_str(actions=_actions,
+                    causal_graph=_causal_graph_instance,
+                    transition_system=_transition_system_instance,
+                    exp_name="diag",
+                    record_sim=record_flag,
+                    debug=False)
+
+    return str_dict, _product_graph
 
 
-def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
+def arch_main(print_flag: bool = False, record_flag: bool = False, execute_flag: bool = False)\
+        -> Tuple[dict, TwoPlayerGraph]:
     _project_root = os.path.dirname(os.path.abspath(__file__))
 
-    _domain_file_path = _project_root + "/pddl_files/two_table_scenario/arch/domain.pddl"
-    _problem_file_path = _project_root + "/pddl_files/two_table_scenario/arch/problem.pddl"
+    _domain_file_path = _project_root + "/pddl_files/two_table_scenario/arch_no_int/domain.pddl"
+    _problem_file_path = _project_root + "/pddl_files/two_table_scenario/arch_no_int/problem.pddl"
 
     _causal_graph_instance = CausalGraph(problem_file=_problem_file_path,
                                          domain_file=_domain_file_path,
@@ -1468,7 +1478,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
     _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
     _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
     _transition_system_instance.build_arch_abstraction(plot=False, relabel_nodes=False)
-    _transition_system_instance.modify_edge_weights()
+    # _transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
@@ -1483,21 +1493,27 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
                                                arch_construction=True)
 
     # for implicit construction, the human intervention should >=2
-    _two_player_instance.build_two_player_implicit_transition_system_from_explicit(
-        plot_two_player_implicit_game=False)
-    _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-    # two_player_instance.modify_ap_w_object_types(implicit=True)
+    # _two_player_instance.build_two_player_implicit_transition_system_from_explicit(
+    #     plot_two_player_implicit_game=False)
+    _two_player_instance.set_appropriate_ap_attribute_name(implicit=False)
+    _two_player_instance.modify_ap_w_object_types(implicit=False)
 
-    if print_flag:
-        print(f"No. of nodes in the Two player game is :"
-              f"{len(_two_player_instance._two_player_implicit_game._graph.nodes())}")
-        print(f"No. of edges in the Two player game is :"
-              f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
+    # if print_flag:
+    #     print(f"No. of nodes in the Two player game is :"
+    #           f"{len(_two_player_instance._two_player_implicit_game._graph.nodes())}")
+    #     print(f"No. of edges in the Two player game is :"
+    #           f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    _dfa = _two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
+    # _dfa = _two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
+    # _dfa = _two_player_instance.build_LTL_automaton(formula="F(l3 & l2 & l1)")
+    _dfa = _two_player_instance.build_LTL_automaton(formula="F(p01 & p12 & p23)")
 
+    # _product_graph = _two_player_instance.build_product(dfa=_dfa,
+    #                                                     trans_sys=_two_player_instance.two_player_implicit_game)
+    # _product_graph = _two_player_instance.build_product(dfa=_dfa,
+    #                                                     trans_sys=_transition_system_instance.transition_system)
     _product_graph = _two_player_instance.build_product(dfa=_dfa,
-                                                        trans_sys=_two_player_instance.two_player_implicit_game)
+                                                        trans_sys=_two_player_instance.two_player_game)
 
     _relabelled_graph = _two_player_instance.internal_node_mapping(_product_graph)
 
@@ -1509,11 +1525,11 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
     # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=True, epsilon=0)
 
     # adversarial strs
-    _actions = compute_adv_strs(_product_graph,
-                                purely_avd=True,
-                                no_intervention=False,
-                                cooperative=False,
-                                print_sim_str=True)
+    _actions, str_dict = compute_adv_strs(_product_graph,
+                                          purely_avd=True,
+                                          no_intervention=False,
+                                          cooperative=False,
+                                          print_sim_str=True)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -1529,21 +1545,155 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
                  adversarial=True)
 
     # simulate the str
-    execute_str(actions=_actions,
-                causal_graph=_causal_graph_instance,
-                transition_system=_transition_system_instance,
-                exp_name="arch",
-                record_sim=record_flag,
-                debug=False)
+    if execute_flag:
+        execute_str(actions=_actions,
+                    causal_graph=_causal_graph_instance,
+                    transition_system=_transition_system_instance,
+                    exp_name="arch",
+                    record_sim=record_flag,
+                    debug=False)
+
+    return str_dict, _product_graph
+
+
+def get_next_action(data):
+    world_conf = data.world_config
+    prev_state = data.prev_state  # will be human state
+    print(data, "\n")
+
+    # action_map = {
+    #     "transit": "t",
+    #     "transfer": "move",
+    #     "grasp": "grasp",
+    #     "release": "release"
+    # }
+
+    if prev_state is "":
+        __init_state = dfa_game.get_initial_states()[0][0]
+        _next_state = str_dict.get(__init_state)
+        _sys_action_str = dfa_game._graph[__init_state][_next_state][0].get("actions")
+
+        # parse the output according to the srv file
+        _action_type = get_action_from_causal_graph_edge(_sys_action_str)
+        _box_id, _loc = get_multiple_box_location(_sys_action_str)
+
+        if len(_loc) == 2:
+            _from_loc = _loc[0]
+            _to_loc = _loc[1]
+        else:
+            _from_loc = ""
+            _to_loc = _loc[0]
+
+        print(str(_action_type), int(_box_id), str(_to_loc), str(_next_state), "\n")
+
+        return StrategyResponse(str(_action_type), int(_box_id), str(_to_loc), str(_next_state))
+
+    else:
+        _next_state_lbl = list([world_conf[0], world_conf[1]])
+
+        print(prev_state)
+        prev_state = literal_eval(prev_state)
+        print(prev_state)
+        print(type(prev_state))
+
+        # determine where you ended up due to human action
+        for _succ in dfa_game._graph.successors(prev_state):
+            _succ_state_ap = dfa_game.get_state_w_attribute(_succ, "ap")
+            print(_succ_state_ap)
+
+            if "gripper" in _succ_state_ap:
+                _box_id = int(_succ_state_ap[-1][-1])
+
+                if _box_id == 0:
+                    if _succ_state_ap[1][-1] == world_conf[1][-1] \
+                            and _succ_state_ap[2][-1] == world_conf[2][-1]:
+                        _curr_state = _succ
+                        break
+
+                if _box_id == 1:
+                    if _succ_state_ap[0][-1] == world_conf[0][-1] \
+                            and _succ_state_ap[2][-1] == world_conf[2][-1]:
+                        _curr_state = _succ
+                        break
+
+                if _box_id == 2:
+                    if _succ_state_ap[0][-1] == world_conf[0][-1] \
+                            and _succ_state_ap[1][-1] == world_conf[1][-1]:
+                        _curr_state = _succ
+                        break
+
+            else:
+                if _succ_state_ap[0][-1] == world_conf[0][-1] \
+                        and _succ_state_ap[1][-1] == world_conf[1][-1] \
+                        and _succ_state_ap[2][-1] == world_conf[2][-1]:
+                    _curr_state = _succ
+                    break
+
+        _next_state = str_dict.get(_curr_state)
+        _sys_action_str = dfa_game._graph[_curr_state][_next_state][0].get("actions")
+
+        # parse the output according to the srv file
+        _action_type = get_action_from_causal_graph_edge(_sys_action_str)
+        _box_id, _loc = get_multiple_box_location(_sys_action_str)
+
+        if len(_loc) == 2:
+            _from_loc = _loc[0]
+            _to_loc = _loc[1]
+        else:
+            _from_loc = ""
+            _to_loc = _loc[0]
+
+        if _box_id == "b0":
+            dumb_box_counter += + 1
+            if dumb_box_counter == 5:
+                _action_type = _action_type + "side"
+
+        print(str(_action_type), int(_box_id), str(_to_loc), str(_next_state), "\n")
+
+        return StrategyResponse(str(_action_type), int(_box_id), str(_to_loc), str(_next_state))
+
+    # counter = 0
+    #
+    # __init_state = dfa_game.get_initial_states()[0][0]
+    #
+    # _next_state = str_dict.get(__init_state)
+    # _sys_action_str = dfa_game._graph[__init_state][_next_state][0].get("action")
+    #
+    # if counter == 0:
+    #      return StrategyResponse
+    # # write some function that determines the next state based the vicon input
+    # # state_from_vicon = ""
+    # while _next_state is not None:
+    #     # try:
+    #     #     curr_world_conf = rospy.ServiceProxy('observe_srv', Observe_srv)
+    #     #     resp = curr_world_conf(time.time())
+    #     #     obs = resp.observation_label
+    #     # except:
+    #     #     print("could not receive love call from Kandai")
+    #     #     print("Kandai is too lonely these days!")
+    #
+    #     # write code to extract the human action
+    #
+    #
+    #     _curr_state = _vicon_update_state
+    #     _next_state = str_dict.get(_curr_state)
+    #
+    #     _sys_action_str = dfa_game._graph[__init_state][_next_state][0].get("action")
+    #
+    #     action_to_take = PlanningQuery_srvResponse("", "", True, "", "", "", "", "", True)
+    #
+    #
+    # return PlanExecute_srvResponse(str_dict.get(_next_state))
 
 
 if __name__ == "__main__":
-    record = True
-    use_saved_str = True
+    record = False
+    use_saved_str = False
 
+    rospy.init_node("strsrvnode")
     if use_saved_str:
         # get the actions from the yaml file
-        file_name = "/arch_2_tables_4_box_6_loc_2_h_2_reg_2021_04_28_14_23_52.yaml"
+        file_name = "/arch_2_tables_4_box_6_loc_2_h_None_adv_2021_04_28_22_29_52.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)
@@ -1554,86 +1704,27 @@ if __name__ == "__main__":
                           debug=False)
 
     else:
-        # daig_main(print_flag=True, record_flag=record)
-        arch_main(print_flag=True, record_flag=record)
+        dumb_box_counter = 0
+        # str_dict, dfa_game = daig_main(print_flag=True, record_flag=record)
 
-    # build the simulator
-    # physics_client = pb.connect(pb.GUI)
-    #
-    # panda = PandaSim(physics_client, use_IK=1)
-    # # _loc_dict = load_pre_built_loc_info("diag")
-    # _loc_dict = {
-    #     # # 0: np.array([-0.5, -0.2, 0.17 / 2]),
-    #     # 1: np.array([-0.5, 0.14/2, 0.17 / 2]),
-    #     # 2: np.array([-0.5, -0.14/2, 0.17 / 2]),
-    #     # 0: np.array([-0.3, 0.2, 0.17 / 2]),
-    #     # # 4: np.array([-0.4, 0.0, 0.17 / 2])
-    # }
-    # _obj_loc = []
-    # for i in rnage(3):
-    #     _obj_loc.append(_loc_dict.get(i))
-    #
-    #     panda.world.load_object(urdf_name="black_box",
-    #                             obj_name=f"black_box_{i}",
-    #                             obj_init_position=_loc_dict.get(i),
-    #                             obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
-    #
-    #     _loc = copy.copy(_loc_dict.get(i))
-    #
-    #     _loc[2] = 0.625
-    #
-    #     visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
-    #                          halfExtents=[0.05, 0.05, 0.001],
-    #                          rgbaColor=[0, 0, 1, 0.6],
-    #                          specularColor=[0.4, .4, 0],
-    #                          visualFramePosition=_loc/2,
-    #                          physicsClientId=panda._physics_client_id)
-    #
-    #     collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
-    #                                                  halfExtents=[0.05, 0.05, 0.001],
-    #                                                  collisionFramePosition=_loc/2,
-    #                                                  physicsClientId=panda._physics_client_id)
-    #
-    #     pb.createMultiBody(baseMass=0,
-    #                        # baseInertialFramePosition=[0, 0, 0],
-    #                        # baseCollisionShapeIndex=collision_shape_id,
-    #                        baseVisualShapeIndex=visual_shape_id,
-    #                        basePosition=_loc/2,
-    #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
-    #                        physicsClientId=panda._physics_client_id)
-    #
-    # # for i in range(3):
-    # #     _obj_loc.append(_loc_dict.get(i))
-    # #     _loc = copy.copy(_loc_dict.get(i))
-    # #
-    # #     _loc[2] = 0.625
-    # #     _loc[0] = -1 * _loc[0]
-    # #
-    # #     visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
-    # #                                            halfExtents=[0.05, 0.05, 0.001],
-    # #                                            rgbaColor=[0, 0, 1, 0.6],
-    # #                                            specularColor=[0.4, .4, 0],
-    # #                                            visualFramePosition=_loc / 2,
-    # #                                            physicsClientId=panda._physics_client_id)
-    # #
-    # #     collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
-    # #                                                  halfExtents=[0.05, 0.05, 0.001],
-    # #                                                  collisionFramePosition=_loc / 2,
-    # #                                                  physicsClientId=panda._physics_client_id)
-    # #
-    # #     pb.createMultiBody(baseMass=0,
-    # #                        # baseInertialFramePosition=[0, 0, 0],
-    # #                        # baseCollisionShapeIndex=collision_shape_id,
-    # #                        baseVisualShapeIndex=visual_shape_id,
-    # #                        basePosition=_loc / 2,
-    # #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
-    # #                        physicsClientId=panda._physics_client_id)
-    #
-    # for i, loc in enumerate(_obj_loc):
-    #     # if i != 0:
-    #     #     panda.apply_action(panda._home_hand_pose)
-    #     #     for _ in range(100):
-    #     #         pb.stepSimulation()
-    #     #         time.sleep(0.01)
-    #     # for _ in range(2):
-    #     _pre_loaded_pick_and_place_action(loc, panda)
+        # _file_path = ROOT_PATH + f"/saved_strs/2_block_adv.yaml"
+        # _file_path = ROOT_PATH + f"/saved_strs/2_block_reg.yaml"
+        # try:
+        #     with open(_file_path, 'w') as outfile:
+        #         yaml.dump(str_dict, outfile, default_flow_style=False, sort_keys=False)
+        # except:
+        #     print("Could not open the directory")
+
+        # with open(_file_path, "r") as fh:
+        #     str_dict_loaded = yaml.load(fh, Loader=yaml.Loader)
+        #
+        # print(str_dict_loaded)
+        # get_next_action("")
+
+        str_dict, dfa_game = arch_main(print_flag=True, record_flag=record)
+
+        # service node that publishes the strategy
+        x = rospy.Service("com_node/strategy", Strategy, get_next_action)
+        print("Ros Running")
+        rospy.spin()
+        print("Ros Stop")
