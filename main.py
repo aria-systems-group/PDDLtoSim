@@ -38,7 +38,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
     A method to play the adversarial game.
     """
     comp_mcr_solver = ValueIteration(product_graph, competitive=True)
-    comp_mcr_solver.solve(debug=False, plot=False)
+    comp_mcr_solver.solve(debug=True, plot=False)
     # coop_val_dict = coop_mcr_solver.state_value_dict
     comp_str_dict = comp_mcr_solver.str_dict
 
@@ -48,6 +48,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
     _action_seq = []
 
     _action_seq.append(product_graph._graph[_init_state][_next_state][0].get("actions"))
+    # print(_action_seq[-1])
 
     if purely_avd:
         while _next_state is not None:
@@ -59,6 +60,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
                 _edge_act = product_graph._graph[_curr_state][_next_state][0].get("actions")
                 if _action_seq[-1] != _edge_act:
                     _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
+                    # print(_action_seq[-1])
 
     elif no_intervention:
         while _next_state is not None:
@@ -158,7 +160,7 @@ def compute_reg_strs(product_graph: TwoPlayerGraph,
             if twa_game.get_state_w_attribute(_curr_state, attribute="player") == "eve":
                 _next_state = reg_str.get(_curr_state)
             else:
-                if _max_coop_actions <= 2:
+                if _max_coop_actions <= 10:
                     _next_state = _coop_str_dict[_curr_state]
                     # only increase the counter when the human moves
                     _max_coop_actions += 1
@@ -522,7 +524,7 @@ def execute_saved_str(yaml_data: dict,
     actions = yaml_data.get("reg_str")
 
     # some constants useful during simulation
-    _wait_pos_left = [-0.2, 0.0, 1.2, math.pi, 0, math.pi]
+    _wait_pos_left = [-0.2, 0.0, 1.2, math.pi, 0, -math.pi]
     _wait_pos_right = [0.2, 0.0, 1.2, math.pi, 0, math.pi]
 
     _boxes = yaml_data["no_of_boxes"].get("objects")
@@ -713,6 +715,44 @@ def execute_saved_str(yaml_data: dict,
 
         # if you building an arch then lo and l1 are location on top of boxes. You need a different type of grab action
         # to execute this successfully.
+        if _to_loc == "l7":
+            # [-0.1, 0.0, 0.17 / 2]
+            # panda_handle.apply_high_level_action("transfer", [0.0, 0.0, 0.65 + 0.17, math.pi, 0, math.pi], vel=0.5)
+            # going right
+            _pos = [0.1-0.1, 0.0, 0.625 + 0.2 + 0.4, 0, -math.pi / 2, -math.pi]
+            panda_handle.apply_high_level_action("transit", _pos, vel=1)
+
+            # 2. go down towards the object and grab it
+            _pos = [0.1-0.03, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, -math.pi]
+            panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+            _pos = [0.1+0.0, 0.0, 0.625 + 0.17 / 2, 0, -math.pi / 2, -math.pi]
+            panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+
+            panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
+
+            # 3. grab the object and take the appr stance
+            _pos = [0.1, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi, -math.pi]
+            panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+            # _pos = [0.0, 0.0, 0.625 + 0.2 + 0.3, 0, -math.pi / 2, -math.pi]
+            # panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+            _loc = np.array([-0.4, 0.0, 0.625])
+            _org_loc = copy.copy(_loc)
+            # panda.apply_high_level_action("transfer", _wait_pos_right, vel=0.5)
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.20, 0, -math.pi, -math.pi / 2]
+            panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
+
+            _pos = [_org_loc[0], _org_loc[1], _org_loc[2] + 0.17, 0, -math.pi, -math.pi / 2]
+            panda_handle.apply_high_level_action("transfer", _pos, vel=0.25)
+
+            panda_handle.apply_high_level_action("openEE", [], vel=0.5)
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.30, -math.pi, 0, -math.pi / 2]
+            panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+            break
+
+
         _transfer_to_top_loc: bool = False
         if _to_loc in ["l0", "l1"]:
             _transfer_to_top_loc = True
@@ -839,12 +879,12 @@ def execute_saved_str(yaml_data: dict,
         elif _action_type == "grasp":
             # pre-image
             _pos = [_loc[0], _loc[1], _loc[2] + 0.05, math.pi, 0, math.pi]
-            panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
+            panda_handle.apply_high_level_action("transit", _pos, vel=1.0)
 
-            panda_handle.apply_high_level_action("closeEE", [], vel=0.5)
+            panda_handle.apply_high_level_action("closeEE", [], vel=1.0)
 
             # move up
-            _pos = [_loc[0], _loc[1], _loc[2] + 0.3, math.pi, 0, math.pi]
+            _pos = [_loc[0], _loc[1], _loc[2] + 0.4, math.pi, 0, math.pi]
             # _pos = [_loc[0], _loc[1], _loc[2] + 0.7, math.pi, 0, math.pi]
             panda_handle.apply_high_level_action("transfer", _pos, vel=0.5)
 
@@ -895,7 +935,7 @@ def execute_saved_str(yaml_data: dict,
                 _pos = [_loc[0], _loc[1], _loc[2] + 3, math.pi, 0, math.pi]
                 panda_handle.apply_high_level_action("transit", _pos, vel=0.5)
 
-                # _pos = [_loc[0], _loc[1], _loc[2] - 3 - 0.05]
+                # _org_loc_copy[1] = _org_loc_copy[1] - 0.02
                 re_arrange_blocks(box_id=_box_id, curr_loc=np.array(_org_loc_copy), sim_handle=panda_handle)
 
         elif _action_type == "human-move":
@@ -927,15 +967,22 @@ def initialize_saved_simulation(record_sim: bool,
                                 debug: bool = False):
     # obj to URDF mapping for diag case
     # _box_id_to_urdf = {
+    #     # "b0": "black_box",
+    #     # "b1": "grey_box",
+    #     # "b2": "white_box"
     #     "b0": "black_box",
     #     "b1": "grey_box",
-    #     "b2": "white_box"
+    #     "b2": "white_box",
+    #     "b3": "black_box",
+    #     "b4": "grey_box",
     # }
 
     _box_id_to_urdf = {
         "b0": "white_box",
         "b1": "black_box",
-        "b2": "black_box"
+        "b2": "black_box",
+        "b3": "black_box",
+        "b4": "black_box",
     }
 
     # build the simulator
@@ -974,17 +1021,21 @@ def initialize_simulation(causal_graph: CausalGraph,
                           record_sim: bool = False,
                           debug: bool = False):
     # obj to URDF mapping for diag case
-    # _box_id_to_urdf = {
-    #     "b0": "black_box",
-    #     "b1": "grey_box",
-    #     "b2": "white_box"
-    # }
-
     _box_id_to_urdf = {
-        "b0": "white_box",
-        "b1": "black_box",
-        "b2": "black_box"
+        "b0": "black_box",
+        "b1": "grey_box",
+        "b2": "white_box",
+        "b3": "black_box",
+        # "b4": "white_box"
     }
+
+    # _box_id_to_urdf = {
+    #     "b0": "white_box",
+    #     "b1": "black_box",
+    #     "b2": "black_box",
+    #     "b3": "black_box",
+    #     "b4": "black_box",
+    # }
 
     # build the simulator
     if record_sim:
@@ -1249,12 +1300,14 @@ def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
             'l3': np.array([-0.3, -0.2, 0.17 / 2]),
             'l1': np.array([-0.3, 0.2, 0.17 / 2]),
             'l4': np.array([-0.4, 0.0, 0.17 / 2]),
-            'l5': np.array([0.5, -0.2, 0.17 / 2]),
-            'l7': np.array([0.5, 0.2, 0.17 / 2]),
-            # 'l9': np.array([0.6, 0.2, 0.17 / 2]),
-            'l8': np.array([0.3, -0.2, 0.17 / 2]),
-            'l6': np.array([0.3, 0.2, 0.17 / 2]),
-            'l9': np.array([0.4, 0.0, 0.17 / 2]),
+            'l5': np.array([0.6, -0.2, 0.17 / 2]),
+            'l6': np.array([0.4, 0.2, 0.17 / 2]),
+            'l9': np.array([0.5, 0.0, 0.17 / 2]),
+            # 'l8': np.array([0.3, -0.2, 0.17 / 2]),
+            'l8': np.array([0.0, 0.0, 0.17 / 2]),
+            # 'l6': np.array([0.3, 0.2, 0.17 / 2]),
+            'l7': np.array([-0.1, 0.0, 0.17 / 2]),
+            # 'l9': np.array([0.4, 0.0, 0.17 / 2]),
             # 'l7': np.array([0.3, 0.0, 0.17 / 2]),
         }
     elif exp_name == "arch":
@@ -1267,11 +1320,13 @@ def load_pre_built_loc_info(exp_name: str) -> Dict[str, np.ndarray]:
             'l3': np.array([-0.4, 0.14/2, 0.17/2]),
             'l4': np.array([-0.2, 0.0, 0.17/2]),
             'l5': np.array([0.0, -0.3, 0.17/2]),
-            'l6': np.array([0.0, +0.3, 0.17/2]),
-            'l7': np.array([0.3, 0.0, 0.17/2]),
+            # 'l6': np.array([0.0, +0.3, 0.17/2]),
+            # 'l7': np.array([0.3, 0.0, 0.17/2]),
+            'l6': np.array([-0.1, 0.0, 0.17 / 2]),
+            'l7': np.array([0.1, 0.0, 0.17 / 2]),
             # 'l7': np.array([0.6, 0.0, 0.17 / 2]),
             'l8': np.array([0.5, 0.14/2, 0.17/2]),
-            'l9': np.array([0.5, -0.14/2, 0.17/2])
+            'l9': np.array([0.5, -0.14/2, 0.17/2]),
         }
     else:
         _loc_dict: dict = {}
@@ -1296,7 +1351,7 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
     return graph_data
 
 
-def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
+def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     _project_root = os.path.dirname(os.path.abspath(__file__))
 
     _domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
@@ -1316,6 +1371,7 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
 
     _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
     _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+    _transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
@@ -1335,7 +1391,7 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
     _two_player_instance.build_two_player_implicit_transition_system_from_explicit(
         plot_two_player_implicit_game=False)
     _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-    # _two_player_instance.modify_ap_w_object_types(implicit=True)
+    _two_player_instance.modify_ap_w_object_types(implicit=True)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
@@ -1343,9 +1399,13 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the Two player game is :"
               f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    _dfa = _two_player_instance.build_LTL_automaton(formula="F(l2 || l6)")
-    # _dfa = _two_player_instance.build_LTL_automaton(formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
-    # dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0 & free) || (l3 & l2 & l1))")
+    # _dfa = _two_player_instance.build_LTL_automaton(formula="F(l2 || l6)")
+    # _dfa = _two_player_instance.build_LTL_automaton(
+    #     formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
+    _dfa = _two_player_instance.build_LTL_automaton(
+        formula="F((p03 & p14 & p22) || (p05 & p19 & p26))")
+    # _dfa = _two_player_instance.build_LTL_automaton(
+    #     formula="F((p12 & p00) || (p20 & p12) || (p05 & p19) || (p25 & p19))")
 
     _product_graph = _two_player_instance.build_product(dfa=_dfa,
                                                         trans_sys=_two_player_instance.two_player_implicit_game)
@@ -1356,14 +1416,14 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
 
     # compute strs
-    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+    _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=True, epsilon=0)
 
     # adversarial strs
-    _actions = compute_adv_strs(_product_graph,
-                                purely_avd=False,
-                                no_intervention=True,
-                                cooperative=False,
-                                print_sim_str=True)
+    # _actions = compute_adv_strs(_product_graph,
+    #                             purely_avd=True,
+    #                             no_intervention=False,
+    #                             cooperative=False,
+    #                             print_sim_str=True)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -1373,10 +1433,10 @@ def diag_main(print_flag: bool = False, record_flag: bool = False) -> None:
         save_str(causal_graph=_causal_graph_instance,
                  transition_system=_transition_system_instance,
                  two_player_game=_two_player_instance,
-                 # regret_graph_of_alternatives=_graph_of_alts,
-                 # game_reg_value=_reg_val,
+                 regret_graph_of_alternatives=_graph_of_alts,
+                 game_reg_value=_reg_val,
                  pos_seq=_actions,
-                 adversarial=True)
+                 adversarial=False)
 
     # simulate the str
     execute_str(actions=_actions,
@@ -1407,8 +1467,8 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
 
     _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
     _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
-    _transition_system_instance.build_arch_abstraction()
-    # _transition_system_instance.modify_edge_weights()
+    _transition_system_instance.build_arch_abstraction(plot=False, relabel_nodes=False)
+    _transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
@@ -1417,7 +1477,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
               f"{len(_transition_system_instance.transition_system._graph.edges())}")
 
     _two_player_instance = TwoPlayerGame(_causal_graph_instance, _transition_system_instance)
-    _two_player_instance.build_two_player_game(human_intervention=3,
+    _two_player_instance.build_two_player_game(human_intervention=2,
                                                human_intervention_cost=0,
                                                plot_two_player_game=False,
                                                arch_construction=True)
@@ -1434,7 +1494,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the Two player game is :"
               f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    _dfa = _two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0 & free) || (l3 & l2 & l1))")
+    _dfa = _two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
 
     _product_graph = _two_player_instance.build_product(dfa=_dfa,
                                                         trans_sys=_two_player_instance.two_player_implicit_game)
@@ -1446,14 +1506,14 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
 
     # compute strs
-    _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=True, epsilon=0)
 
     # adversarial strs
-    # _actions = compute_adv_strs(_product_graph,
-    #                             purely_avd=False,
-    #                             no_intervention=True,
-    #                             cooperative=False,
-    #                             print_sim_str=True)
+    _actions = compute_adv_strs(_product_graph,
+                                purely_avd=True,
+                                no_intervention=False,
+                                cooperative=False,
+                                print_sim_str=True)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -1463,10 +1523,10 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
         save_str(causal_graph=_causal_graph_instance,
                  transition_system=_transition_system_instance,
                  two_player_game=_two_player_instance,
-                 regret_graph_of_alternatives=_graph_of_alts,
-                 game_reg_value=_reg_val,
+                 # regret_graph_of_alternatives=_graph_of_alts,
+                 # game_reg_value=_reg_val,
                  pos_seq=_actions,
-                 adversarial=False)
+                 adversarial=True)
 
     # simulate the str
     execute_str(actions=_actions,
@@ -1478,23 +1538,23 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    record = False
-    use_saved_str = False
+    record = True
+    use_saved_str = True
 
     if use_saved_str:
         # get the actions from the yaml file
-        file_name = "/arch_2_tables_3_box_6_loc_1_h_None_adv_2021_03_29_20_56_03.yaml"
+        file_name = "/arch_2_tables_4_box_6_loc_2_h_2_reg_2021_04_28_14_23_52.yaml"
         file_pth: str = ROOT_PATH + "/saved_strs" + file_name
 
         yaml_dump = load_data_from_yaml_file(file_add=file_pth)
 
         execute_saved_str(yaml_data=yaml_dump,
-                          exp_name="diag",
+                          exp_name="arch",
                           record_sim=record,
                           debug=False)
 
     else:
-        # diag_main(print_flag=False, record_flag=record)
+        # daig_main(print_flag=True, record_flag=record)
         arch_main(print_flag=True, record_flag=record)
 
     # build the simulator

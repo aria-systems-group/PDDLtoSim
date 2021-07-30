@@ -587,12 +587,15 @@ class FiniteTransitionSystem:
                 # if _to_loc in _non_intervening_locs and _from_loc not in _non_intervening_locs:
                 #     self._transition_system._graph[_u][_v][0]['weight'] = 10
 
-    def build_arch_abstraction(self, game: Optional[TwoPlayerGraph] = None):
+    def build_arch_abstraction(self,
+                               game: Optional[TwoPlayerGraph] = None,
+                               plot: bool = False,
+                               relabel_nodes: bool = True):
         """
         A helper method to create an abstraction in which there are no transfer actions to locations that are on the
         top, unless you have supports below it.
         """
-        if game == None:
+        if game is None:
             game = copy.deepcopy(self._transition_system)
 
         # location l1 in on top of l3 and l2 while l0 is on top of l8 and l9
@@ -751,7 +754,10 @@ class FiniteTransitionSystem:
                             _succ_node_list_lbl = _succ_node_list_lbl.copy()
                             _succ_node_list_lbl[0] = "gripper"
                             # all locations except for l3, l2 and l1 will be available
-                            _empty_locs: set = set(self._causal_graph.task_locations) - {"l1", "l2", "l3"}
+                            # _empty_locs: set = set(self._causal_graph.task_locations) - {"l1", "l2", "l3"}
+                            _occupied_locs = set(_succ_node_list_lbl[1:-1])
+                            _occupied_locs.add("l1")
+                            _empty_locs: set = set(self._causal_graph.task_locations) - _occupied_locs
 
                             for _loc in _empty_locs:
                                 _causal_succ_node = f"(to-loc b0 {_loc})"
@@ -898,7 +904,10 @@ class FiniteTransitionSystem:
                             _succ_node_list_lbl = _succ_node_list_lbl.copy()
                             _succ_node_list_lbl[0] = "gripper"
                             # all locations except for l8, l9 and l0 will be available
-                            _empty_locs: set = set(self._causal_graph.task_locations) - {"l0", "l8", "l9"}
+                            # _empty_locs: set = set(self._causal_graph.task_locations) - {"l0", "l8", "l9"}
+                            _occupied_locs = set(_succ_node_list_lbl[1:-1])
+                            _occupied_locs.add("l0")
+                            _empty_locs: set = set(self._causal_graph.task_locations) - _occupied_locs
 
                             for _loc in _empty_locs:
                                 _causal_succ_node = f"(to-loc b0 {_loc})"
@@ -926,6 +935,12 @@ class FiniteTransitionSystem:
                                     warnings.warn("This should not happen")
 
                             _done_support_1 = True
+        if plot:
+            if relabel_nodes:
+                _relabelled_graph = self.internal_node_mapping(self._transition_system)
+                _relabelled_graph.plot_graph()
+            else:
+                self._transition_system.plot_graph()
 
 
 if __name__ == "__main__":
