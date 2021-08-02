@@ -1,0 +1,14 @@
+name: regret_syn_env
+channels:
+  - defaults
+dependencies:
+  - python=3.6.10
+  - pyyaml
+  - numpy
+  - bidict
+  - netowrkx
+  - python-graphviz  # installs graphivz as well
+  - ply
+  - pip:
+    - pybullet
+    - pyperplan 

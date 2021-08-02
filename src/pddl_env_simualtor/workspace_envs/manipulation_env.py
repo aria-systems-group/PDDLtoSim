@@ -1,4 +1,4 @@
-# write a base class call manipulation domain. Derive variants of it that build objects in specific locations
+import os
 import numpy as np
 import warnings
 
@@ -6,7 +6,7 @@ from typing import Tuple, Optional, List, Dict
 
 import pybullet as pb
 
-PATH_TO_LOCAL_URDF = "/home/karan-m/Documents/Research/franka_simulation/PDDLtoSim/models/"
+PATH_TO_LOCAL_URDF = ROOT_PATH = os.path.dirname(os.path.abspath(__file__)) + "/../../../models/"
 PATH_TO_BOXES = "boxes/"
 
 

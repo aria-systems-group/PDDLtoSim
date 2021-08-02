@@ -19,7 +19,6 @@ from src.graph_construction.two_player_game import TwoPlayerGame
 
 # call the regret synthesis code
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
-from regret_synthesis_toolbox.src.payoff import payoff_factory
 from regret_synthesis_toolbox.src.strategy_synthesis import RegMinStrSyn
 from regret_synthesis_toolbox.src.strategy_synthesis import ValueIteration
 
@@ -1556,84 +1555,3 @@ if __name__ == "__main__":
     else:
         # daig_main(print_flag=True, record_flag=record)
         arch_main(print_flag=True, record_flag=record)
-
-    # build the simulator
-    # physics_client = pb.connect(pb.GUI)
-    #
-    # panda = PandaSim(physics_client, use_IK=1)
-    # # _loc_dict = load_pre_built_loc_info("diag")
-    # _loc_dict = {
-    #     # # 0: np.array([-0.5, -0.2, 0.17 / 2]),
-    #     # 1: np.array([-0.5, 0.14/2, 0.17 / 2]),
-    #     # 2: np.array([-0.5, -0.14/2, 0.17 / 2]),
-    #     # 0: np.array([-0.3, 0.2, 0.17 / 2]),
-    #     # # 4: np.array([-0.4, 0.0, 0.17 / 2])
-    # }
-    # _obj_loc = []
-    # for i in rnage(3):
-    #     _obj_loc.append(_loc_dict.get(i))
-    #
-    #     panda.world.load_object(urdf_name="black_box",
-    #                             obj_name=f"black_box_{i}",
-    #                             obj_init_position=_loc_dict.get(i),
-    #                             obj_init_orientation=pb.getQuaternionFromEuler([0, 0, 0]))
-    #
-    #     _loc = copy.copy(_loc_dict.get(i))
-    #
-    #     _loc[2] = 0.625
-    #
-    #     visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
-    #                          halfExtents=[0.05, 0.05, 0.001],
-    #                          rgbaColor=[0, 0, 1, 0.6],
-    #                          specularColor=[0.4, .4, 0],
-    #                          visualFramePosition=_loc/2,
-    #                          physicsClientId=panda._physics_client_id)
-    #
-    #     collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
-    #                                                  halfExtents=[0.05, 0.05, 0.001],
-    #                                                  collisionFramePosition=_loc/2,
-    #                                                  physicsClientId=panda._physics_client_id)
-    #
-    #     pb.createMultiBody(baseMass=0,
-    #                        # baseInertialFramePosition=[0, 0, 0],
-    #                        # baseCollisionShapeIndex=collision_shape_id,
-    #                        baseVisualShapeIndex=visual_shape_id,
-    #                        basePosition=_loc/2,
-    #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
-    #                        physicsClientId=panda._physics_client_id)
-    #
-    # # for i in range(3):
-    # #     _obj_loc.append(_loc_dict.get(i))
-    # #     _loc = copy.copy(_loc_dict.get(i))
-    # #
-    # #     _loc[2] = 0.625
-    # #     _loc[0] = -1 * _loc[0]
-    # #
-    # #     visual_shape_id = pb.createVisualShape(shapeType=pb.GEOM_BOX,
-    # #                                            halfExtents=[0.05, 0.05, 0.001],
-    # #                                            rgbaColor=[0, 0, 1, 0.6],
-    # #                                            specularColor=[0.4, .4, 0],
-    # #                                            visualFramePosition=_loc / 2,
-    # #                                            physicsClientId=panda._physics_client_id)
-    # #
-    # #     collision_shape_id = pb.createCollisionShape(shapeType=pb.GEOM_BOX,
-    # #                                                  halfExtents=[0.05, 0.05, 0.001],
-    # #                                                  collisionFramePosition=_loc / 2,
-    # #                                                  physicsClientId=panda._physics_client_id)
-    # #
-    # #     pb.createMultiBody(baseMass=0,
-    # #                        # baseInertialFramePosition=[0, 0, 0],
-    # #                        # baseCollisionShapeIndex=collision_shape_id,
-    # #                        baseVisualShapeIndex=visual_shape_id,
-    # #                        basePosition=_loc / 2,
-    # #                        baseOrientation=pb.getQuaternionFromEuler([0, 0, 0]),
-    # #                        physicsClientId=panda._physics_client_id)
-    #
-    # for i, loc in enumerate(_obj_loc):
-    #     # if i != 0:
-    #     #     panda.apply_action(panda._home_hand_pose)
-    #     #     for _ in range(100):
-    #     #         pb.stepSimulation()
-    #     #         time.sleep(0.01)
-    #     # for _ in range(2):
-    #     _pre_loaded_pick_and_place_action(loc, panda)
