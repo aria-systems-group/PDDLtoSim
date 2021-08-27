@@ -3,17 +3,17 @@
     franka - robot
     else - robo_loc
 
-;    l0 - hbox_loc
-;    l1 - hbox_loc
+    l0 - box_loc
+    l1 - box_loc
     l2 - box_loc
     l3 - hbox_loc
     l4 - hbox_loc
-	l5 - box_loc
-	l6 - box_loc
-;	l7 - box_loc
-	l8 - box_loc
-	l9 - box_loc
-	
+;   l5 - hbox_loc
+;   l6 - hbox_loc
+;   l7 - box_loc
+;   l8 - box_loc
+;   l9 - box_loc
+    
 
     b0 - box
     b1 - box
@@ -30,10 +30,10 @@
 (:init
     (ready else)
 
-    (on b0 l9)
-    (on b1 l5)
-    (on b2 l8)
-;    (on b3 l9)
+    (on b0 l1)
+    (on b1 l2)
+    (on b2 l4)
+;    (on b3 l4)
 ;    (on b4 l5)
 )
 
@@ -43,9 +43,9 @@
 
     (on b0 l3)
     (on b1 l4)
-    (on b2 l2)
-;    (on b3 l3)
-;    (on b4 l2)
+    (on b2 l3)
+;    (on b3 l4)
+;    (on b4 l5)
 ))
 
 )
