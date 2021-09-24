@@ -13,3 +13,6 @@
 [submodule "regret_synthesis_toolbox"]
 	path = regret_synthesis_toolbox
 	url = git@github.com:MuvvalaKaran/regret_synthesis_toolbox.git
+[submodule "regre_synthesis_toolbox"]
+	branch = master
+	update = rebase
