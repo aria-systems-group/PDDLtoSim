@@ -3,6 +3,7 @@ import re
 import time
 import random
 import datetime
+import tracemalloc
 import yaml
 import copy
 import sys
@@ -45,7 +46,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
     _init_state = product_graph.get_initial_states()[0][0]
 
     _next_state = comp_str_dict[_init_state]
-    print(f"Edge weight: {product_graph.get_edge_weight(_init_state, _next_state)}")
+    # print(f"Edge weight: {product_graph.get_edge_weight(_init_state, _next_state)}")
     _action_seq = []
 
     _action_seq.append(product_graph._graph[_init_state][_next_state][0].get("actions"))
@@ -57,7 +58,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
 
             _next_state = comp_str_dict.get(_curr_state)
 
-            print(f"Edge weight: {product_graph.get_edge_weight(_curr_state, _next_state)}")
+            # print(f"Edge weight: {product_graph.get_edge_weight(_curr_state, _next_state)}")
 
             if _next_state is not None:
                 _edge_act = product_graph._graph[_curr_state][_next_state][0].get("actions")
@@ -132,12 +133,9 @@ def compute_reg_strs(product_graph: TwoPlayerGraph,
     @param epsilon: Set this value to be 0 for purely adversarial behavior or with epsilon probability human picks
      random actions.
     """
-
-    # payoff = payoff_factory.get("cumulative", graph=product_graph)
-
     # build an instance of regret strategy minimization class
-    reg_syn_handle = RegMinStrSyn(product_graph)#, payoff)
-    reg_str, reg_val = reg_syn_handle.edge_weighted_arena_finite_reg_solver(#minigrid_instance=None,
+    reg_syn_handle = RegMinStrSyn(product_graph)
+    reg_str, reg_val = reg_syn_handle.edge_weighted_arena_finite_reg_solver(reg_factor=1.25,
                                                                             purge_states=True,
                                                                             plot=False)
     twa_game = reg_syn_handle.graph_of_alternatives
@@ -253,6 +251,51 @@ def compute_epsilon_str_dict(epsilon: float, reg_str_dict: dict, max_human_int: 
             #             _new_str_dict[_from_state] = _succ
 
     return _new_str_dict
+
+
+def _manual_rollout(product_graph: TwoPlayerGraph):
+    reg_syn_handle = RegMinStrSyn(product_graph)
+    reg_str, reg_val = reg_syn_handle.edge_weighted_arena_finite_reg_solver(reg_factor=1.25,
+                                                                            purge_states=True,
+                                                                            plot=False)
+    # print(datetime.datetime.now().time())
+
+    twa_game = reg_syn_handle.graph_of_alternatives
+
+    _init_state = twa_game.get_initial_states()[0][0]
+    _action_seq = []
+
+    def _get_successors_based_on_str(__reg_str, __reg_val, __game, __curr_state):
+        __succ_list = []
+        __succ_state = __reg_str.get(__curr_state, None)
+
+        if __succ_state is None:
+            return
+        # __val = __reg_val[__succ_state]
+        for __count, __n in enumerate(list(__game._graph.successors(__curr_state))):
+            # if __reg_val[__n] == __val:
+            __edge_action = __game._graph[__curr_state][__n][0].get("actions")
+            print(f"[{__count}], state:{__n}, action: {__edge_action}: {reg_val[__n]}")
+            __succ_list.append(__n)
+
+        __idx_num = input("Enter state to select from: ")
+        print(f"Choosing state: {__succ_list[int(__idx_num)]}")
+        return __succ_list[int(__idx_num)]
+
+    _next_state = _get_successors_based_on_str(reg_str, reg_val, twa_game, _init_state)
+    _action_seq.append(twa_game._graph[_init_state][_next_state][0].get("actions"))
+
+    while _next_state is not None:
+        _curr_state = _next_state
+
+        _next_state = _get_successors_based_on_str(reg_str, reg_val, twa_game, _curr_state)
+
+        if _next_state is not None:
+            _edge_act = twa_game._graph[_curr_state][_next_state][0].get("actions")
+            if _action_seq[-1] != _edge_act:
+                _action_seq.append(twa_game._graph[_curr_state][_next_state][0].get("actions"))
+                print(_action_seq[-1])
+
 
 
 def re_arrange_blocks(box_id: int, curr_loc, sim_handle):
@@ -1372,10 +1415,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
             f"No. of nodes in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.nodes())}")
         print(
             f"No. of edges in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.edges())}")
-
+    start = time.time()
     _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
     _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
-    _transition_system_instance.modify_edge_weights()
+    # _transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
@@ -1396,6 +1439,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
         plot_two_player_implicit_game=False)
     _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     _two_player_instance.modify_ap_w_object_types(implicit=True)
+    _two_player_instance.modify_edge_weights(implicit=True)
+    stop = time.time()
+    print(f"******************************Original Graph construction time: {stop - start}******************************")
 
     # print # of Sys and Env state
     env_count = 0
@@ -1408,6 +1454,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
 
     print(f"# of Sys states in Two player game: {sys_count}")
     print(f"# of Env states in Two player game: {env_count}")
+
+    for (u, v) in _two_player_instance._two_player_implicit_game._graph.edges():
+        print(f"{u} -------{_two_player_instance._two_player_implicit_game._graph[u][v][0].get('actions')}------> {v}")
+    sys.exit(-1)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
@@ -1433,14 +1483,15 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
 
     # compute strs
-    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+    _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+    # _manual_rollout(product_graph=_product_graph)
 
     # adversarial strs
-    _actions = compute_adv_strs(_product_graph,
-                                purely_avd=True,
-                                no_intervention=False,
-                                cooperative=False,
-                                print_sim_str=True)
+    # _actions = compute_adv_strs(_product_graph,
+    #                             purely_avd=True,
+    #                             no_intervention=False,
+    #                             cooperative=False,
+    #                             print_sim_str=True)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -1575,5 +1626,13 @@ if __name__ == "__main__":
                           debug=False)
 
     else:
+        # starting the monitoring
+        tracemalloc.start()
         daig_main(print_flag=True, record_flag=record)
         # arch_main(print_flag=False, record_flag=record)
+
+        # displaying the memory - output current memory usage and peak memory usage
+        _,  peak_mem = tracemalloc.get_traced_memory()
+        print(f" Peak memory [MB]: {peak_mem/(1024*1024)}")
+        # stopping the library
+        tracemalloc.stop()
