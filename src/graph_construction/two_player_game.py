@@ -8,7 +8,7 @@ from collections import deque, defaultdict
 from bidict import bidict
 
 from regret_synthesis_toolbox.src.graph import graph_factory
-from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
+from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, ProductAutomaton
 
 # import local packages
 from .causal_graph import CausalGraph
@@ -802,6 +802,52 @@ class TwoPlayerGame:
                     _tmp_lst_ap[_idx] = _new_ap_str
 
             game._graph.nodes[_n]['ap'] = _tmp_lst_ap
+
+    def modify_edge_weights(self, implicit: bool = True):
+        """
+        A helper function in which I modify weights corresponding to actions that transit to a safe state from which
+        the human cannot intervene. The actions could be evolving from outside to this set or actions that are evolving
+        within this set.
+        """
+
+        # get the set of locations that are of type - "box-loc"
+        _non_intervening_locs = self._causal_graph.task_non_intervening_locations
+        _intervening_locs = self._causal_graph.task_intervening_locations
+
+        if implicit:
+            game = self._two_player_implicit_game
+        else:
+            game = self._two_player_game
+
+        # iterate through all edge and multiply the weight by 4 for edges as per the doc string
+        for _e in game._graph.edges():
+            _u = _e[0]
+            _v = _e[1]
+
+            _edge_action = game._graph[_u][_v][0].get('actions')
+
+            if game._graph.nodes[_u]['player'] == 'adam':
+                continue
+
+            # get the from and to loc
+            _, _locs = self._get_multiple_box_location(_edge_action)
+            _from_loc = ""
+            _to_loc = ""
+            if len(_locs) == 2:
+                _from_loc = _locs[0]
+                _to_loc = _locs[1]
+            else:
+                _to_loc = _locs[0]
+
+            # all action within the non_intervening loc are twice as expensive as the other region
+            if _to_loc != "" and _from_loc != "":
+                if _to_loc in _non_intervening_locs:
+                    game._graph[_u][_v][0]['weight'] = 3
+                    continue
+
+            if _from_loc == "" and _to_loc in _non_intervening_locs:
+                game._graph[_u][_v][0]['weight'] = 3
+                continue
 
     def build_LTL_automaton(self, formula: str, debug: bool = False, plot: bool = False, use_alias: bool = False):
         """
