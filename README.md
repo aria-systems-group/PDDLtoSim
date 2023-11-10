@@ -1,24 +1,83 @@
 # Description
 
-This repository contains the sourcr code 
+This repository contains code for the paper:
 
-1. Construct a two-player game abstraction from a PDDL file.
-2. Synthesis a startegy using the `regret_syn_toolbox`  and simulate the strategy using pybullet.
+- Let's Collaborate: Regret-based Reactive Synthesis for Robotic Manipulation (ICRA 22) - ([branch](https://github.com/aria-systems-group/PDDLtoSim))
+- Efficient Symbolic Approaches for Quantitative Reactive Synthesis with Finite Tasks (IROS 23) - ([branch](https://github.com/aria-systems-group/PDDLtoSim/tree/experiments/iros_sims_fixes))
 
-## About
+Primarily, we use this code to
+1. Parse the PDDL File, construct a two-player turn-based game abstraction from a PDDL file. The syntax of the game is same as [FOND](https://link.springer.com/chapter/10.1007/978-3-031-01564-9_1). 
+2. Synthesize a strategy using this [toolbox](https://github.com/aria-systems-group/regret_synthesis_toolbox/tree/master), and
+3. Simulate the strategy using [Pybullet](https://pybullet.org/wordpress/).
 
-Work in progress
+**Note**: the Pybullet sim is old will be phased out soon with probably a better simulator. Further, the keyword `:non-deterministic` and the additional operator `oneof` is not yet supported. These are standard ways of specifying non-deterministic outcomes under an action using the PDDL Semantics (Refer [PRP Paper](https://ojs.aaai.org/index.php/ICAPS/article/view/13520), [PRP Code](https://github.com/QuMuLab/planner-for-relevant-policies)). In my file, I add non-determinism as `human-move` action (See [my code](https://github.com/aria-systems-group/sym_quant_reactive_synth/blob/master/pddl_files/dynamic_franka_world/domain.pddl)).
 
-## Installing this project
 
-* install [`anaconda`](https://www.anaconda.com/products/individual) or [`miniconda`](https://docs.conda.io/en/latest/miniconda.html)
+# Installation
 
-* install [`spot`](https://spot.lrde.epita.fr/install.html) if you are going to construct a DFA using an LTL formula.
+## Clone the code
 
 * clone this repo with:
  ```bash
 git clone --recurse-submodules https://github.com/aria-systems-group/PDDLtoSim.git .
  ```
+
+The `--recurse-submodule` will automatically initialize and update each submodule in the repository.
+
+
+## Docker Installation - Creating an Image and Spinning a Container
+
+Make sure you have Docker installed. If not, follow the instructions [here](https://docs.docker.com/engine/install).
+
+### Docker Commands to build the image
+
+1. `cd` into the root of the project
+
+2. Build the image from the Dockerfile
+
+```bash
+docker build -t <image_name> .
+```
+
+Note: the dot looks for a Dockerfile in the current repository. Then spin an instance of the container by using the following command
+
+```bash
+docker run -it --name <docker_container_name> <docker image name>
+```
+
+For volume binding
+
+```bash
+docker run -v <HOST-PATH>:<Container-path>
+```
+
+For example, to volume bind your local directory to the `pddltosim` folder inside the Docker, use the following command
+
+```bash
+docker run -it -v $PWD:/root/pddltosim --name <dokcer_container_name> <image_name>
+```
+
+Here `<docker_container_name>` is any name of your choice and `<image_name>` is the docker image name from above. `-it` and `-v` are flags to run an interactive terminal and volume bind respectively. 
+
+Additionally, if you are more used to GUI and would like to edit or attach a container instance to VSCode ([Link](https://code.visualstudio.com/docs/devcontainers/containers)) then follow the instructions below:
+
+### Attaching the remote container to VScode
+
+
+1. Make sure you have the right VS code extensions installed
+   * install docker extension
+   * install python extension
+   * install remote container extension
+   * Now click on the `Remote Explore` tab on the left and attach VScode to a container.
+2. This will launch a new vs code attached to the container and prompt you to a location to attach to. The default is root, and you can just press enter. Congrats, you have attached your container to VSCode.
+
+
+## Conda Installation - Instructions to create the env for the code
+
+* install [`anaconda`](https://www.anaconda.com/products/individual) or [`miniconda`](https://docs.conda.io/en/latest/miniconda.html)
+
+* install [`spot`](https://spot.lrde.epita.fr/install.html) if you are going to construct a DFA using an LTL formula.
+
 
 * change into this repo's directory:
  ```bash
@@ -26,7 +85,7 @@ cd PDDLtoSim
  ```
 * create the `conda` environment for this library:
 ```bash
-conda env create -f environment.yml
+cd conda && conda env create -f environment.yml
  ```
 
 * activate the conda environment:
@@ -34,7 +93,7 @@ conda env create -f environment.yml
 conda activate regret_syn_env
  ```
 
-## Running the code
+### Running the code
 
 `cd` into the root directory, activate the conda `env`  and run the following command
 
@@ -57,7 +116,7 @@ Robot placing objects in the specific pattern. The black box should be placed at
 
 ## Spot Troubleshooting notes
 
-You can build `spot` from source, official git [repo](https://gitlab.lrde.epita.fr/spot/spot) or Debain package. If you do source intallation, then run the following command to verify your installation
+You can build `spot` from source, official git [repo](https://gitlab.lrde.epita.fr/spot/spot) or Debian package. If you do source installation, then run the following command to verify your installation
 
 ```bash
 ltl2tgba --version
@@ -82,9 +141,36 @@ Spot installs five types of files, in different locations. $prefix refers to the
 4) man pages go into $prefix/man
 5) header files go into $prefix/include
 
-Please refere to the README file in the tar ball or on their github [page](https://gitlab.lrde.epita.fr/spot/spot/-/blob/next/README) for more datails on trouble shooting and installation.
+Please refer to the README file in the tar ball or on their GitHub [page](https://gitlab.lrde.epita.fr/spot/spot/-/blob/next/README) for more details on trouble shooting and installation.
 
 
-## Contact
+# Citing
 
-Please contact me if you have questions at :karan.muvvala@colorado.edu
+If the code is useful in your research, and you would like to acknowledge it, please cite one of the following paper 
+
+- Let's Collaborate: Regret-based Reactive Synthesis for Robotic Manipulation (Explicit Approach) ([paper](https://ieeexplore.ieee.org/document/9812298)):
+
+```
+@INPROCEEDINGS{muvvala2022regret,
+  author={Muvvala, Karan and Amorese, Peter and Lahijanian, Morteza},
+  booktitle={2022 International Conference on Robotics and Automation (ICRA)}, 
+  title={Let's Collaborate: Regret-based Reactive Synthesis for Robotic Manipulation}, 
+  year={2022},
+  pages={4340-4346},
+  doi={10.1109/ICRA46639.2022.9812298}}
+```
+
+- Efficient Symbolic Approaches for Quantitative Reactive Synthesis with Finite Tasks (Symbolic Approach) ([paper](https://arxiv.org/abs/2303.03686))
+
+```
+@INPROCEEDINGS{muvvala2023symbolic,
+  title={Efficient Symbolic Approaches for Quantitative Reactive Synthesis with Finite Tasks},
+  author={Muvvala, Karan and Lahijanian, Morteza},
+  journal={IEEE IROS/RSJ International Conference on Robotics and Systems},
+  year={2023 (to appear)}
+}
+```
+
+# Contact
+
+Please contact me if you have questions at: karan.muvvala@colorado.edu
