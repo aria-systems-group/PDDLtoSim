@@ -26,6 +26,8 @@ from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import Valu
 
 from src.pddl_env_simualtor.envs.panda_sim import PandaSim
 
+from utls import deprecated, timer_decorator
+
 # define a constant to dump the yaml file
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
@@ -41,6 +43,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
     start = time.time()
     comp_mcr_solver = ValueIteration(product_graph, competitive=True)
     comp_mcr_solver.solve(debug=True, plot=False)
+    assert comp_mcr_solver.is_winning() is True, "[Error] There does not exist a winning strategy!"
     stop = time.time()
     print(f"******************************Min-Max Computation time: {stop - start} ****************************")
 
@@ -1400,7 +1403,7 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
 
     return graph_data
 
-
+@timer_decorator
 def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     _project_root = os.path.dirname(os.path.abspath(__file__))
 
