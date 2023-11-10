@@ -6,7 +6,7 @@ dependencies:
   - pyyaml
   - numpy
   - bidict
-  - netowrkx
+  - networkx
   - python-graphviz  # installs graphivz as well
   - ply
   - pip:

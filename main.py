@@ -38,8 +38,12 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
     """
     A method to play the adversarial game.
     """
+    start = time.time()
     comp_mcr_solver = ValueIteration(product_graph, competitive=True)
     comp_mcr_solver.solve(debug=True, plot=False)
+    stop = time.time()
+    print(f"******************************Min-Max Computation time: {stop - start} ****************************")
+
     # coop_val_dict = coop_mcr_solver.state_value_dict
     comp_str_dict = comp_mcr_solver.str_dict
 
@@ -1455,9 +1459,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     print(f"# of Sys states in Two player game: {sys_count}")
     print(f"# of Env states in Two player game: {env_count}")
 
-    for (u, v) in _two_player_instance._two_player_implicit_game._graph.edges():
-        print(f"{u} -------{_two_player_instance._two_player_implicit_game._graph[u][v][0].get('actions')}------> {v}")
-    sys.exit(-1)
+    # for (u, v) in _two_player_instance._two_player_implicit_game._graph.edges():
+    #     print(f"{u} -------{_two_player_instance._two_player_implicit_game._graph[u][v][0].get('actions')}------> {v}")
+    # sys.exit(-1)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
@@ -1483,19 +1487,19 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
 
     # compute strs
-    _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
     # _manual_rollout(product_graph=_product_graph)
 
     # adversarial strs
-    # _actions = compute_adv_strs(_product_graph,
-    #                             purely_avd=True,
-    #                             no_intervention=False,
-    #                             cooperative=False,
-    #                             print_sim_str=True)
+    _actions = compute_adv_strs(_product_graph,
+                                purely_avd=True,
+                                no_intervention=False,
+                                cooperative=False,
+                                print_sim_str=True)
 
     # ask the user if they want to save the str or not
-    _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
-
+    # _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
+    _dump_strs = "n"
     # save strs
     if _dump_strs == "y" or _dump_strs == "Y":
         save_str(causal_graph=_causal_graph_instance,
