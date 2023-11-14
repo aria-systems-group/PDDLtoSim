@@ -23,6 +23,8 @@ from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import\
     RegretMinimizationStrategySynthesis as RegMinStrSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
+from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
+from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_safe_reach import QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort
 
 from src.pddl_env_simualtor.envs.panda_sim import PandaSim
 
@@ -33,7 +35,8 @@ ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
 def compute_adv_strs(product_graph: TwoPlayerGraph,
-                     purely_avd: bool = True,
+                     purely_adv: bool = False,
+                     random_human: bool = True,
                      no_intervention: bool = False,
                      cooperative: bool = False,
                      print_sim_str: bool = True) -> List:
@@ -41,29 +44,41 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
     A method to play the adversarial game.
     """
     start = time.time()
-    comp_mcr_solver = ValueIteration(product_graph, competitive=True)
-    comp_mcr_solver.solve(debug=True, plot=False)
-    assert comp_mcr_solver.is_winning() is True, "[Error] There does not exist a winning strategy!"
+    # comp_mcr_solver = ValueIteration(product_graph, competitive=True)
+    # comp_mcr_solver.solve(debug=True, plot=False)
+    # assert comp_mcr_solver.is_winning() is True, "[Error] There does not exist a winning strategy!"
+
+    # OG Algorithms
+    # be_handle = QualitativeBestEffortReachSyn(game=product_graph, debug=True)
+    # be_handle = QuantitativeBestEffortReachSyn(game=product_graph, debug=True)
+
+    # My propsoed algorithm 
+    # be_handle = QualitativeSafeReachBestEffort(game=product_graph, debug=True)
+    be_handle = QuantitativeSafeReachBestEffort(game=product_graph, debug=True)
+
+    be_handle.compute_best_effort_strategies(plot=False)
+    if be_handle.is_winning() is not True: print("[Warning] There does not exist a winning strategy!")
     stop = time.time()
     print(f"******************************Min-Max Computation time: {stop - start} ****************************")
 
     # coop_val_dict = coop_mcr_solver.state_value_dict
-    comp_str_dict = comp_mcr_solver.str_dict
+    # comp_str_dict = comp_mcr_solver.str_dict
+    comp_str_dict = be_handle.sys_best_effort_str
 
     _init_state = product_graph.get_initial_states()[0][0]
 
-    _next_state = comp_str_dict[_init_state]
+    _next_state = random.choice(list(comp_str_dict[_init_state])) if isinstance(comp_str_dict[_init_state], set) else comp_str_dict[_init_state]
     # print(f"Edge weight: {product_graph.get_edge_weight(_init_state, _next_state)}")
     _action_seq = []
 
     _action_seq.append(product_graph._graph[_init_state][_next_state][0].get("actions"))
     # print(_action_seq[-1])
 
-    if purely_avd:
+    if purely_adv:
         while _next_state is not None:
             _curr_state = _next_state
 
-            _next_state = comp_str_dict.get(_curr_state)
+            _next_state = random.choice(comp_str_dict.get(_curr_state))  if isinstance(comp_str_dict[_curr_state], List) else comp_str_dict[_curr_state]
 
             # print(f"Edge weight: {product_graph.get_edge_weight(_curr_state, _next_state)}")
 
@@ -72,6 +87,41 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
                 if _action_seq[-1] != _edge_act:
                     _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
                     # print(_action_seq[-1])
+    
+    elif random_human:
+         while _next_state is not None:
+            _curr_state = _next_state
+
+            if isinstance(_curr_state, tuple):
+                if 'accept' in _curr_state[1]:
+                    break
+
+                if 'T0_S4' in _curr_state[1]:
+                    break
+            else:    
+                if 'accept' in _curr_state:
+                    break
+
+                if 'T0_S4' in _curr_state:
+                    break
+
+            if product_graph.get_state_w_attribute(_curr_state, 'player') == "adam":
+                _succ_states: List[tuple] = [_state for _state in product_graph._graph.successors(_curr_state)]
+                _next_state = random.choice(_succ_states)
+                c = 0 
+                while ('accept' in _next_state or 'T0_S4' in _next_state) and c <= 5:
+                    _next_state = random.choice(_succ_states)
+                    c += 1
+            
+            else:
+                _next_state = random.choice(list(comp_str_dict.get(_curr_state)))  if isinstance(comp_str_dict[_curr_state], set) else comp_str_dict[_curr_state]
+
+            # print(f"Edge weight: {product_graph.get_edge_weight(_curr_state, _next_state)}")
+
+            if _next_state is not None:
+                _edge_act = product_graph._graph[_curr_state][_next_state][0].get("actions")
+                if _action_seq[-1] != _edge_act:
+                    _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
 
     elif no_intervention:
         while _next_state is not None:
@@ -86,7 +136,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
                         _next_state = _succ
                         break
             else:
-                _next_state = comp_str_dict.get(_curr_state)
+                _next_state = random.choice(comp_str_dict.get(_curr_state))
 
             if _next_state is not None:
                 _edge_action = product_graph._graph[_curr_state][_next_state][0].get('actions')
@@ -100,7 +150,7 @@ def compute_adv_strs(product_graph: TwoPlayerGraph,
             _curr_state = _next_state
 
             if product_graph.get_state_w_attribute(_curr_state, attribute="player") == "eve":
-                _next_state = comp_str_dict.get(_curr_state)
+                _next_state = random.choice(comp_str_dict.get(_curr_state))
             else:
                 if _max_coop_actions <= 2:
                     _next_state = _coop_str_dict[_curr_state]
@@ -1403,6 +1453,7 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
 
     return graph_data
 
+
 @timer_decorator
 def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     _project_root = os.path.dirname(os.path.abspath(__file__))
@@ -1446,7 +1497,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
         plot_two_player_implicit_game=False)
     _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     _two_player_instance.modify_ap_w_object_types(implicit=True)
-    _two_player_instance.modify_edge_weights(implicit=True)
+    # _two_player_instance.modify_edge_weights(implicit=True)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -1477,7 +1528,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     #     formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
     _dfa = _two_player_instance.build_LTL_automaton(
         # formula="F((p03 & p14 & p22) || (p05 & p19 & p26))")
-        formula="F(p01 || p17)")
+        formula="F(p01) & F(p17) & G(!p18)")
+        # formula="F(p01 & p17)")
     # _dfa = _two_player_instance.build_LTL_automaton(
     #     formula="F((p12 & p00) || (p20 & p12) || (p05 & p19) || (p25 & p19))")
 
@@ -1495,7 +1547,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
 
     # adversarial strs
     _actions = compute_adv_strs(_product_graph,
-                                purely_avd=True,
+                                purely_adv=False,
+                                random_human=True,
                                 no_intervention=False,
                                 cooperative=False,
                                 print_sim_str=True)
