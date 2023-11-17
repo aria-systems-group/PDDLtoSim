@@ -1,12 +1,12 @@
 import os
+import sys
 import time
-import random
 import datetime
 import tracemalloc
 import yaml
 import warnings
 
-from typing import Tuple, Optional, List, Dict
+from typing import Optional, Dict, Type
 
 from src.graph_construction.causal_graph import CausalGraph
 from src.graph_construction.transition_system import FiniteTransitionSystem
@@ -14,237 +14,67 @@ from src.graph_construction.two_player_game import TwoPlayerGame
 
 # call the regret synthesis code
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
+from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import\
     RegretMinimizationStrategySynthesis as RegMinStrSyn
+from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_safe_reach import QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort
 
-from src.rollout_provider import RegretStrategyRolloutProvider
+from src.rollout_provider import rollout_strategy, RolloutProvider
 from src.execute_str import execute_saved_str, execute_str
 
+from config import *
 from utls import timer_decorator
 
 # define a constant to dump the yaml file
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 
-def compute_adv_strs(product_graph: TwoPlayerGraph,
-                     purely_adv: bool = False,
-                     random_human: bool = True,
-                     no_intervention: bool = False,
-                     cooperative: bool = False,
-                     print_sim_str: bool = True) -> List:
+def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = False, plot: bool = False, reg_factor: float = 1.25):
     """
-    A method to play the adversarial game.
+     A method that call the appropriate strategy synthesis class nased on the user input. 
+
+     Valid strategy_type: Min-Max, Min-Min, Regret, BestEffortQual, BestEffortQuant, BestEffortSafeReachQual, BestEffortSafeReachQuant
     """
-    start = time.time()
-    # comp_mcr_solver = ValueIteration(product_graph, competitive=True)
-    # comp_mcr_solver.solve(debug=True, plot=False)
-    # assert comp_mcr_solver.is_winning() is True, "[Error] There does not exist a winning strategy!"
+    valid_str_syn_algos = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
 
-    # OG Algorithms
-    # be_handle = QualitativeBestEffortReachSyn(game=product_graph, debug=True)
-    # be_handle = QuantitativeBestEffortReachSyn(game=product_graph, debug=True)
+    if strategy_type == "Min-Max":
+        strategy_handle = ValueIteration(game, competitive=True)
+        strategy_handle.solve(debug=debug, plot=plot)
 
-    # My propsoed algorithm 
-    # be_handle = QualitativeSafeReachBestEffort(game=product_graph, debug=True)
-    be_handle = QuantitativeSafeReachBestEffort(game=product_graph, debug=True)
-
-    be_handle.compute_best_effort_strategies(plot=False)
-    if be_handle.is_winning() is not True: print("[Warning] There does not exist a winning strategy!")
-    stop = time.time()
-    print(f"******************************Min-Max Computation time: {stop - start} ****************************")
-
-    # coop_val_dict = coop_mcr_solver.state_value_dict
-    # comp_str_dict = comp_mcr_solver.str_dict
-    comp_str_dict = be_handle.sys_best_effort_str
-
-    _init_state = product_graph.get_initial_states()[0][0]
-
-    _next_state = random.choice(list(comp_str_dict[_init_state])) if isinstance(comp_str_dict[_init_state], set) else comp_str_dict[_init_state]
-    # print(f"Edge weight: {product_graph.get_edge_weight(_init_state, _next_state)}")
-    _action_seq = []
-
-    _action_seq.append(product_graph._graph[_init_state][_next_state][0].get("actions"))
-    # print(_action_seq[-1])
-
-    if purely_adv:
-        while _next_state is not None:
-            _curr_state = _next_state
-
-            _next_state = random.choice(comp_str_dict.get(_curr_state))  if isinstance(comp_str_dict[_curr_state], List) else comp_str_dict[_curr_state]
-
-            # print(f"Edge weight: {product_graph.get_edge_weight(_curr_state, _next_state)}")
-
-            if _next_state is not None:
-                _edge_act = product_graph._graph[_curr_state][_next_state][0].get("actions")
-                if _action_seq[-1] != _edge_act:
-                    _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
-                    # print(_action_seq[-1])
+    elif strategy_type == "Min-Min":
+        strategy_handle = ValueIteration(game, competitive=False)
+        strategy_handle.solve(debug=debug, plot=plot)
     
-    elif random_human:
-         while _next_state is not None:
-            _curr_state = _next_state
-
-            if isinstance(_curr_state, tuple):
-                if 'accept' in _curr_state[1]:
-                    break
-
-                if 'T0_S4' in _curr_state[1]:
-                    break
-            else:    
-                if 'accept' in _curr_state:
-                    break
-
-                if 'T0_S4' in _curr_state:
-                    break
-
-            if product_graph.get_state_w_attribute(_curr_state, 'player') == "adam":
-                _succ_states: List[tuple] = [_state for _state in product_graph._graph.successors(_curr_state)]
-                _next_state = random.choice(_succ_states)
-                c = 0 
-                while ('accept' in _next_state or 'T0_S4' in _next_state) and c <= 5:
-                    _next_state = random.choice(_succ_states)
-                    c += 1
-            
-            else:
-                _next_state = random.choice(list(comp_str_dict.get(_curr_state)))  if isinstance(comp_str_dict[_curr_state], set) else comp_str_dict[_curr_state]
-
-            # print(f"Edge weight: {product_graph.get_edge_weight(_curr_state, _next_state)}")
-
-            if _next_state is not None:
-                _edge_act = product_graph._graph[_curr_state][_next_state][0].get("actions")
-                if _action_seq[-1] != _edge_act:
-                    _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
-
-    elif no_intervention:
-        while _next_state is not None:
-            _curr_state = _next_state
-
-            if product_graph.get_state_w_attribute(_curr_state, "player") == "adam":
-                # get the state that sys wanted to evolve to
-                for _succ in product_graph._graph.successors(_curr_state):
-                    _edge_action = product_graph._graph[_curr_state][_succ][0]["actions"]
-                    _edge_type = get_action_from_causal_graph_edge(_edge_action)
-                    if _edge_type != "human-move":
-                        _next_state = _succ
-                        break
-            else:
-                _next_state = random.choice(comp_str_dict.get(_curr_state))
-
-            if _next_state is not None:
-                _edge_action = product_graph._graph[_curr_state][_next_state][0].get('actions')
-                if _action_seq[-1] != _edge_action:
-                    _action_seq.append(_edge_action)
-
-    elif cooperative:
-        _coop_str_dict = compute_cooperative_actions_for_env(product_graph)
-        _max_coop_actions: int = 0
-        while _next_state is not None:
-            _curr_state = _next_state
-
-            if product_graph.get_state_w_attribute(_curr_state, attribute="player") == "eve":
-                _next_state = random.choice(comp_str_dict.get(_curr_state))
-            else:
-                if _max_coop_actions <= 2:
-                    _next_state = _coop_str_dict[_curr_state]
-                    # only increase the counter when the human moves
-                    _max_coop_actions += 1
-                else:
-                    for _succ in product_graph._graph.successors(_curr_state):
-                        _edge_action = product_graph._graph[_curr_state][_succ][0]["actions"]
-                        _edge_type = get_action_from_causal_graph_edge(_edge_action)
-                        if _edge_type != "human-move":
-                            _next_state = _succ
-                            break
-
-            if _next_state is not None:
-                _edge_act = product_graph._graph[_curr_state][_next_state][0].get("actions")
-                if _action_seq[-1] != _edge_act:
-                    _action_seq.append(product_graph._graph[_curr_state][_next_state][0].get("actions"))
+    elif strategy_type == "Regret":
+        strategy_handle = RegMinStrSyn(game)
+        strategy_handle.edge_weighted_arena_finite_reg_solver(reg_factor=reg_factor,
+                                                              purge_states=True,
+                                                              plot=plot)
+    
+    elif strategy_type == "BestEffortQual":
+        strategy_handle = QualitativeBestEffortReachSyn(game=game, debug=debug)    
+        strategy_handle.compute_best_effort_strategies(plot=plot)
+    
+    # My propsoed algorithms
+    elif strategy_type == "BestEffortQuant":
+        strategy_handle = QuantitativeBestEffortReachSyn(game=game, debug=debug)
+        strategy_handle.compute_best_effort_strategies(plot=plot)
+    
+    elif strategy_type == "BestEffortSafeReachQual":
+        strategy_handle = QualitativeSafeReachBestEffort(game=game, debug=debug)
+        strategy_handle.compute_best_effort_strategies(plot=plot)
+    
+    elif strategy_type == "BestEffortSafeReachQuant":
+        strategy_handle = QuantitativeSafeReachBestEffort(game=game, debug=debug)
+        strategy_handle.compute_best_effort_strategies(plot=plot)
 
     else:
-        warnings.warn("Please at-least one of the flags i.e Cooperative, no_intervention or purely_adversarial is True")
+        warnings.warn(f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(valid_str_syn_algos)} ]")
+        sys.exit(-1)
 
-    if print_sim_str:
-        for _action in _action_seq:
-            print(_action)
-
-    return _action_seq
-
-
-# def compute_reg_strs(product_graph: TwoPlayerGraph,
-#                      coop_str: bool = False,
-#                      epsilon: float = -1) -> Tuple[list, dict, TwoPlayerGraph]:
-#     """
-#     A method to compute strategies. We control the env's behavior by making it purely cooperative, pure adversarial, or
-#     epsilon greedy.
-
-#     @param coop_str: Set this to be true for purely cooperative behavior from the env
-#     @param epsilon: Set this value to be 0 for purely adversarial behavior or with epsilon probability human picks
-#      random actions.
-#     """
-#     # build an instance of regret strategy minimization class
-#     reg_syn_handle = RegMinStrSyn(product_graph)
-#     reg_str, reg_val = reg_syn_handle.edge_weighted_arena_finite_reg_solver(reg_factor=1.25,
-#                                                                             purge_states=True,
-#                                                                             plot=False)
-#     twa_game = reg_syn_handle.graph_of_alternatives
-#     _init_state = twa_game.get_initial_states()[0][0]
-#     for _n in twa_game._graph.successors(_init_state):
-#         print(f"Reg Val: {_n}: {reg_val[_n]}")
-#     # the reg str is dict that one from one state to another. Lets convert this to print a sequence of edge actions
-#     _next_state = reg_str[_init_state]
-#     _action_seq = []
-
-#     _action_seq.append(twa_game._graph[_init_state][_next_state][0].get("actions"))
-
-#     if coop_str:
-#         # compute cooperative strs for the player
-#         _coop_str_dict = compute_cooperative_actions_for_env(twa_game)
-#         _max_coop_actions: int = 1
-
-#         # print(f"{_init_state}: {reg_val[_init_state]}")
-#         # print(f"{_next_state}: {reg_val[_init_state]}")
-#         while _next_state is not None:
-#             _curr_state = _next_state
-
-#             if twa_game.get_state_w_attribute(_curr_state, attribute="player") == "eve":
-#                 _next_state = reg_str.get(_curr_state)
-#             else:
-#                 if _max_coop_actions <= 10:
-#                     _next_state = _coop_str_dict[_curr_state]
-#                     # only increase the counter when the human moves
-#                     _max_coop_actions += 1
-#                 else:
-#                     _next_state = reg_str.get(_curr_state)
-
-#             if _next_state is not None:
-#                 _edge_act = twa_game._graph[_curr_state][_next_state][0].get("actions")
-#                 if _action_seq[-1] != _edge_act:
-#                     _action_seq.append(twa_game._graph[_curr_state][_next_state][0].get("actions"))
-#                 # print(f"{_next_state}: {reg_val[_init_state]}")
-
-#     elif 0 <= epsilon <= 1:
-#         # we randomise human strategies
-#         _new_str_dict = compute_epsilon_str_dict(epsilon=epsilon,
-#                                                  reg_str_dict=reg_str,
-#                                                  max_human_int=3, twa_game=twa_game)
-#         while _next_state is not None:
-#             _curr_state = _next_state
-
-#             _next_state = _new_str_dict.get(_curr_state)
-
-#             if _next_state is not None:
-#                 _edge_act = twa_game._graph[_curr_state][_next_state][0].get("actions")
-#                 if _action_seq[-1] != _edge_act:
-#                     _action_seq.append(twa_game._graph[_curr_state][_next_state][0].get("actions"))
-
-#     for _action in _action_seq:
-#         print(_action)
-
-#     return _action_seq, reg_val, twa_game
-
+    return strategy_handle
 
 
 def save_str(causal_graph: CausalGraph,
@@ -377,36 +207,34 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
 
 @timer_decorator
 def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
-    _project_root = os.path.dirname(os.path.abspath(__file__))
+    domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
+    # _problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
+    problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
 
-    _domain_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
-    # _problem_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
-    _problem_file_path = _project_root + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
-
-    _causal_graph_instance = CausalGraph(problem_file=_problem_file_path,
-                                         domain_file=_domain_file_path,
+    causal_graph_instance = CausalGraph(problem_file=problem_file_path,
+                                         domain_file=domain_file_path,
                                          draw=False)
 
-    _causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
+    causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
 
     if print_flag:
         print(
-            f"No. of nodes in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.nodes())}")
+            f"No. of nodes in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
         print(
-            f"No. of edges in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.edges())}")
+            f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.edges())}")
     start = time.time()
-    _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
-    _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
-    # _transition_system_instance.modify_edge_weights()
+    transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
+    transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+    # transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
-              f"{len(_transition_system_instance.transition_system._graph.nodes())}")
+              f"{len(transition_system_instance.transition_system._graph.nodes())}")
         print(f"No. of edges in the Transition System is :"
-              f"{len(_transition_system_instance.transition_system._graph.edges())}")
+              f"{len(transition_system_instance.transition_system._graph.edges())}")
 
-    _two_player_instance = TwoPlayerGame(_causal_graph_instance, _transition_system_instance)
-    _two_player_instance.build_two_player_game(human_intervention=2,
+    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    two_player_instance.build_two_player_game(human_intervention=2,
                                                human_intervention_cost=0,
                                                plot_two_player_game=False,
                                                arch_construction=False)
@@ -414,18 +242,18 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
 
     # for implicit construction, the human intervention should >=2
-    _two_player_instance.build_two_player_implicit_transition_system_from_explicit(
+    two_player_instance.build_two_player_implicit_transition_system_from_explicit(
         plot_two_player_implicit_game=False)
-    _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-    _two_player_instance.modify_ap_w_object_types(implicit=True)
-    _two_player_instance.modify_edge_weights(implicit=True)
+    two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
+    two_player_instance.modify_ap_w_object_types(implicit=True)
+    two_player_instance.modify_edge_weights(implicit=True)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
     # print # of Sys and Env state
     env_count = 0
     sys_count = 0
-    for (p, d) in _two_player_instance._two_player_implicit_game._graph.nodes(data=True):
+    for (p, d) in two_player_instance._two_player_implicit_game._graph.nodes(data=True):
         if d['player'] == 'adam':
             env_count += 1
         elif d['player'] == 'eve':
@@ -434,180 +262,143 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
     print(f"# of Sys states in Two player game: {sys_count}")
     print(f"# of Env states in Two player game: {env_count}")
 
-    # for (u, v) in _two_player_instance._two_player_implicit_game._graph.edges():
-    #     print(f"{u} -------{_two_player_instance._two_player_implicit_game._graph[u][v][0].get('actions')}------> {v}")
-    # sys.exit(-1)
-
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
-              f"{len(_two_player_instance._two_player_implicit_game._graph.nodes())}")
+              f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
-              f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
+              f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    # _dfa = _two_player_instance.build_LTL_automaton(formula="F(l2 || l6)")
-    # _dfa = _two_player_instance.build_LTL_automaton(
-    #     formula="F((p22 & p14 & p03) || (p05 & p19 & p26))")
-    _dfa = _two_player_instance.build_LTL_automaton(
-        # formula="F((p03 & p14 & p22) || (p05 & p19 & p26))")
-        # formula="F(p01) & F(p17) & G(!p18)")
-        formula="F(p01 || p17)")
-    # _dfa = _two_player_instance.build_LTL_automaton(
-    #     formula="F((p12 & p00) || (p20 & p12) || (p05 & p19) || (p25 & p19))")
+    dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
 
-    _product_graph = _two_player_instance.build_product(dfa=_dfa,
-                                                        trans_sys=_two_player_instance.two_player_implicit_game)
-    _relabelled_graph = _two_player_instance.internal_node_mapping(_product_graph)
+    product_graph = two_player_instance.build_product(dfa=dfa,
+                                                      trans_sys=two_player_instance.two_player_implicit_game)
+    relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
 
     if print_flag:
-        print(f"No. of nodes in the product graph is :{len(_relabelled_graph._graph.nodes())}")
-        print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
+        print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
+        print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
     
+    # create a strategy synthesis handle and solve the game
+    valid_str_syn_algos = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
+    valid_human_stings = ["no-human", "random-human", "epsilon-human"]
+    for st in valid_str_syn_algos:
+        for hs in valid_human_stings:
+            strategy_handle = compute_strategy(strategy_type=st, game=product_graph, debug=False, plot=False)
 
-    # compute strs
-    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
-    # _manual_rollout(product_graph=_product_graph)
+            # rollout the stratgey
+            roller: Type[RolloutProvider] = rollout_strategy(strategy=strategy_handle,
+                                                             game=product_graph,
+                                                             debug=False,
+                                                             human_type=hs)
 
-    # build an instance of regret strategy minimization class
-    reg_syn_handle = RegMinStrSyn(_product_graph)
-    strategy, state_vals = reg_syn_handle.edge_weighted_arena_finite_reg_solver(reg_factor=1.25,
-                                                                                purge_states=True,
-                                                                                plot=False)
-    rollout_handle = RegretStrategyRolloutProvider(twa_game=reg_syn_handle.graph_of_alternatives,
-                                                   dfa_game=_product_graph,
-                                                   regret_strategy=strategy,
-                                                   regret_sv=state_vals,
-                                                   debug=True)
-    
-    # testing all rollout provider
-    # rollout_handle.get_manual_rollout()
-    
-    # rollout_handle.get_rollout_with_human_intervention()
-    rollout_handle.get_rollout_with_epsilon_human_intervention(epsilon=1)
-    # rollout_handle.get_rollout_with_epsilon_human_intervention(epsilon=0.5)
-
-    return
-
-    # adversarial strs
-    # _actions = compute_adv_strs(_product_graph,
-    #                             purely_adv=False,
-    #                             random_human=True,
-    #                             no_intervention=False,
-    #                             cooperative=False,
-    #                             print_sim_str=True)
-    
-    
-
+    # return
     # ask the user if they want to save the str or not
-    # _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
-    _dump_strs = "n"
+    _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
     # save strs
-    # if _dump_strs == "y" or _dump_strs == "Y":
-    #     save_str(causal_graph=_causal_graph_instance,
-    #              transition_system=_transition_system_instance,
-    #              two_player_game=_two_player_instance,
-    #              regret_graph_of_alternatives=_graph_of_alts,
-    #              game_reg_value=_reg_val,
-    #              pos_seq=_actions,
-    #              adversarial=False)
+    if _dump_strs == "y" or _dump_strs == "Y":
+        save_str(causal_graph=causal_graph_instance,
+                 transition_system=transition_system_instance,
+                 two_player_game=two_player_instance,
+                 pos_seq=roller.action_seq,
+                 adversarial=False)
 
     # simulate the str
-    # execute_str(actions=_actions,
-    #             causal_graph=_causal_graph_instance,
-    #             transition_system=_transition_system_instance,
-    #             exp_name="diag",
-    #             record_sim=record_flag,
-    #             debug=False)
+    execute_str(actions=roller.action_seq,
+                causal_graph=causal_graph_instance,
+                transition_system=transition_system_instance,
+                exp_name="diag",
+                record_sim=record_flag,
+                debug=False)
 
 
+@timer_decorator
 def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
-    _project_root = os.path.dirname(os.path.abspath(__file__))
+    domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/domain.pddl"
+    problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/problem.pddl"
 
-    _domain_file_path = _project_root + "/pddl_files/two_table_scenario/arch/domain.pddl"
-    _problem_file_path = _project_root + "/pddl_files/two_table_scenario/arch/problem.pddl"
-
-    _causal_graph_instance = CausalGraph(problem_file=_problem_file_path,
-                                         domain_file=_domain_file_path,
+    causal_graph_instance = CausalGraph(problem_file=problem_file_path,
+                                         domain_file=domain_file_path,
                                          draw=False)
 
-    _causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
+    causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
 
     if print_flag:
         print(
-            f"No. of nodes in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.nodes())}")
+            f"No. of nodes in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
         print(
-            f"No. of edges in the Causal Graph is :{len(_causal_graph_instance._causal_graph._graph.edges())}")
+            f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.edges())}")
 
-    _transition_system_instance = FiniteTransitionSystem(_causal_graph_instance)
-    _transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
-    _transition_system_instance.build_arch_abstraction(plot=False, relabel_nodes=False)
-    _transition_system_instance.modify_edge_weights()
+    transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
+    transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+    transition_system_instance.build_arch_abstraction(plot=False, relabel_nodes=False)
+    transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
-              f"{len(_transition_system_instance.transition_system._graph.nodes())}")
+              f"{len(transition_system_instance.transition_system._graph.nodes())}")
         print(f"No. of edges in the Transition System is :"
-              f"{len(_transition_system_instance.transition_system._graph.edges())}")
+              f"{len(transition_system_instance.transition_system._graph.edges())}")
 
-    _two_player_instance = TwoPlayerGame(_causal_graph_instance, _transition_system_instance)
-    _two_player_instance.build_two_player_game(human_intervention=2,
+    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    two_player_instance.build_two_player_game(human_intervention=2,
                                                human_intervention_cost=0,
                                                plot_two_player_game=False,
                                                arch_construction=True)
 
     # for implicit construction, the human intervention should >=2
-    _two_player_instance.build_two_player_implicit_transition_system_from_explicit(
+    two_player_instance.build_two_player_implicit_transition_system_from_explicit(
         plot_two_player_implicit_game=False)
-    _two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
+    two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     # two_player_instance.modify_ap_w_object_types(implicit=True)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
-              f"{len(_two_player_instance._two_player_implicit_game._graph.nodes())}")
+              f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
-              f"{len(_two_player_instance._two_player_implicit_game._graph.edges())}")
+              f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    _dfa = _two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
-    # _dfa = _two_player_instance.build_LTL_automaton(formula="F(l8 & l9 & l0)")
-    # _product_graph = _two_player_instance.build_product(dfa=_dfa,
+    dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
+    # product_graph = _two_player_instance.build_product(dfa=_dfa,
     #                                                     trans_sys=_two_player_instance.two_player_game)
 
-    _product_graph = _two_player_instance.build_product(dfa=_dfa,
-                                                        trans_sys=_two_player_instance.two_player_implicit_game)
+    product_graph = two_player_instance.build_product(dfa=dfa,
+                                                      trans_sys=two_player_instance.two_player_implicit_game)
 
-    _relabelled_graph = _two_player_instance.internal_node_mapping(_product_graph)
+    relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
 
     if print_flag:
-        print(f"No. of nodes in the product graph is :{len(_relabelled_graph._graph.nodes())}")
-        print(f"No. of edges in the product graph is :{len(_relabelled_graph._graph.edges())}")
+        print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
+        print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
 
-    # compute strs
-    # _actions, _reg_val, _graph_of_alts = compute_reg_strs(_product_graph, coop_str=False, epsilon=0)
+    # exit()
+    # create a strategy synthesis handle and solve the game
+    valid_str_syn_algos = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
+    valid_human_stings = ["no-human", "random-human", "epsilon-human"]
+    for st in valid_str_syn_algos:
+        for hs in valid_human_stings:
+            strategy_handle = compute_strategy(strategy_type=st, game=product_graph, debug=False, plot=False)
 
-    # adversarial strs
-    # _actions = compute_adv_strs(_product_graph,
-    #                             purely_avd=True,
-    #                             no_intervention=False,
-    #                             cooperative=False,
-    #                             print_sim_str=True)
-    exit()
+            # rollout the stratgey
+            roller: Type[RolloutProvider] = rollout_strategy(strategy=strategy_handle,
+                                                             game=product_graph,
+                                                             debug=False,
+                                                             human_type=hs)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
 
     # save strs
     if _dump_strs == "y" or _dump_strs == "Y":
-        save_str(causal_graph=_causal_graph_instance,
-                 transition_system=_transition_system_instance,
-                 two_player_game=_two_player_instance,
-                 # regret_graph_of_alternatives=_graph_of_alts,
-                 # game_reg_value=_reg_val,
-                 pos_seq=_actions,
+        save_str(causal_graph=causal_graph_instance,
+                 transition_system=transition_system_instance,
+                 two_player_game=two_player_instance,
+                 pos_seq=roller.action_seq,
                  adversarial=True)
 
     # simulate the str
-    execute_str(actions=_actions,
-                causal_graph=_causal_graph_instance,
-                transition_system=_transition_system_instance,
+    execute_str(actions=roller.action_seq,
+                causal_graph=causal_graph_instance,
+                transition_system=transition_system_instance,
                 exp_name="arch",
                 record_sim=record_flag,
                 debug=False)

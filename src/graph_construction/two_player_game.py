@@ -739,7 +739,7 @@ class TwoPlayerGame:
 
     def internal_node_mapping(self, game: TwoPlayerGraph) -> TwoPlayerGraph:
         """
-        A helper function that created a node to int dictionary. This helps in plotting as the node names in
+        A helper function that creates a node to int dictionary. This helps in plotting as the node names in
         two_player_pddl_ts_game are huge.
         """
 

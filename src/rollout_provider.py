@@ -23,6 +23,52 @@ from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_safe_reach impo
 
 
 BestEffortClass = Union[QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn, QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort]
+Strategy = Union[ValueIteration, RegretMinimizationStrategySynthesis, BestEffortClass]
+
+
+
+def rollout_strategy(strategy: Strategy,
+                     game: ProductAutomaton,
+                     debug: bool = False,
+                     human_type: str = "random-human",
+                     epsilon: float = 0.1) -> None:
+    """
+    A function that calls the appropriate rollout provide based on the strategy instance.
+
+    Human_type: input
+      "manual" for rollouts with user in the loop
+      "no-human" for rollouts with no human intervention
+      "random-human" for rollouts with random human intervention
+      "epsilon-human" for rollouts with epsilon human intervention
+    """
+    valid_human_stings = ["manual", "no-human", "random-human", "epsilon-human"]
+    if isinstance(strategy, RegretMinimizationStrategySynthesis):
+        rhandle = RegretStrategyRolloutProvider(game=game,
+                                                strategy_handle=strategy,
+                                                debug=debug)
+    elif isinstance(strategy, ValueIteration):
+        rhandle = AdvStrategyRolloutProvider(game=game,
+                                             strategy_handle=strategy,
+                                             debug=debug)
+    elif isinstance(strategy, (QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn, QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort)):
+        rhandle = BestEffortStrategyRolloutProvider(game=game,
+                                                    strategy_handle=strategy,
+                                                    debug=debug)
+    else:
+        warnings.warn(f"[Error] We do not have rollout provder for strategy of type: {type(strategy)}")
+        sys.exit(-1)
+    
+    if human_type == "manual":
+        rhandle.manual_rollout()
+    elif human_type == "no-human":
+        rhandle.rollout_no_human_intervention()
+    elif human_type == "random-human":
+        rhandle.rollout_with_human_intervention()
+    elif human_type == "epsilon-human":
+        rhandle.rollout_with_epsilon_human_intervention(epsilon=epsilon)
+    else:
+        warnings.warn(f"[Error] Please enter a valid human type from:[ {', '.join(valid_human_stings)} ]")
+        sys.exit(-1)
 
 
 class RolloutProvider(ABC):
@@ -41,6 +87,13 @@ class RolloutProvider(ABC):
         self._absorbing_states: list = []
         self._action_seq: List[str] = []
         self.debug = debug
+        self.set_strategy()
+        self.set_state_values()
+        self.set_target_states()
+        self.set_init_states()
+        self.set_absorbing_states()
+        self.set_sink_states()
+        self._check_if_winning()
     
 
     @property
@@ -81,16 +134,35 @@ class RolloutProvider(ABC):
     
     @game.setter
     def game(self, game: TwoPlayerGraph):
-
         assert isinstance(game, TwoPlayerGraph), "Please enter a graph which is of type TwoPlayerGraph"
         self._game = game
     
+    @abstractmethod
+    def set_strategy(self):
+        raise NotImplementedError
+    
+    @abstractmethod
+    def set_state_values(self):
+        raise NotImplementedError
+    
 
-    def _check_human_action(self, edge_action: str) -> bool:
-        """
-        A function to check if the current action is a human action or not..
-        """
-        return True if re.search("\\bhuman-move\\b", edge_action) else False
+    @abstractmethod
+    def set_target_states(self):
+        raise NotImplementedError
+
+    @abstractmethod
+    def set_init_states(self):
+        raise NotImplementedError
+    
+
+    @abstractmethod
+    def set_absorbing_states(self):
+        raise NotImplementedError
+    
+    @abstractmethod
+    def set_sink_states(self):
+        raise NotImplementedError
+
 
     @abstractmethod
     def manual_rollout(self):
@@ -112,6 +184,13 @@ class RolloutProvider(ABC):
         raise NotImplementedError
 
 
+    def _check_human_action(self, edge_action: str) -> bool:
+        """
+        A function to check if the current action is a human action or not..
+        """
+        return True if re.search("\\bhuman-move\\b", edge_action) else False
+
+
 class RegretStrategyRolloutProvider(RolloutProvider):
     """
     This class implements the rollout provider for the Franka Robot assigned a task with different types of humans for regret-minimzing strategy.
@@ -121,12 +200,36 @@ class RegretStrategyRolloutProvider(RolloutProvider):
     """
     def __init__(self, game: ProductAutomaton, strategy_handle: RegretMinimizationStrategySynthesis, debug: bool = False) -> None:
         super().__init__(game, strategy_handle, debug)
-        self._strategy = strategy_handle.strategy
-        self._state_values = strategy_handle.state_values
-        self._target_states = strategy_handle.graph.get_accepting_states()
-        self._init_state = strategy_handle.graph_of_alternatives.get_initial_states()[0][0]
         self.twa_game: TwoPlayerGraph = strategy_handle.graph_of_alternatives
     
+
+    def set_strategy(self):
+        self._strategy = self.strategy_handle.strategy
+
+    def set_target_states(self):
+        self._target_states: List = self.strategy_handle.graph_of_alternatives.get_accepting_states()
+
+    def set_init_states(self):
+        self._init_state = self.strategy_handle.graph_of_alternatives.get_initial_states()[0][0]
+    
+    def set_absorbing_states(self):
+        self._absorbing_states: List = self.strategy_handle.graph_of_alternatives.get_absorbing_state()
+        self._absorbing_states = set(self.absorbing_states).union(set(self.target_states))
+
+    def set_sink_states(self):
+        self._sink_states: List = self.strategy_handle.graph_of_alternatives.get_trap_states()
+    
+    def set_state_values(self):
+        self._state_values = self.strategy_handle.state_values
+    
+    def _check_if_winning(self):
+        """
+         Since Regret Minimizing strategies DO NOT always exists, 
+         it is essential to know if the strategy is enforcing task completion, i.e. is it a Winning strategy or not
+        """
+        if not self.strategy_handle.is_winning(): 
+            print("[Error] There does not exist a winning strategy!")
+            sys.exit(-1)
 
     def _get_successors_based_on_str(self, curr_state) -> str:
         succ_list = []
@@ -134,9 +237,8 @@ class RegretStrategyRolloutProvider(RolloutProvider):
 
         if succ_state is None:
             return
-        # __val = __reg_val[__succ_state]
+        
         for count, n in enumerate(list(self.twa_game._graph.successors(curr_state))):
-            # if __reg_val[__n] == __val:
             edge_action = self.twa_game._graph[curr_state][n][0].get("actions")
             print(f"[{count}], state:{n}, action: {edge_action}: {self.state_values[n]}")
             succ_list.append(n)
@@ -165,7 +267,7 @@ class RegretStrategyRolloutProvider(RolloutProvider):
             states.append(curr_state)
             next_state = self._get_successors_based_on_str(curr_state)
 
-            if next_state[0][0] in self.target_states:
+            if next_state in self.target_states:
                 _edge_act = self.twa_game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.twa_game._graph[curr_state][next_state][0].get("actions"))
@@ -182,14 +284,15 @@ class RegretStrategyRolloutProvider(RolloutProvider):
             print("Action Seq:")
             for _action in self.action_seq:
                 print(_action)
+    
+
+    def rollout_no_human_intervention(self):
+        pass
 
 
     def rollout_with_human_intervention(self) -> None:
         """
-        This method returns a rollout for the given strategy. The huma
-
-        @param max_coop_actions: Specify the number of cooperative actions the human will take. Default is set to very high number.
-        @param epsilon: Set this value to be 0 for purely adversarial behavior or with epsilon probability human picks random actions.
+        This method returns a rollout for the given strategy with human intervention.
         """
         print("Rolling out with human interventions")
         states = []
@@ -204,7 +307,7 @@ class RegretStrategyRolloutProvider(RolloutProvider):
             states.append(curr_state)
             next_state = self.strategy.get(curr_state, None)
 
-            if next_state[0][0] in self.target_states:
+            if next_state in self.target_states:
                 _edge_act = self.twa_game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.twa_game._graph[curr_state][next_state][0].get("actions"))
@@ -264,30 +367,6 @@ class RegretStrategyRolloutProvider(RolloutProvider):
         self.rollout_with_human_intervention()
 
 
-
-class AdvStrategyRolloutProvider(RolloutProvider):
-    """
-     This class implements rollout provide for adversarial strategy
-    """
-    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False) -> None:
-        super().__init__(game, strategy_handle, debug)
-
-    def manual_rollout(self):
-        return super().manual_rollout()
-    
-
-    def rollout_no_human_intervention(self):
-        return super().rollout_no_human_intervention()
-    
-
-    def rollout_with_human_intervention(self):
-        return super().rollout_with_human_intervention()
-    
-
-    def rollout_with_epsilon_human_intervention(self):
-        return super().rollout_with_epsilon_human_intervention()
-
-
 class BestEffortStrategyRolloutProvider(RolloutProvider):
     """
      This class implements rollout provide for Best Effort strategy synthesis 
@@ -295,17 +374,27 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
     def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False) -> None:
         super().__init__(game, strategy_handle, debug)
-        self._strategy = strategy_handle.sys_best_effort_str
-        # TODO: Add state value computation to Best-effor synthesis approach
-        self._state_values = None
-        self._target_states: List = strategy_handle.game.get_accepting_states()
-        self._init_state = strategy_handle.game.get_initial_states()[0][0]
-        self._absorbing_states: List = strategy_handle.game.get_absorbing_state()
-        self._sink_states: List = strategy_handle.game.get_trap_states()
+
+    def set_strategy(self):
+        self._strategy = self.strategy_handle.sys_best_effort_str
+
+    def set_target_states(self):
+        self._target_states: List = self.game.get_accepting_states()
+
+    def set_init_states(self):
+        self._init_state = self.game.get_initial_states()[0][0]
+    
+    def set_absorbing_states(self):
+        self._absorbing_states: List = self.game.get_absorbing_state()
         self._absorbing_states = set(self.absorbing_states).union(set(self.target_states))
 
-        # assert set(self._target_states).issubset(set(self._absorbing_states)), "[Error] Error computing Accepting states and absobing states" 
+    def set_sink_states(self):
+        self._sink_states: List = self.game.get_trap_states()
     
+    # TODO: Add state value computation to Best-effor synthesis approach
+    def set_state_values(self):
+        self._state_values = None
+
 
     def _check_if_winning(self):
         """
@@ -315,6 +404,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
             print("[Warning] We are playing Best Effort strategy. There does not exist a winning strategy!")
         
         if self.debug:
+            print("*************************************************************************************")
             if isinstance(self.strategy_handle, QualitativeBestEffortReachSyn):
                 print("We are rolling out Org. Qualitative Best Effort strategy")
             elif isinstance(self.strategy_handle, QuantitativeBestEffortReachSyn):
@@ -323,6 +413,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
                 print("We are rolling out Qualitative Safe Reach (Proposed) Best Effort strategy")
             elif isinstance(self.strategy_handle, QuantitativeSafeReachBestEffort):
                 print("We are rolling out Quantitative Safe Reach (Proposed) Best Effort strategy")
+            print("*************************************************************************************")
     
 
     def _get_strategy(self, state):
@@ -337,7 +428,6 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
             return random.choice(list(succ_state))
         
         return succ_state
-
 
 
     # TODO: Need to add State Value computation and storage capability in Best-Effort synthesis
@@ -381,7 +471,6 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         states = []
         states.append(self.init_state)
         curr_state = self.init_state
-        # next_state = self.strategy[self.init_state]
         next_state = self._get_strategy(self.init_state)
 
         self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
@@ -389,7 +478,6 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         while True:
             curr_state = next_state
             states.append(curr_state)
-            # next_state = self.strategy.get(curr_state, None)
             next_state = self._get_strategy(curr_state)
 
             if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
@@ -417,14 +505,12 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         
         print("Done Rolling out")
         
-    
 
     def rollout_with_human_intervention(self):
         print("Rolling out with human interventions")
         states = []
         states.append(self.init_state)
         curr_state = self.init_state
-        # next_state = self.strategy[self.init_state]
         next_state = self._get_strategy(self.init_state)
 
         self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
@@ -432,7 +518,6 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         while True:
             curr_state = next_state
             states.append(curr_state)
-            # next_state = self.strategy.get(curr_state, None)
             next_state = self._get_strategy(curr_state)
 
             if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
@@ -498,4 +583,42 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         self._strategy = new_strategy_dictionary
         self.rollout_with_human_intervention()
 
+
+class AdvStrategyRolloutProvider(BestEffortStrategyRolloutProvider):
+    """
+     This class implements inherits the Best Effort rollout provider
+    """
+    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False) -> None:
+        super().__init__(game, strategy_handle, debug)
     
+
+    def set_strategy(self):
+        self._strategy = self.strategy_handle.str_dict
+    
+    def set_state_values(self):
+        self._state_values =  self.strategy_handle.state_value_dict
+
+    def _check_if_winning(self):
+        """
+         Since Min-Max strategies DO NOT always exists, it is essential to know
+           if we are playing a strategy that is enforcing task completion, i.e. Winning strategy or not.
+        """
+        if not self.strategy_handle.is_winning(): 
+            print("[Error] There does not exist a winning strategy!")
+            sys.exit(-1)
+
+    def _get_successors_based_on_str(self, curr_state) -> str:
+        succ_list = []
+        succ_state = self.strategy.get(curr_state, None)
+
+        if succ_state is None:
+            return
+        
+        for count, n in enumerate(list(self.game._graph.successors(curr_state))):
+            edge_action = self.game._graph[curr_state][n][0].get("actions")
+            print(f"[{count}], state:{n}, action: {edge_action}: {self.state_values[n]}")
+            succ_list.append(n)
+
+        idx_num = input("Enter state to select from: ")
+        print(f"Choosing state: {succ_list[int(idx_num)]}")
+        return succ_list[int(idx_num)]
