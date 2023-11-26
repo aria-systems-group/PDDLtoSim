@@ -246,7 +246,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
         plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(implicit=True)
-    two_player_instance.modify_edge_weights(implicit=True)
+    # two_player_instance.modify_edge_weights(implicit=True)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -268,28 +268,45 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
+    dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_1B_3L_AND_W_TRAP)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
     relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
+
+    # edge_weights = set({})
+    # for (u, v, d) in product_graph._graph.edges(data=True):
+    #     if d['weight'] == 0 and 'human' not in d['actions'] and not product_graph._graph.nodes(data=True)[u]['player'] == 'adam':
+    #         print(f"Action {d['actions']}")
+    #     edge_weights.add(d['weight'])
+    
+    # print(f"Edge weights in the product graph: {edge_weights}")
+    # exit()
 
     if print_flag:
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
     
     # create a strategy synthesis handle and solve the game
-    valid_str_syn_algos = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
-    valid_human_stings = ["no-human", "random-human", "epsilon-human"]
-    for st in valid_str_syn_algos:
-        for hs in valid_human_stings:
-            strategy_handle = compute_strategy(strategy_type=st, game=product_graph, debug=False, plot=False)
+    # valid_str_syn_algos = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
+    # valid_human_stings = ["no-human", "random-human", "epsilon-human"]
+    # for st in valid_str_syn_algos:
+    #     for hs in valid_human_stings:
+    #         strategy_handle = compute_strategy(strategy_type=st, game=product_graph, debug=False, plot=False)
 
-            # rollout the stratgey
-            roller: Type[RolloutProvider] = rollout_strategy(strategy=strategy_handle,
-                                                             game=product_graph,
-                                                             debug=False,
-                                                             human_type=hs)
+    #         # rollout the stratgey
+    #         roller: Type[RolloutProvider] = rollout_strategy(strategy=strategy_handle,
+    #                                                          game=product_graph,
+    #                                                          debug=False,
+    #                                                          human_type=hs)
+    
+    strategy_handle = compute_strategy(strategy_type="BestEffortSafeReachQuant", game=product_graph, debug=False, plot=False)
+
+    # rollout the stratgey
+    roller: Type[RolloutProvider] = rollout_strategy(strategy=strategy_handle,
+                                                     game=product_graph,
+                                                     debug=True,
+                                                     human_type="no-human")
 
     # return
     # ask the user if they want to save the str or not
@@ -302,13 +319,13 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
                  pos_seq=roller.action_seq,
                  adversarial=False)
 
-    # simulate the str
-    execute_str(actions=roller.action_seq,
-                causal_graph=causal_graph_instance,
-                transition_system=transition_system_instance,
-                exp_name="diag",
-                record_sim=record_flag,
-                debug=False)
+    # # simulate the str
+    # execute_str(actions=roller.action_seq,
+    #             causal_graph=causal_graph_instance,
+    #             transition_system=transition_system_instance,
+    #             exp_name="diag",
+    #             record_sim=record_flag,
+    #             debug=False)
 
 
 @timer_decorator

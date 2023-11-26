@@ -393,7 +393,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
     
     # TODO: Add state value computation to Best-effor synthesis approach
     def set_state_values(self):
-        self._state_values = None
+        self._state_values = self.strategy_handle.best_effort_state_values
 
 
     def _check_if_winning(self):
@@ -428,11 +428,28 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
             return random.choice(list(succ_state))
         
         return succ_state
+    
+
+    def _get_successors_based_on_str(self, curr_state) -> str:
+        succ_list = []
+        # succ_state = self.strategy.get(curr_state, None)
+
+        # if succ_state is None:
+        #     return
+        
+        for count, n in enumerate(list(self.game._graph.successors(curr_state))):
+            edge_action = self.game._graph[curr_state][n][0].get("actions")
+            print(f"[{count}], state:{n}, action: {edge_action}: {self.state_values[n]}")
+            succ_list.append(n)
+        print("Strategy: ", self.strategy.get(curr_state, None))
+        idx_num = input("Enter state to select from: ")
+        print(f"Choosing state: {succ_list[int(idx_num)]}")
+        return succ_list[int(idx_num)]
 
 
     # TODO: Need to add State Value computation and storage capability in Best-Effort synthesis
     def manual_rollout(self):
-        raise NotImplementedError
+        # raise NotImplementedError
         states = []
         states.append(self.init_state)
         curr_state = self.init_state
@@ -446,6 +463,16 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         while True:
             curr_state = next_state
             states.append(curr_state)
+            
+
+            # if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
+            #     for _succ_state in self.game._graph.successors(curr_state):
+            #         _edge_action = self.game._graph[curr_state][_succ_state][0]["actions"]
+            #         if not self._check_human_action(_edge_action):
+            #             next_state = _succ_state
+            #             break
+            
+            # else:
             next_state = self._get_successors_based_on_str(curr_state)
 
             if next_state in self.absorbing_states:
@@ -606,19 +633,3 @@ class AdvStrategyRolloutProvider(BestEffortStrategyRolloutProvider):
         if not self.strategy_handle.is_winning(): 
             print("[Error] There does not exist a winning strategy!")
             sys.exit(-1)
-
-    def _get_successors_based_on_str(self, curr_state) -> str:
-        succ_list = []
-        succ_state = self.strategy.get(curr_state, None)
-
-        if succ_state is None:
-            return
-        
-        for count, n in enumerate(list(self.game._graph.successors(curr_state))):
-            edge_action = self.game._graph[curr_state][n][0].get("actions")
-            print(f"[{count}], state:{n}, action: {edge_action}: {self.state_values[n]}")
-            succ_list.append(n)
-
-        idx_num = input("Enter state to select from: ")
-        print(f"Choosing state: {succ_list[int(idx_num)]}")
-        return succ_list[int(idx_num)]
