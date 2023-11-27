@@ -16,3 +16,6 @@
 [submodule "regre_synthesis_toolbox"]
 	branch = master
 	update = rebase
+[submodule "pybullet-planning"]
+	path = pybullet-planning
+	url = git@github.com:MuvvalaKaran/pybullet-planning.git
