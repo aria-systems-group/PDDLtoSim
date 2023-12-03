@@ -578,12 +578,13 @@ class FiniteTransitionSystem:
 
             # all action within the non_intervening loc are twice as expensive as the other region
             if _to_loc != "" and _from_loc != "":
-                if _to_loc in _non_intervening_locs and _from_loc in _non_intervening_locs:
-                        self._transition_system._graph[_u][_v][0]['weight'] = 2
+                # if _to_loc in _non_intervening_locs and _from_loc in _non_intervening_locs:
+                if _to_loc in _non_intervening_locs:
+                    self._transition_system._graph[_u][_v][0]['weight'] = 3
 
-            if "else" not in _edge_action:
-                if _from_loc == "" and _to_loc in _non_intervening_locs:
-                    self._transition_system._graph[_u][_v][0]['weight'] = 2
+            # if "else" not in _edge_action:
+            if _from_loc == "" and _to_loc in _non_intervening_locs:
+                self._transition_system._graph[_u][_v][0]['weight'] = 3
                 # if _to_loc in _non_intervening_locs and _from_loc not in _non_intervening_locs:
                 #     self._transition_system._graph[_u][_v][0]['weight'] = 10
 

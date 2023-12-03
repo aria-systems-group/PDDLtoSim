@@ -1,18 +1,3 @@
-[submodule "lib/pyperplan"]
-	path = lib/pyperplan
-	url = git@github.com:aibasel/pyperplan
-[submodule "lib/Adam-Can-Play-Any-Strategy"]
-	path = lib/Adam-Can-Play-Any-Strategy
-	url = git@github.com:MuvvalaKaran/Adam-Can-Play-Any-Strategy.git
-[submodule "lib/regret_synthesis_toolbox"]
-	path = lib/regret_synthesis_toolbox
-	url = git@github.com:MuvvalaKaran/regret_synthesis_toolbox.git
-[submodule "pyperplan"]
-	path = pyperplan
-	url = git@github.com:aibasel/pyperplan.git
 [submodule "regret_synthesis_toolbox"]
 	path = regret_synthesis_toolbox
 	url = git@github.com:MuvvalaKaran/regret_synthesis_toolbox.git
-[submodule "regre_synthesis_toolbox"]
-	branch = master
-	update = rebase
