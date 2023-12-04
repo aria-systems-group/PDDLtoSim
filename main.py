@@ -114,7 +114,7 @@ def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str
     assert strategy_type in VALID_STR_SYN_ALGOS, f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(VALID_STR_SYN_ALGOS)} ]"
     
     # create a strategy synthesis handle and solve the game
-    str_handle = compute_strategy(strategy_type="Min-Max",
+    str_handle = compute_strategy(strategy_type=strategy_type,
                                   game=game,
                                   debug=False,
                                   plot=False)
@@ -293,6 +293,14 @@ def minigrid_main(debug: bool = False, render: bool = False, record: bool = Fals
                                                plot_dfa=False,
                                                plot_product=False,
                                                debug=debug)
+    
+    # now construct the abstraction, the dfa and take the product
+    minigrid_handle.build_minigrid_game()
+    minigrid_handle.get_aps(print_flag=True)
+    minigrid_handle.get_org_edge_weights(print_flag=True)
+    minigrid_handle.set_edge_weights(print_flag=True)
+    minigrid_handle.build_automaton()
+    minigrid_handle.build_product()
     end = time.time()
     print(f"Done Constrcuting the DFA Game: {end-start:0.2f} seconds")
 

@@ -6,7 +6,7 @@ import pprint
 import warnings
 
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 
 from gym.envs.registration import registry
 
@@ -49,6 +49,9 @@ class NonDeterministicMiniGrid():
         self._dfa: Optional[DFAGraph] = None
         self._dfa_game: Optional[ProductAutomaton] = None
 
+        self._game_aps: Set[str] = set({})
+        self._org_edge_weights: Set[int] = set({})
+
         # saving yaml files related to graphs
         self.save_flag: bool = save_flag
 
@@ -61,11 +64,6 @@ class NonDeterministicMiniGrid():
         # env snaprshot related attributes
         self.env_snap_format = env_snap_format
         self.env_dpi = env_dpi
-
-        # now construct the abstraction, the dfa and take the product
-        self.build_minigrid_game()
-        self.build_automaton()
-        self.build_product()
     
 
     @property
@@ -82,6 +80,10 @@ class NonDeterministicMiniGrid():
     
     @property
     def two_player_trans_sys(self):
+        if self._two_player_trans_sys is None:
+            warnings.warn("[Error] Tried accessing the minigrid two player game abstraction without constucting the abstraction. \
+                           Please run `build_minigrid_game()` function.")
+            sys.exit(-1)
         return self._two_player_trans_sys
     
     @property
@@ -91,6 +93,18 @@ class NonDeterministicMiniGrid():
     @property
     def dfa_game(self):
         return self._dfa_game
+    
+    @property
+    def game_aps(self):
+        if not bool(self._game_aps):
+            self.get_aps(debug=False)
+        return self._game_aps
+    
+    @property
+    def org_edge_weights(self):
+        if not bool(self._org_edge_weights):
+            self.get_org_edge_weights(debug=False)
+        return self._org_edge_weights
     
     @property
     def available_envs(self):
@@ -125,6 +139,46 @@ class NonDeterministicMiniGrid():
         assert len(step_dict.keys()) == 2 and ('sys' in step_dict.keys() and 'env' in step_dict.keys()), "The player step size diction should of type \{'sys': [1], 'env': [1]\}"
 
         self._formula = step_dict
+    
+
+    def get_aps(self, print_flag: bool = False):
+        """
+        A helper method that returns the set of all Atomic Propositions (APs) in the Minigrid Two player abstraction.
+          Used in writing formula as Formula is defiend over APs.
+        """
+        # set of valid attributes - ap, player, init
+        for s in self.two_player_trans_sys._graph.nodes():
+            self._game_aps.add(self.two_player_trans_sys.get_state_w_attribute(s, 'ap'))
+        
+        if print_flag:
+            print(f"Set of APs: {self.game_aps}")
+
+    def get_org_edge_weights(self, print_flag: bool = False):
+        """
+        A helper method that returns the set of all edge weights in the Minigrid Two player abstraction.
+        """
+        for _s in  self.two_player_trans_sys._graph.nodes():
+            for _e in  self._two_player_trans_sys._graph.out_edges(_s):
+                if  self.two_player_trans_sys._graph[_e[0]][_e[1]][0].get('weight', None):
+                    self._org_edge_weights.add( self.two_player_trans_sys._graph[_e[0]][_e[1]][0]["weight"])
+        
+        if print_flag:
+            print(f"Set of Org Minigrid Two player game edge weights: {self.org_edge_weights}")
+    
+
+    def set_edge_weights(self, print_flag: bool = False):
+        """
+        A helper method that sets edge weights in the Minigrid Two player abstraction.
+          Currently, only supports uniform edge weight of 1 for sys actions and 0 for env actions.
+
+        # TODO: Update this to be more modular. Like action dependent costs, or state-action dependent costs.
+        """
+        for _s in self.two_player_trans_sys._graph.nodes():
+            for _e in self.two_player_trans_sys._graph.out_edges(_s):
+                self.two_player_trans_sys._graph[_e[0]][_e[1]][0]["weight"] = 1 if self.two_player_trans_sys._graph.nodes(data='player')[_s] == 'eve' else 0
+        
+        if print_flag:
+            print("Done setting edge weights ")
 
 
     def get_available_non_det_minigrid_envs(self, print_envs: bool = False) -> Dict:
@@ -207,7 +261,7 @@ class NonDeterministicMiniGrid():
                 two_player_graph._graph[edge[0]][edge[1]][i]['weight'] = weights[0]
 
 
-    def build_minigrid_game(self, env_snap: bool = False):
+    def build_minigrid_game(self, env_snap: bool = False, get_aps: bool = False, get_weights: bool = False, set_weights: bool = False):
         """
          Build OpenAI Minigrid Env with multiple agents, then construct the corresponding grapgh
         """
@@ -240,6 +294,18 @@ class NonDeterministicMiniGrid():
 
         # add labels to the graph and prune multiple edges from same state to successor state
         self.initialize_edge_labels_on_fancy_graph(two_player_graph)
+
+        # get all the aps, and the player
+        if get_aps:
+            self.get_aps(debug=self.debug)
+        
+        # get edge weight sets
+        if get_weights:
+            self.get_org_edge_weights(debug=self.debug)
+        
+        # set edge weight sets
+        if set_weights:
+            self.set_edge_weights(debug=self.debug)
 
         self._two_player_trans_sys = two_player_graph
     
