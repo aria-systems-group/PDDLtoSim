@@ -8,7 +8,7 @@ import warnings
 import numpy as np
 
 from abc import ABC, abstractmethod
-from typing import List, Union, Dict
+from typing import List, Union
 
 from src.graph_construction.two_player_game import TwoPlayerGame
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
@@ -25,6 +25,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_safe_reach impo
 BestEffortClass = Union[QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn, QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort]
 Strategy = Union[ValueIteration, RegretMinimizationStrategySynthesis, BestEffortClass]
 
+VALID_ENV_STRINGS = ["manual", "no-human", "random-human", "epsilon-human"]
 
 
 def rollout_strategy(strategy: Strategy,
@@ -41,7 +42,6 @@ def rollout_strategy(strategy: Strategy,
       "random-human" for rollouts with random human intervention
       "epsilon-human" for rollouts with epsilon human intervention
     """
-    valid_human_stings = ["manual", "no-human", "random-human", "epsilon-human"]
     if isinstance(strategy, RegretMinimizationStrategySynthesis):
         rhandle = RegretStrategyRolloutProvider(game=game,
                                                 strategy_handle=strategy,
@@ -67,7 +67,7 @@ def rollout_strategy(strategy: Strategy,
     elif human_type == "epsilon-human":
         rhandle.rollout_with_epsilon_human_intervention(epsilon=epsilon)
     else:
-        warnings.warn(f"[Error] Please enter a valid human type from:[ {', '.join(valid_human_stings)} ]")
+        warnings.warn(f"[Error] Please enter a valid human type from:[ {', '.join(VALID_ENV_STRINGS)} ]")
         sys.exit(-1)
 
     return rhandle
