@@ -9,8 +9,9 @@ import warnings
 from typing import Optional, Dict, Type
 
 from src.graph_construction.causal_graph import CausalGraph
-from src.graph_construction.transition_system import FiniteTransitionSystem
 from src.graph_construction.two_player_game import TwoPlayerGame
+from src.graph_construction.transition_system import FiniteTransitionSystem
+from src.graph_construction.minigrid_two_player_game import NonDeterministicMiniGrid
 
 # call the regret synthesis code
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
@@ -203,6 +204,73 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
         print(f"The file does not exist at the loc {file_add}")
 
     return graph_data
+
+
+def construct_abstraction(abstraction_instance: str, print_flag: bool = False, record_flag: bool = False, render_minigrid: bool = False):
+    """
+    A function that will construct call the correct. Currently, we support Non-deterministic Manipulator and Minigrid instances 
+    """
+    valid_abstraction_instances = ['daig-main', 'arch-main', 'minigrid']
+    if abstraction_instance not in valid_abstraction_instances:
+        warnings.warn(f"[Error] Please enter a valid Abstraction type:[ {', '.join(valid_abstraction_instances)} ]")
+        sys.exit(-1)
+    
+    if abstraction_instance == 'daig-main':
+        daig_main(print_flag=print_flag, record_flag=record_flag)
+    elif abstraction_instance == 'arch-main':
+        arch_main(print_flag=print_flag, record_flag=record_flag)
+    elif abstraction_instance == 'minigrid':
+        minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid)
+
+
+def minigrid_main(debug: bool = False, render: bool = False, record: bool = False):
+    """
+    Function that constructs the minigrid instances, constructs a product grapg and rolls out a strategy.
+    """
+
+    # get all the registered minigrid instances
+    start = time.time()
+    minigrid_handle = NonDeterministicMiniGrid(env_id='MiniGrid-CorridorLava-v0',
+                                               formula='F(floor_green_open)',
+                                               save_flag=True,
+                                               plot_minigrid=False,
+                                               plot_dfa=False,
+                                               plot_product=False,
+                                               debug=debug)
+    end = time.time()
+    print(f"Done COnstrcuting the DFA Game: {end-start:0.2f} seconds")
+    
+    # now synthesize a strategy 
+    start = time.time()
+    str_handle = compute_strategy(strategy_type="Min-Max",
+                                  game=minigrid_handle.dfa_game,
+                                  debug=False,
+                                  plot=False)
+    end = time.time()
+    print(f"Done Synthesizing a strategy: {end-start:0.2f} seconds")
+
+    # rollout the stratgey
+    roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
+                                                     game=minigrid_handle.dfa_game,
+                                                     debug=True,
+                                                     human_type="no-human")
+    
+    # run the simulation if the simulate or record flag is true
+    if render or record:
+        system_actions = []
+        env_actions = []
+
+        # manually parse the actions, the first action is by Sys player, the next one is by Env ...
+        for itr, act in enumerate(roller.action_seq):
+            if itr % 2 == 0:
+                assert act.split('__')[1] == 'None', "Error when rolling out strategy"
+                system_actions.append(act)
+            elif itr % 2 != 0:
+                assert act.split('__')[0] == 'None', "Error when rolling out strategy"
+                env_actions.append(act)
+
+        minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
+
 
 
 @timer_decorator
@@ -440,7 +508,8 @@ if __name__ == "__main__":
     else:
         # starting the monitoring
         tracemalloc.start()
-        daig_main(print_flag=True, record_flag=record)
+        construct_abstraction(abstraction_instance='minigrid', print_flag=True, record_flag=record, render_minigrid=True)
+        # daig_main(print_flag=True, record_flag=record)
         # arch_main(print_flag=False, record_flag=record)
 
         # displaying the memory - output current memory usage and peak memory usage

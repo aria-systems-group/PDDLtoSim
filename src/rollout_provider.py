@@ -31,7 +31,7 @@ def rollout_strategy(strategy: Strategy,
                      game: ProductAutomaton,
                      debug: bool = False,
                      human_type: str = "random-human",
-                     epsilon: float = 0.1) -> None:
+                     epsilon: float = 0.1) -> 'RolloutProvider':
     """
     A function that calls the appropriate rollout provide based on the strategy instance.
 
@@ -69,6 +69,8 @@ def rollout_strategy(strategy: Strategy,
     else:
         warnings.warn(f"[Error] Please enter a valid human type from:[ {', '.join(valid_human_stings)} ]")
         sys.exit(-1)
+
+    return rhandle
 
 
 class RolloutProvider(ABC):
