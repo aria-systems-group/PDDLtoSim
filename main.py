@@ -24,7 +24,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import Qual
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_safe_reach import QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort
 
 from src.rollout_provider import rollout_strategy, RolloutProvider, VALID_ENV_STRINGS, Strategy
-from src.execute_str import execute_saved_str, execute_str
+from src.execute_str import execute_saved_str
 
 from config import *
 from utls import timer_decorator
@@ -107,7 +107,7 @@ def run_all_synthesis_and_rollouts(game: DfaGame, debug: bool = False) -> None:
 
 
 @timer_decorator
-def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str = 'no-human', debug: bool = False) -> Tuple[Strategy, RolloutProvider]:
+def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str = 'no-human', debug: bool = False, epsilon: float = 0.1) -> Tuple[Strategy, RolloutProvider]:
     """
     A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
     """
@@ -125,7 +125,8 @@ def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str
     roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
                                                      game=game,
                                                      debug=True,
-                                                     human_type="no-human")
+                                                     human_type=human_type,
+                                                     epsilon=epsilon)
     
     return str_handle, roller
 
@@ -311,10 +312,11 @@ def minigrid_main(debug: bool = False, render: bool = False, record: bool = Fals
     
     # synthesize a strategy 
     else:
-        roller: Type[RolloutProvider] = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
-                                                                game=minigrid_handle.dfa_game,
-                                                                human_type='no-human',
-                                                                debug=False)
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+                                              game=minigrid_handle.dfa_game,
+                                              human_type='epsilon-human',
+                                              epsilon=0,
+                                              debug=False)
 
     # run the simulation if the render or record flag is true
     if render or record:
@@ -421,10 +423,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        roller: Type[RolloutProvider] = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
-                                                                game=product_graph,
-                                                                human_type='no-human',
-                                                                debug=True)
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
+                                              game=product_graph,
+                                              human_type='no-human',
+                                              debug=True)
 
     # return
     # ask the user if they want to save the str or not
@@ -502,10 +504,10 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        roller: Type[RolloutProvider] = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
-                                                                game=product_graph,
-                                                                human_type='no-human',
-                                                                debug=True)
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
+                                              game=product_graph,
+                                              human_type='no-human',
+                                              debug=True)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")

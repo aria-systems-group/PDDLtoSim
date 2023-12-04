@@ -78,7 +78,7 @@ class RolloutProvider(ABC):
      An abstract class which needs to implemented for various strategy rollouts
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False) -> None:
+    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 100) -> None:
         self._game: Union[ProductAutomaton, TwoPlayerGame] = game
         self._strategy_handle = strategy_handle
         self._strategy: dict = None
@@ -89,6 +89,7 @@ class RolloutProvider(ABC):
         self._absorbing_states: list = []
         self._action_seq: List[str] = []
         self.debug = debug
+        self.max_steps: int = max_steps
         self.set_strategy()
         self.set_state_values()
         self.set_target_states()
@@ -496,7 +497,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
                 print(_action)
     
     def rollout_no_human_intervention(self):
-        print("Rolling out with human interventions")
+        print("Rolling out with No env interventions")
         states = []
         states.append(self.init_state)
         curr_state = self.init_state
@@ -509,12 +510,22 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
             states.append(curr_state)
             next_state = self._get_strategy(curr_state)
 
-            if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
+            # this is for non-minigrid envs
+            if self.game.get_state_w_attribute(curr_state, 'player') == "adam" and 'minigrid' not in self.game._graph.name:
                 for _succ_state in self.game._graph.successors(curr_state):
                     _edge_action = self.game._graph[curr_state][_succ_state][0]["actions"]
                     if not self._check_human_action(_edge_action):
                         next_state = _succ_state
                         break
+            
+            # # for minigrid envs
+            # if next_state is None and self.game.get_state_w_attribute(curr_state, 'player') == "adam" and 'minigrid' in self.game._graph.name:
+            #     for _succ_state in self.game._graph.successors(curr_state):
+            #         _edge_action = self.game._graph[curr_state][_succ_state][0]["actions"]
+            #         if not self._check_human_action(_edge_action):
+            #             next_state = _succ_state
+            #             break
+
 
             if next_state in self.absorbing_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
@@ -544,7 +555,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
         self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
 
-        while True:
+        while True and len(self.action_seq) < self.max_steps:
             curr_state = next_state
             states.append(curr_state)
             next_state = self._get_strategy(curr_state)
@@ -604,7 +615,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         """
         assert epsilon >= 0 and epsilon <= 1, "Epsilon value should be between 0 and 1"
         if epsilon == 0:
-            self.get_rollout_with_human_intervention()
+            self.rollout_with_human_intervention()
             return None
         
         new_strategy_dictionary = self._compute_epsilon_str_dict(epsilon=epsilon)
