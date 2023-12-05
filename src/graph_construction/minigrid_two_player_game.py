@@ -4,6 +4,7 @@ import time
 import gym
 import pprint
 import warnings
+import numpy as np
 
 from pathlib import Path
 from typing import Dict, List, Optional, Set
@@ -30,6 +31,7 @@ class NonDeterministicMiniGrid():
     def __init__(self,
                  env_id: str,
                  formula: str,
+                 player_steps: Dict = {'sys': [1], 'env': [1]},
                  save_flag: bool = True,
                  plot_minigrid: bool = False,
                  plot_dfa: bool = False,
@@ -43,14 +45,16 @@ class NonDeterministicMiniGrid():
         self.minigrid_env: MultiAgentEnvType = gym.make(env_id)
         self.formula: str = formula
         # dictionary to allow multistep for agents in the env
-        self._player_steps: Dict[str, List[int]] = {'sys': [1], 'env': [1]}
+        self.player_steps: Dict[str, List[int]] = player_steps
 
         self._two_player_trans_sys: Optional[TwoPlayerGraph] = None
         self._dfa: Optional[DFAGraph] = None
         self._dfa_game: Optional[ProductAutomaton] = None
 
         self._game_aps: Set[str] = set({})
-        self._org_edge_weights: Set[int] = set({})
+        self._minigrid_edge_weights: Set[int] = set({})
+        self._minigrid_sys_action_set  = set({})
+        self._minigrid_env_action_set  = set({})
 
         # saving yaml files related to graphs
         self.save_flag: bool = save_flag
@@ -97,14 +101,28 @@ class NonDeterministicMiniGrid():
     @property
     def game_aps(self):
         if not bool(self._game_aps):
-            self.get_aps(debug=False)
+            self.get_aps(print_flag=False)
         return self._game_aps
     
     @property
-    def org_edge_weights(self):
-        if not bool(self._org_edge_weights):
-            self.get_org_edge_weights(debug=False)
-        return self._org_edge_weights
+    def minigrid_edge_weights(self):
+        if not bool(self._minigrid_edge_weights):
+            self.get_minigrid_edge_weights(print_flag=False)
+        return self._minigrid_edge_weights
+    
+
+    @property
+    def minigrid_sys_action_set(self):
+        if not bool(self._minigrid_sys_action_set):
+            self.get_minigrid_player_actions(print_flag=False)
+        return self._minigrid_sys_action_set
+
+
+    @property
+    def minigrid_env_action_set(self):
+        if not bool(self._minigrid_env_action_set):
+            self.get_minigrid_player_actions(print_flag=False)
+        return self._minigrid_env_action_set
     
     @property
     def available_envs(self):
@@ -138,7 +156,7 @@ class NonDeterministicMiniGrid():
         
         assert len(step_dict.keys()) == 2 and ('sys' in step_dict.keys() and 'env' in step_dict.keys()), "The player step size diction should of type \{'sys': [1], 'env': [1]\}"
 
-        self._formula = step_dict
+        self._player_steps = step_dict
     
 
     def get_aps(self, print_flag: bool = False):
@@ -153,17 +171,46 @@ class NonDeterministicMiniGrid():
         if print_flag:
             print(f"Set of APs: {self.game_aps}")
 
-    def get_org_edge_weights(self, print_flag: bool = False):
+    def get_minigrid_edge_weights(self, print_flag: bool = False):
         """
         A helper method that returns the set of all edge weights in the Minigrid Two player abstraction.
         """
         for _s in  self.two_player_trans_sys._graph.nodes():
             for _e in  self._two_player_trans_sys._graph.out_edges(_s):
                 if  self.two_player_trans_sys._graph[_e[0]][_e[1]][0].get('weight', None):
-                    self._org_edge_weights.add( self.two_player_trans_sys._graph[_e[0]][_e[1]][0]["weight"])
+                    self._minigrid_edge_weights.add( self.two_player_trans_sys._graph[_e[0]][_e[1]][0]["weight"])
         
         if print_flag:
-            print(f"Set of Org Minigrid Two player game edge weights: {self.org_edge_weights}")
+            print(f"Set of Org Minigrid Two player game edge weights: {self.minigrid_edge_weights}")
+    
+
+    def get_minigrid_player_actions(self, print_flag: bool = False) -> None:
+        """
+        A helper method that sets the sys_action_set and env_action_set attributes by parsing the org actions in the Minigrid Two player abstraction.
+
+        The action set is stored a tuple of motion primitives. As minigrid is a gridworld, the most basic primitive are cardinal actions: North, South, East, and West.
+        Tuple (north, north) means the player can travel north twice in one timestep.
+        """
+        for player, multiactions in self.minigrid_env.player_actions.items():
+            for multiaction in multiactions:
+                action_strings = []
+                for agent, actions in zip(self.minigrid_env.unwrapped.agents, multiaction):
+                    action_string = []
+                    for action in actions:
+                        if action is None or np.isnan(action):
+                            continue
+                        a_str = agent.ACTION_ENUM_TO_STR[action]
+                        action_string.append(a_str)
+                    action_strings.append(tuple(action_string))
+                if player == 'sys':
+                    self._minigrid_sys_action_set.add(tuple(action_strings[0]))
+                elif player == 'env':
+                    self._minigrid_env_action_set.add(tuple(action_strings[1:]))
+        
+        if print_flag:
+            print(f"Set of Org Minigrid Two player game Sys Actions: {self._minigrid_sys_action_set}")
+            print("****************************************************************")
+            print(f"Set of Org Minigrid Two player game Env Actions: {self._minigrid_env_action_set}")
     
 
     def set_edge_weights(self, print_flag: bool = False):
@@ -200,7 +247,8 @@ class NonDeterministicMiniGrid():
         # for now we will override this with hardcoded values=
         # a few more that need to tested 'MiniGrid-FourGrids-v0', 'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0'
         nd_minigrid_envs = {'MiniGrid-FloodingLava-v0': [], 'MiniGrid-CorridorLava-v0': [], 'MiniGrid-ToyCorridorLava-v0': [], 
-                            'MiniGrid-FishAndShipwreckAvoidAgent-v0': [], 'MiniGrid-ChasingAgentIn4Square-v0': []}
+                            'MiniGrid-FishAndShipwreckAvoidAgent-v0': [], 'MiniGrid-ChasingAgentIn4Square-v0': [],
+                            'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [], 'MiniGrid-ChasingAgentInSquare3by3-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -261,15 +309,19 @@ class NonDeterministicMiniGrid():
                 two_player_graph._graph[edge[0]][edge[1]][i]['weight'] = weights[0]
 
 
-    def build_minigrid_game(self, env_snap: bool = False, get_aps: bool = False, get_weights: bool = False, set_weights: bool = False):
+    def build_minigrid_game(self,
+                            env_snap: bool = False,
+                            get_aps: bool = False,
+                            get_weights: bool = False,
+                            set_weights: bool = False):
         """
-         Build OpenAI Minigrid Env with multiple agents, then construct the corresponding grapgh
+         Build OpenAI Minigrid Env with multiple agents, then construct the corresponding graph.
         """
         self.minigrid_env = DynamicMinigrid2PGameWrapper(self.minigrid_env,
                                            player_steps=self.player_steps,
                                            monitor_log_location=os.path.join(DIR, GYM_MONITOR_LOG_DIR_NAME))
         self.minigrid_env.reset()
-        env_filename = os.path.join(DIR, 'plots', 'gym_env.png')
+        env_filename = os.path.join(DIR, 'plots', f'{self.env_id}_Game.png')
         Path(os.path.split(env_filename)[0]).mkdir(parents=True, exist_ok=True)
         if env_snap:
             self.minigrid_env.render_notebook(env_filename, self.env_dpi)
@@ -332,7 +384,6 @@ class NonDeterministicMiniGrid():
             sim.run(iterations=iterations,
                     sys_actions=sys_actions,
                     env_actions=env_actions,
-                    env_strategy=env_actions if env_actions is not None else 'random',
                     render=render,
                     record_video=record_video)
         else:

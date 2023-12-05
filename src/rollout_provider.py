@@ -32,7 +32,8 @@ def rollout_strategy(strategy: Strategy,
                      game: ProductAutomaton,
                      debug: bool = False,
                      human_type: str = "random-human",
-                     epsilon: float = 0.1) -> 'RolloutProvider':
+                     epsilon: float = 0.1,
+                     max_iterations: int = 100) -> 'RolloutProvider':
     """
     A function that calls the appropriate rollout provide based on the strategy instance.
 
@@ -45,15 +46,19 @@ def rollout_strategy(strategy: Strategy,
     if isinstance(strategy, RegretMinimizationStrategySynthesis):
         rhandle = RegretStrategyRolloutProvider(game=game,
                                                 strategy_handle=strategy,
-                                                debug=debug)
+                                                debug=debug,
+                                                max_steps=max_iterations)
     elif isinstance(strategy, ValueIteration):
         rhandle = AdvStrategyRolloutProvider(game=game,
                                              strategy_handle=strategy,
-                                             debug=debug)
+                                             debug=debug,
+                                             max_steps=max_iterations)
+    
     elif isinstance(strategy, (QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn, QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort)):
         rhandle = BestEffortStrategyRolloutProvider(game=game,
                                                     strategy_handle=strategy,
-                                                    debug=debug)
+                                                    debug=debug,
+                                                    max_steps=max_iterations)
     else:
         warnings.warn(f"[Error] We do not have rollout provder for strategy of type: {type(strategy)}")
         sys.exit(-1)
@@ -78,7 +83,7 @@ class RolloutProvider(ABC):
      An abstract class which needs to implemented for various strategy rollouts
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 100) -> None:
+    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10) -> None:
         self._game: Union[ProductAutomaton, TwoPlayerGame] = game
         self._strategy_handle = strategy_handle
         self._strategy: dict = None
@@ -201,8 +206,8 @@ class RegretStrategyRolloutProvider(RolloutProvider):
     In Regret synthesis, Given the product graph, we construct the Graph of utility and then Graph of Best-Response.
     Then we compute the regret minimizing strategy on Graph of Best-Response. Regret Minimizing strategy is memoryless on this graph. Thus, when rolling out, we rollout on this graph.
     """
-    def __init__(self, game: ProductAutomaton, strategy_handle: RegretMinimizationStrategySynthesis, debug: bool = False) -> None:
-        super().__init__(game, strategy_handle, debug)
+    def __init__(self, game: ProductAutomaton, strategy_handle: RegretMinimizationStrategySynthesis, debug: bool = False,  max_steps: int = 10) -> None:
+        super().__init__(game, strategy_handle, debug, max_steps)
         self.twa_game: TwoPlayerGraph = strategy_handle.graph_of_alternatives
     
 
@@ -375,8 +380,8 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
      This class implements rollout provide for Best Effort strategy synthesis 
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False) -> None:
-        super().__init__(game, strategy_handle, debug)
+    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10) -> None:
+        super().__init__(game, strategy_handle, debug, max_steps)
 
     def set_strategy(self):
         self._strategy = self.strategy_handle.sys_best_effort_str
@@ -405,7 +410,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         """
         if not self.strategy_handle.is_winning(): 
             print("[Warning] We are playing Best Effort strategy. There does not exist a winning strategy!")
-        
+        # TODO: Fix this!
         if self.debug:
             print("*************************************************************************************")
             if isinstance(self.strategy_handle, QualitativeBestEffortReachSyn):
@@ -568,7 +573,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
-                break
+                # break
 
             if next_state is not None:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
@@ -628,8 +633,8 @@ class AdvStrategyRolloutProvider(BestEffortStrategyRolloutProvider):
     """
      This class implements inherits the Best Effort rollout provider
     """
-    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False) -> None:
-        super().__init__(game, strategy_handle, debug)
+    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10) -> None:
+        super().__init__(game, strategy_handle, debug, max_steps)
     
 
     def set_strategy(self):

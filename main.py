@@ -38,7 +38,7 @@ VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEf
 VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid']
 
 
-
+@timer_decorator
 def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = False, plot: bool = False, reg_factor: float = 1.25) -> Strategy:
     """
      A method that call the appropriate strategy synthesis class nased on the user input. 
@@ -107,7 +107,7 @@ def run_all_synthesis_and_rollouts(game: DfaGame, debug: bool = False) -> None:
 
 
 @timer_decorator
-def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str = 'no-human', debug: bool = False, epsilon: float = 0.1) -> Tuple[Strategy, RolloutProvider]:
+def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str = 'no-human', debug: bool = False, epsilon: float = 0.1, max_iterations: int = 100) -> Tuple[Strategy, RolloutProvider]:
     """
     A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
     """
@@ -126,7 +126,8 @@ def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str
                                                      game=game,
                                                      debug=True,
                                                      human_type=human_type,
-                                                     epsilon=epsilon)
+                                                     epsilon=epsilon,
+                                                     max_iterations=max_iterations)
     
     return str_handle, roller
 
@@ -263,7 +264,8 @@ def construct_abstraction(abstraction_instance: str,
                           print_flag: bool = False,
                           record_flag: bool = False,
                           render_minigrid: bool = False,
-                          test_all_str: bool = False):
+                          test_all_str: bool = False,
+                          max_iterations: int = 100):
     """
     A function that will construct call the correct. Currently, we support Non-deterministic Manipulator and Minigrid instances . 
 
@@ -279,12 +281,20 @@ def construct_abstraction(abstraction_instance: str,
     elif abstraction_instance == 'arch-main':
         arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
     elif abstraction_instance == 'minigrid':
-        minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str)
+        minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str, max_iterations=max_iterations)
 
 
-def minigrid_main(debug: bool = False, render: bool = False, record: bool = False, test_all_str: bool = False):
+def minigrid_main(debug: bool = False,
+                  render: bool = False,
+                  record: bool = False,
+                  test_all_str: bool = False,
+                  max_iterations: int = 100):
     """
     Function that constructs the minigrid instances, constructs a product grapg and rolls out a strategy.
+
+    Currently supported envs
+    nd_minigrid_envs = {'MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
+        'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0'}
     """
     start = time.time()
     minigrid_handle = NonDeterministicMiniGrid(env_id='MiniGrid-CorridorLava-v0',
@@ -316,7 +326,8 @@ def minigrid_main(debug: bool = False, render: bool = False, record: bool = Fals
                                               game=minigrid_handle.dfa_game,
                                               human_type='epsilon-human',
                                               epsilon=0,
-                                              debug=False)
+                                              debug=False,
+                                              max_iterations=max_iterations)
 
     # run the simulation if the render or record flag is true
     if render or record:
@@ -327,10 +338,17 @@ def minigrid_main(debug: bool = False, render: bool = False, record: bool = Fals
         for itr, act in enumerate(roller.action_seq):
             if itr % 2 == 0:
                 assert act.split('__')[1] == 'None', "Error when rolling out strategy"
-                system_actions.append(act)
+                # action edge is of type North_North__None
+                sys_action = act.split('__')[0]
+                act_tuple = tuple(sys_action.split('_'))
+                system_actions.append(act_tuple)
+                
             elif itr % 2 != 0:
                 assert act.split('__')[0] == 'None', "Error when rolling out strategy"
-                env_actions.append(act)
+                # action edge is of type None__South_South
+                env_action = act.split('__')[1]
+                act_tuple = tuple(env_action.split('_'))
+                env_actions.append(act_tuple)
 
         minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
 
@@ -426,7 +444,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
                                               game=product_graph,
                                               human_type='no-human',
-                                              debug=True)
+                                              debug=True,
+                                              max_iterations=100)
 
     # return
     # ask the user if they want to save the str or not
@@ -507,7 +526,8 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
                                               game=product_graph,
                                               human_type='no-human',
-                                              debug=True)
+                                              debug=True,
+                                              max_iterations=100)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -540,7 +560,7 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='minigrid', print_flag=True, record_flag=record, render_minigrid=False, test_all_str=True)
+        construct_abstraction(abstraction_instance='minigrid', print_flag=True, record_flag=record, render_minigrid=True, test_all_str=False, max_iterations=100)
 
         # displaying the memory - output current memory usage and peak memory usage
         _,  peak_mem = tracemalloc.get_traced_memory()
