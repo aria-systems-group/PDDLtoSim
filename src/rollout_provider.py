@@ -13,6 +13,7 @@ from typing import List, Union
 from src.graph_construction.two_player_game import TwoPlayerGame
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 
+from utls import timer_decorator
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 # from regret_synthesis_toolbox.src.strategy_synthesis.adversarial_game import ReachabilityGame
 # from regret_synthesis_toolbox.src.strategy_synthesis.cooperative_game import CooperativeGame
@@ -27,7 +28,7 @@ Strategy = Union[ValueIteration, RegretMinimizationStrategySynthesis, BestEffort
 
 VALID_ENV_STRINGS = ["manual", "no-human", "random-human", "epsilon-human"]
 
-
+@timer_decorator
 def rollout_strategy(strategy: Strategy,
                      game: ProductAutomaton,
                      debug: bool = False,
@@ -408,19 +409,20 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         """
          Since BEst Effort strategies always exists, it is essential to know if we are playing our Best or enforcing task completion, i.e. Winning stratgey
         """
-        if not self.strategy_handle.is_winning(): 
+        if not self.strategy_handle.is_winning():
+            print("*************************************************************************************")
             print("[Warning] We are playing Best Effort strategy. There does not exist a winning strategy!")
-        # TODO: Fix this!
+            print("*************************************************************************************")
         if self.debug:
             print("*************************************************************************************")
-            if isinstance(self.strategy_handle, QualitativeBestEffortReachSyn):
-                print("We are rolling out Org. Qualitative Best Effort strategy")
-            elif isinstance(self.strategy_handle, QuantitativeBestEffortReachSyn):
-                print("We are rolling out Quantitative Best Effort strategy")
-            elif isinstance(self.strategy_handle, QualitativeSafeReachBestEffort):
+            if isinstance(self.strategy_handle, QualitativeSafeReachBestEffort):
                 print("We are rolling out Qualitative Safe Reach (Proposed) Best Effort strategy")
             elif isinstance(self.strategy_handle, QuantitativeSafeReachBestEffort):
                 print("We are rolling out Quantitative Safe Reach (Proposed) Best Effort strategy")
+            elif isinstance(self.strategy_handle, QuantitativeBestEffortReachSyn):
+                print("We are rolling out Quantitative Best Effort strategy")
+            elif isinstance(self.strategy_handle, QualitativeBestEffortReachSyn):
+                print("We are rolling out Org. Qualitative Best Effort strategy")
             print("*************************************************************************************")
     
 
@@ -468,7 +470,9 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
         self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
 
-        while True:
+        steps = 0
+
+        while True and steps < self.max_steps:
             curr_state = next_state
             states.append(curr_state)
             
@@ -495,6 +499,8 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
                     print(self.action_seq[-1])
+            
+            steps += 1
         
         if self.debug:
             print("Action Seq:")
@@ -510,7 +516,9 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
         self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
 
-        while True:
+        steps = 0
+
+        while True and steps < self.max_steps:
             curr_state = next_state
             states.append(curr_state)
             next_state = self._get_strategy(curr_state)
@@ -542,6 +550,8 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+            
+            steps += 1
         
         if self.debug:
             print("Action Seq:")
@@ -560,7 +570,9 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
         self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
 
-        while True and len(self.action_seq) < self.max_steps:
+        steps = 0
+
+        while True and steps < self.max_steps:
             curr_state = next_state
             states.append(curr_state)
             next_state = self._get_strategy(curr_state)
@@ -579,6 +591,8 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+            
+            steps += 1
         
         if self.debug:
             print("Action Seq:")

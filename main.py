@@ -44,6 +44,8 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
      A method that call the appropriate strategy synthesis class nased on the user input. 
 
      Valid strategy_type: Min-Max, Min-Min, Regret, BestEffortQual, BestEffortQuant, BestEffortSafeReachQual, BestEffortSafeReachQuant
+
+     TODO: Add support for Adversarial strategy synthesis and Cooperative strategy synthesis (both qualitative).
     """
     if strategy_type == "Min-Max":
         strategy_handle = ValueIteration(game, competitive=True)

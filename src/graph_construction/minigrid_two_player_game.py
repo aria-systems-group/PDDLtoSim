@@ -281,7 +281,7 @@ class NonDeterministicMiniGrid():
                                                save_flag=self.save_flag,
                                                prune=False,
                                                debug=False,
-                                               absorbing=True,
+                                               absorbing=False,
                                                finite=False,
                                                plot=self.plot_product,
                                                pdfa_compose=False)
