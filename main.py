@@ -109,7 +109,13 @@ def run_all_synthesis_and_rollouts(game: DfaGame, debug: bool = False) -> None:
 
 
 @timer_decorator
-def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str = 'no-human', debug: bool = False, epsilon: float = 0.1, max_iterations: int = 100) -> Tuple[Strategy, RolloutProvider]:
+def run_synthesis_and_rollout(strategy_type: str,
+                              game: DfaGame,
+                              human_type: str = 'no-human',
+                              rollout_flag: bool = False,
+                              debug: bool = False,
+                              epsilon: float = 0.1,
+                              max_iterations: int = 100) -> Tuple[Strategy, RolloutProvider]:
     """
     A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
     """
@@ -124,12 +130,13 @@ def run_synthesis_and_rollout(strategy_type: str, game: DfaGame, human_type: str
     assert human_type in VALID_ENV_STRINGS, f"[Error] Please enter a valid human type from:[ {', '.join(VALID_ENV_STRINGS)} ]"
 
     # rollout the stratgey
-    roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
-                                                     game=game,
-                                                     debug=True,
-                                                     human_type=human_type,
-                                                     epsilon=epsilon,
-                                                     max_iterations=max_iterations)
+    if rollout_flag:
+        roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
+                                                        game=game,
+                                                        debug=True,
+                                                        human_type=human_type,
+                                                        epsilon=epsilon,
+                                                        max_iterations=max_iterations)
     
     return str_handle, roller
 
@@ -327,30 +334,14 @@ def minigrid_main(debug: bool = False,
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=minigrid_handle.dfa_game,
                                               human_type='epsilon-human',
+                                              rollout_flag=True,
                                               epsilon=0,
                                               debug=False,
                                               max_iterations=max_iterations)
 
     # run the simulation if the render or record flag is true
     if render or record:
-        system_actions = []
-        env_actions = []
-
-        # manually parse the actions, the first action is by Sys player, the next one is by Env ...
-        for itr, act in enumerate(roller.action_seq):
-            if itr % 2 == 0:
-                assert act.split('__')[1] == 'None', "Error when rolling out strategy"
-                # action edge is of type North_North__None
-                sys_action = act.split('__')[0]
-                act_tuple = tuple(sys_action.split('_'))
-                system_actions.append(act_tuple)
-                
-            elif itr % 2 != 0:
-                assert act.split('__')[0] == 'None', "Error when rolling out strategy"
-                # action edge is of type None__South_South
-                env_action = act.split('__')[1]
-                act_tuple = tuple(env_action.split('_'))
-                env_actions.append(act_tuple)
+        system_actions, env_actions = minigrid_handle._action_parser(action_seq=roller.action_seq)
 
         minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
 
@@ -446,6 +437,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
                                               game=product_graph,
                                               human_type='no-human',
+                                              rollout_flag=True,
                                               debug=True,
                                               max_iterations=100)
 
@@ -528,6 +520,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
                                               game=product_graph,
                                               human_type='no-human',
+                                              rollout_flag=True,
                                               debug=True,
                                               max_iterations=100)
 

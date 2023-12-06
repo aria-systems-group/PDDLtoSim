@@ -88,6 +88,7 @@ class RolloutProvider(ABC):
         self._game: Union[ProductAutomaton, TwoPlayerGame] = game
         self._strategy_handle = strategy_handle
         self._strategy: dict = None
+        self._env_strategy: dict = None
         self._state_values: dict = None
         self._init_state: list = []
         self._target_states: list = []
@@ -97,6 +98,7 @@ class RolloutProvider(ABC):
         self.debug = debug
         self.max_steps: int = max_steps
         self.set_strategy()
+        self.set_env_strategy()
         self.set_state_values()
         self.set_target_states()
         self.set_init_states()
@@ -116,6 +118,10 @@ class RolloutProvider(ABC):
     @property
     def strategy(self):
         return self._strategy
+    
+    @property
+    def env_strategy(self):
+        return self._env_strategy
     
     @property
     def state_values(self):
@@ -151,6 +157,10 @@ class RolloutProvider(ABC):
         raise NotImplementedError
     
     @abstractmethod
+    def set_env_strategy(self):
+        raise NotImplementedError
+    
+    @abstractmethod
     def set_state_values(self):
         raise NotImplementedError
     
@@ -180,6 +190,10 @@ class RolloutProvider(ABC):
 
     @abstractmethod
     def rollout_with_human_intervention(self):
+        raise NotImplementedError
+    
+    @abstractmethod
+    def rollout_with_strategy_dictionary(self):
         raise NotImplementedError
     
 
@@ -386,6 +400,10 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
     def set_strategy(self):
         self._strategy = self.strategy_handle.sys_best_effort_str
+    
+    def set_env_strategy(self):
+        assert bool(self.strategy_handle.env_winning_str) is True, "[Error] There does not exist a winning strategy for the env! Error in Value Iteration algorith."
+        self._env_strategy = self.strategy_handle.env_winning_str
 
     def set_target_states(self):
         self._target_states: List = self.game.get_accepting_states()
@@ -430,6 +448,9 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         """
         Tiny wrapper around the strategy dictionary. The strategy Values can be a single state or a set of states. 
         """
+        if self.game.get_state_w_attribute(state, 'player') == "adam":
+            return self.env_strategy.get(state, None)
+        
         succ_state = self.strategy.get(state, None)
 
         if isinstance(succ_state, list):
@@ -457,7 +478,6 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         return succ_list[int(idx_num)]
 
 
-    # TODO: Need to add State Value computation and storage capability in Best-Effort synthesis
     def manual_rollout(self):
         # raise NotImplementedError
         states = []
@@ -506,6 +526,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
             print("Action Seq:")
             for _action in self.action_seq:
                 print(_action)
+
     
     def rollout_no_human_intervention(self):
         print("Rolling out with No env interventions")
@@ -530,15 +551,6 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
                     if not self._check_human_action(_edge_action):
                         next_state = _succ_state
                         break
-            
-            # # for minigrid envs
-            # if next_state is None and self.game.get_state_w_attribute(curr_state, 'player') == "adam" and 'minigrid' in self.game._graph.name:
-            #     for _succ_state in self.game._graph.successors(curr_state):
-            #         _edge_action = self.game._graph[curr_state][_succ_state][0]["actions"]
-            #         if not self._check_human_action(_edge_action):
-            #             next_state = _succ_state
-            #             break
-
 
             if next_state in self.absorbing_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
@@ -559,9 +571,63 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
                 print(_action)
         
         print("Done Rolling out")
+    
+
+    def rollout_with_strategy_dictionary(self):
+        """
+        This method returns a rollout for the given strategy with human intervention.This method rollout the strategy with human intervention.
+          At system and env states, the pick the action dictated by the strategy dictionary.
+        """
+        print("Rolling out with human interventions as per the strategy dictionary")
+        states = []
+        states.append(self.init_state)
+        curr_state = self.init_state
+        next_state = self._get_strategy(self.init_state)
+
+        self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
+
+        steps = 0
+
+        while True and steps < self.max_steps:
+            curr_state = next_state
+            states.append(curr_state)
+            next_state = self._get_strategy(curr_state)
+
+            if next_state is None:
+                assert self.game.get_state_w_attribute(curr_state, 'player') == 'adam', \
+                    "[Error] Rolling out with strategy dictionary. strategy is empty. This should not happen for Sys states"
+                _succ_states: List[tuple] = [_state for _state in self.game._graph.successors(curr_state)]
+                next_state = random.choice(_succ_states)
+            
+
+            if next_state in self.absorbing_states:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                break
+
+            if next_state is not None:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+            
+            steps += 1
         
+        if self.debug:
+            print("Action Seq:")
+            for num , _action in enumerate(self.action_seq):
+                print(f"[{num}]:{_action}")
+        
+        print("Done Rolling out")
+
+
+
 
     def rollout_with_human_intervention(self):
+        """
+         This method rollout the strategy with human intervention. At system states, the system picks the best action.
+           At env (human) states, we randonly sample env action.
+        """
         print("Rolling out with human interventions")
         states = []
         states.append(self.init_state)
@@ -609,7 +675,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         Using this policy we either select a random human action with epsilon probability and the human can select the
         optimal action (as given in the str dict if any) with 1-epsilon probability.
         """
-        _new_str_dict = self.strategy
+        _new_str_dict = self.env_strategy
 
         for _from_state, _ in self.strategy.items():
             if self.game.get_state_w_attribute(_from_state, 'player') == "adam":
@@ -629,18 +695,20 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
         @param epsilon: Set this value to be 0 for purely adversarial behavior or with epsilon probability human picks random actions.
 
-        Epsilon = 0: Env is completely adversarial - Maximizing Sys player's regret
+        Epsilon = 0: Env is completely adversarial - Maximizing Sys player's pyaoff
         Epsilon = 1: Env is completely random
         """
         assert epsilon >= 0 and epsilon <= 1, "Epsilon value should be between 0 and 1"
         if epsilon == 0:
-            self.rollout_with_human_intervention()
+            # self.rollout_with_human_intervention()
+            self.rollout_with_strategy_dictionary()
             return None
         
         new_strategy_dictionary = self._compute_epsilon_str_dict(epsilon=epsilon)
         
         self._strategy = new_strategy_dictionary
-        self.rollout_with_human_intervention()
+        # self.rollout_with_human_intervention()
+        self.rollout_with_strategy_dictionary()
 
 
 class AdvStrategyRolloutProvider(BestEffortStrategyRolloutProvider):

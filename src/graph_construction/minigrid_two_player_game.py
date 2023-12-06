@@ -7,7 +7,7 @@ import warnings
 import numpy as np
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set
+from typing import Dict, List, Optional, Set, Tuple
 
 from gym.envs.registration import registry
 
@@ -393,3 +393,41 @@ class NonDeterministicMiniGrid():
                     render=render,
                     record_video=record_video)
         sim.get_stats()
+    
+
+    def _action_parser(self, action_seq: List[str]) -> Tuple[List[Tuple[str]]]:
+        """
+        A function that paerse the sequence of actions from the rollout provider class an converts into suitable format
+          for the simulator function.
+        
+          For exmaple, for one sys agent and one env agent, the actions are of the form (north__None) and for multiactions they are of the form (north_north__None)
+          The `__` is the delimiter for the two agents.
+
+          This function parses the string and returns a List of tuples of actions for sys and env agents. e.g., (`north`) or (`north`, `north`)
+
+          For, one sys agent and multiple env agents, the actions are concatenated with `__` as delimiter. e.g., `None__north__None` and `None__None__south`. 
+          As, it is turn-based game, one of the env agent moves at a given instance. 
+
+          # TODO: Update this function to handle multiple env agents
+          # TODO: Update this in Wombats, to allow all the env agents to move at the same time. 
+        """
+        system_actions: List[tuple] = []
+        env_actions:List[tuple] = []
+
+        # manually parse the actions, the first action is by Sys player, the next one is by Env ...
+        for itr, act in enumerate(action_seq):
+            if itr % 2 == 0:
+                assert act.split('__')[1] == 'None', "Error when rolling out strategy"
+                # action edge is of type North_North__None
+                sys_action = act.split('__')[0]
+                act_tuple = tuple(sys_action.split('_'))
+                system_actions.append(act_tuple)
+                
+            elif itr % 2 != 0:
+                assert act.split('__')[0] == 'None', "Error when rolling out strategy"
+                # action edge is of type None__South_South
+                env_action = act.split('__')[1]
+                act_tuple = tuple(env_action.split('_'))
+                env_actions.append(act_tuple)
+        
+        return system_actions, env_actions
