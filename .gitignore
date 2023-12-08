@@ -2,6 +2,9 @@
 *.idea
 *.pdf
 
+# ignore vscode files
+.vscode
+
 # ignore cache files
 .pytest_cache/
 __pycache__/

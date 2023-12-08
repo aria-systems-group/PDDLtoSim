@@ -4,11 +4,16 @@ import time
 import gym
 import pprint
 import warnings
+import itertools
 import numpy as np
 
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
+from gym_minigrid.minigrid import (MiniGridEnv, Grid, Lava, Floor,
+                                   Ball, Key, Door, Goal, Wall, Box)
+
+from gym_minigrid.register import register
 from gym.envs.registration import registry
 
 from regret_synthesis_toolbox.src.simulation.simulator import Simulator
@@ -24,6 +29,7 @@ DIR = ROOT_PATH
 sys.path.append(f"{ROOT_PATH}/regret_synthesis_toolbox")
 
 from wombats.systems.minigrid import DynamicMinigrid2PGameWrapper, GYM_MONITOR_LOG_DIR_NAME, MultiAgentEnvType, MultiStepMultiAgentAction
+from wombats.systems.minigrid import MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water
 
 
 class NonDeterministicMiniGrid():
@@ -37,7 +43,7 @@ class NonDeterministicMiniGrid():
                  plot_dfa: bool = False,
                  plot_product: bool = False,
                  env_snap_format: str = 'png',
-                 env_dpi: float = 300,
+                 env_dpi: float = 30,
                  debug: bool = False) -> None:
         
         self._available_envs: Dict = {}
@@ -248,7 +254,8 @@ class NonDeterministicMiniGrid():
         # a few more that need to tested 'MiniGrid-FourGrids-v0', 'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0'
         nd_minigrid_envs = {'MiniGrid-FloodingLava-v0': [], 'MiniGrid-CorridorLava-v0': [], 'MiniGrid-ToyCorridorLava-v0': [], 
                             'MiniGrid-FishAndShipwreckAvoidAgent-v0': [], 'MiniGrid-ChasingAgentIn4Square-v0': [],
-                            'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [], 'MiniGrid-ChasingAgentInSquare3by3-v0': []}
+                            'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
+                            'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -431,3 +438,114 @@ class NonDeterministicMiniGrid():
                 env_actions.append(act_tuple)
         
         return system_actions, env_actions
+
+
+class CorridorLava(MultiAgentMiniGridEnv):
+    """
+    """
+
+    def __init__(
+        self,
+        width=11,
+        height=8,
+        agent_start_pos=(1, 6),
+        agent_start_dir=0,
+        # env_agent_start_pos=[(3, 2), (7, 2)],
+        # env_agent_start_dir=[0, 0],
+        env_agent_start_pos=[(8, 5)],
+        env_agent_start_dir=[0],
+        goal_pos=[(8, 6)],
+    ):
+        self.agent_start_pos = agent_start_pos
+        self.agent_start_dir = agent_start_dir
+        self.env_agent_start_pos = env_agent_start_pos
+        self.env_agent_start_dir = env_agent_start_dir
+
+        self.goal_pos = goal_pos
+
+        super().__init__(
+            width=width,
+            height=height,
+            max_steps=4 * width * height,
+            # Set this to True for maximum speed
+            see_through_walls=True
+        )
+
+    def _gen_grid(self, width, height):
+
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # self.grid.wall_rect(3, 4, 5, 1)
+        # self.put_obj(Wall(), *(3, 5))
+        # self.put_obj(Wall(), *(7, 5))
+        # self.put_obj(Wall(), *(5, 6))
+
+        # Place a goal square in the bottom-right corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+
+        # self.put_obj(Water(), 3, 6)
+        # self.put_obj(Water(), 4, 6)
+        # self.put_obj(Water(), 4, 5)
+        # self.put_obj(Water(), 5, 5)
+        # self.put_obj(Water(), 6, 5)
+        # self.put_obj(Water(), 6, 6)
+        # self.put_obj(Water(), 7, 6)
+
+        # bottom carpet
+        # self.put_obj(Carpet(), 1, 2)
+        # self.put_obj(Carpet(), 1, 3)
+        # self.put_obj(Carpet(), 1, 4)
+        # self.put_obj(Carpet(), 9, 2)
+        # self.put_obj(Carpet(), 9, 3)
+        # self.put_obj(Carpet(), 9, 4)
+        # self.put_obj(Carpet(), 9, 5)
+
+        # put lava around the goal region
+        self.put_obj(Lava(), 7, 6)
+        self.put_obj(Lava(), 9, 6)
+        self.put_obj(Lava(), 7, 5)
+        self.put_obj(Lava(), 9, 5) 
+
+        # Lava
+        self.put_obj(Lava(), 3, 3)
+        self.put_obj(Lava(), 4, 3)
+        self.put_obj(Lava(), 5, 3)
+        self.put_obj(Lava(), 6, 3)
+        self.put_obj(Lava(), 7, 3)
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            # restricted_positions = [(i+1, j+1) for i, j in itertools.product(range(8), range(3, 8))]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='blue',
+                    restricted_objs=['lava', 'carpet', 'water', 'floor'],
+                    # restricted_positions=restricted_positions
+                    ),
+                *p,
+                d,
+                False)
+
+        self.mission = 'get to a green goal squares, don"t touch lava, ' + \
+                       'must dry off if you get wet'
+    
+
+
+register(
+    id='MiniGrid-LavaComparison_karan-v0',
+    entry_point='src.graph_construction.minigrid_two_player_game:CorridorLava'
+)

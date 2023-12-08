@@ -32,7 +32,7 @@ minigrid_env_formulas = {'MiniGrid-FloodingLava-v0': ['F(floor_green_open)'],
                                                               '!(agent_blue_right) U (floor_green_open) ',
                                                               'GF(floor_green_open) & G!(agent_blue_right)',
                                                               'G!(agent_blue_right) & G!(floor_green_open)'],
-                        'MiniGrid-FourGrids-v0': 'F(floor_green_open)'[],
+                        'MiniGrid-FourGrids-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgent-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgentInSquare4by4-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgentInSquare3by3-v0': ['F(floor_green_open)']

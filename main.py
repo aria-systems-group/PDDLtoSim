@@ -305,19 +305,29 @@ def minigrid_main(debug: bool = False,
     nd_minigrid_envs = {'MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
         'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0'}
     """
+    # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
+    #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
+    #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
+    # nd_minigrid_envs = ['MiniGrid-FishAndShipwreckAvoidAgent-v0']
+    nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
     start = time.time()
-    minigrid_handle = NonDeterministicMiniGrid(env_id='MiniGrid-CorridorLava-v0',
-                                               formula='F(floor_green_open)',
-                                               save_flag=True,
-                                               plot_minigrid=False,
-                                               plot_dfa=False,
-                                               plot_product=False,
-                                               debug=debug)
-    
-    # now construct the abstraction, the dfa and take the product
-    minigrid_handle.build_minigrid_game()
-    minigrid_handle.get_aps(print_flag=True)
-    minigrid_handle.get_org_edge_weights(print_flag=True)
+    for id in nd_minigrid_envs:
+        minigrid_handle = NonDeterministicMiniGrid(env_id=id,
+                                                   formula='!(agent_blue_right) U (floor_green_open)',
+                                                   player_steps = {'sys': [1], 'env': [1]},
+                                                   save_flag=True,
+                                                   plot_minigrid=False,
+                                                   plot_dfa=False,
+                                                   plot_product=False,
+                                                   debug=debug)
+        
+        # now construct the abstraction, the dfa and take the product
+        minigrid_handle.build_minigrid_game(env_snap=False)
+        minigrid_handle.get_aps(print_flag=True)
+        minigrid_handle.get_minigrid_edge_weights(print_flag=True)
+        print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
+        print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
+    # sys.exit(-1)
     minigrid_handle.set_edge_weights(print_flag=True)
     minigrid_handle.build_automaton()
     minigrid_handle.build_product()
