@@ -12,7 +12,7 @@ import numpy as np
 import pybullet as pb
 
 from typing import Dict, List, Tuple
-
+from utls import deprecated
 from src.pddl_env_simualtor.envs.panda_sim import PandaSim
 
 from src.graph_construction.causal_graph import CausalGraph
@@ -308,6 +308,7 @@ def _pre_loaded_pick_and_place_action(pos, panda):
     panda.apply_high_level_action("transit", _pos, vel=0.25)
 
 
+@deprecated
 def execute_str(actions: list,
                 causal_graph: CausalGraph,
                 transition_system: FiniteTransitionSystem,

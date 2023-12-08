@@ -2,6 +2,9 @@
 *.idea
 *.pdf
 
+# ignore vscode files
+.vscode
+
 # ignore cache files
 .pytest_cache/
 __pycache__/
@@ -10,3 +13,9 @@ src/__pycache__/
 
 # ignore shell script files
 *.sh
+
+# ignore minigrid log files directory
+minigrid_env_logs/
+
+# ignore plots directory
+plots/

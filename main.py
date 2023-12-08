@@ -1,16 +1,18 @@
 import os
 import sys
+import copy
 import time
 import datetime
 import tracemalloc
 import yaml
 import warnings
 
-from typing import Optional, Dict, Type
+from typing import Optional, Dict, Type, Union, Tuple, List
 
 from src.graph_construction.causal_graph import CausalGraph
-from src.graph_construction.transition_system import FiniteTransitionSystem
 from src.graph_construction.two_player_game import TwoPlayerGame
+from src.graph_construction.transition_system import FiniteTransitionSystem
+from src.graph_construction.minigrid_two_player_game import NonDeterministicMiniGrid
 
 # call the regret synthesis code
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
@@ -21,8 +23,8 @@ from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import Valu
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_safe_reach import QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort
 
-from src.rollout_provider import rollout_strategy, RolloutProvider
-from src.execute_str import execute_saved_str, execute_str
+from src.rollout_provider import rollout_strategy, RolloutProvider, VALID_ENV_STRINGS, Strategy
+from src.execute_str import execute_saved_str
 
 from config import *
 from utls import timer_decorator
@@ -30,15 +32,21 @@ from utls import timer_decorator
 # define a constant to dump the yaml file
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
+DfaGame = Union[TwoPlayerGraph, TwoPlayerGame, NonDeterministicMiniGrid]
 
-def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = False, plot: bool = False, reg_factor: float = 1.25):
+VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
+VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid']
+
+
+@timer_decorator
+def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = False, plot: bool = False, reg_factor: float = 1.25) -> Strategy:
     """
      A method that call the appropriate strategy synthesis class nased on the user input. 
 
      Valid strategy_type: Min-Max, Min-Min, Regret, BestEffortQual, BestEffortQuant, BestEffortSafeReachQual, BestEffortSafeReachQuant
-    """
-    valid_str_syn_algos = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
 
+     TODO: Add support for Adversarial strategy synthesis and Cooperative strategy synthesis (both qualitative).
+    """
     if strategy_type == "Min-Max":
         strategy_handle = ValueIteration(game, competitive=True)
         strategy_handle.solve(debug=debug, plot=plot)
@@ -71,10 +79,66 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
         strategy_handle.compute_best_effort_strategies(plot=plot)
 
     else:
-        warnings.warn(f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(valid_str_syn_algos)} ]")
+        warnings.warn(f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(VALID_STR_SYN_ALGOS)} ]")
         sys.exit(-1)
 
     return strategy_handle
+
+
+
+def run_all_synthesis_and_rollouts(game: DfaGame, debug: bool = False) -> None:
+    """
+    A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
+    """
+    # remove 'manual-rollout' for automated testing
+    _env_string: List[str] = copy.deepcopy(VALID_ENV_STRINGS)
+    _env_string.remove("manual")
+
+    # create a strategy synthesis handle and solve the game
+    for st in VALID_STR_SYN_ALGOS:
+        print(f"******************************************Rolling out: {st} strategy******************************************")
+        strategy_handle = compute_strategy(strategy_type=st, game=game, debug=debug, plot=False)
+        
+        # rollout the stratgey
+        for hs in _env_string:
+            print(f"******************************************With: {hs} env******************************************")
+            rollout_strategy(strategy=strategy_handle,
+                             game=game,
+                             debug=False,
+                             human_type=hs)
+
+
+@timer_decorator
+def run_synthesis_and_rollout(strategy_type: str,
+                              game: DfaGame,
+                              human_type: str = 'no-human',
+                              rollout_flag: bool = False,
+                              debug: bool = False,
+                              epsilon: float = 0.1,
+                              max_iterations: int = 100) -> Tuple[Strategy, RolloutProvider]:
+    """
+    A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
+    """
+    assert strategy_type in VALID_STR_SYN_ALGOS, f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(VALID_STR_SYN_ALGOS)} ]"
+    
+    # create a strategy synthesis handle and solve the game
+    str_handle = compute_strategy(strategy_type=strategy_type,
+                                  game=game,
+                                  debug=False,
+                                  plot=False)
+
+    assert human_type in VALID_ENV_STRINGS, f"[Error] Please enter a valid human type from:[ {', '.join(VALID_ENV_STRINGS)} ]"
+
+    # rollout the stratgey
+    if rollout_flag:
+        roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
+                                                        game=game,
+                                                        debug=True,
+                                                        human_type=human_type,
+                                                        epsilon=epsilon,
+                                                        max_iterations=max_iterations)
+    
+    return str_handle, roller
 
 
 def save_str(causal_graph: CausalGraph,
@@ -205,8 +269,96 @@ def load_data_from_yaml_file(file_add: str) -> Dict:
     return graph_data
 
 
+def construct_abstraction(abstraction_instance: str,
+                          print_flag: bool = False,
+                          record_flag: bool = False,
+                          render_minigrid: bool = False,
+                          test_all_str: bool = False,
+                          max_iterations: int = 100):
+    """
+    A function that will construct call the correct. Currently, we support Non-deterministic Manipulator and Minigrid instances . 
+
+    Set test_all_str to True to test all strategy synthesis algorithms and all types of rollouts
+    """
+    
+    if abstraction_instance not in VALID_ABSTRACTION_INSTANCES:
+        warnings.warn(f"[Error] Please enter a valid Abstraction type:[ {', '.join(VALID_ABSTRACTION_INSTANCES)} ]")
+        sys.exit(-1)
+    
+    if abstraction_instance == 'daig-main':
+        daig_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
+    elif abstraction_instance == 'arch-main':
+        arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
+    elif abstraction_instance == 'minigrid':
+        minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str, max_iterations=max_iterations)
+
+
+def minigrid_main(debug: bool = False,
+                  render: bool = False,
+                  record: bool = False,
+                  test_all_str: bool = False,
+                  max_iterations: int = 100):
+    """
+    Function that constructs the minigrid instances, constructs a product grapg and rolls out a strategy.
+
+    Currently supported envs
+    nd_minigrid_envs = {'MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
+        'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0'}
+    """
+    # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
+    #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
+    #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
+    # nd_minigrid_envs = ['MiniGrid-FishAndShipwreckAvoidAgent-v0']
+    nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
+    start = time.time()
+    for id in nd_minigrid_envs:
+        minigrid_handle = NonDeterministicMiniGrid(env_id=id,
+                                                   formula='!(agent_blue_right) U (floor_green_open)',
+                                                   player_steps = {'sys': [1], 'env': [1]},
+                                                   save_flag=True,
+                                                   plot_minigrid=False,
+                                                   plot_dfa=False,
+                                                   plot_product=False,
+                                                   debug=debug)
+        
+        # now construct the abstraction, the dfa and take the product
+        minigrid_handle.build_minigrid_game(env_snap=False)
+        minigrid_handle.get_aps(print_flag=True)
+        minigrid_handle.get_minigrid_edge_weights(print_flag=True)
+        print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
+        print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
+    # sys.exit(-1)
+    minigrid_handle.set_edge_weights(print_flag=True)
+    minigrid_handle.build_automaton()
+    minigrid_handle.build_product()
+    end = time.time()
+    print(f"Done Constrcuting the DFA Game: {end-start:0.2f} seconds")
+
+    # run all synthesins and rollout algorithms
+    if test_all_str:
+        run_all_synthesis_and_rollouts(game=minigrid_handle.dfa_game,
+                                    debug=False)
+    
+    # synthesize a strategy 
+    else:
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+                                              game=minigrid_handle.dfa_game,
+                                              human_type='epsilon-human',
+                                              rollout_flag=True,
+                                              epsilon=0,
+                                              debug=False,
+                                              max_iterations=max_iterations)
+
+    # run the simulation if the render or record flag is true
+    if render or record:
+        system_actions, env_actions = minigrid_handle._action_parser(action_seq=roller.action_seq)
+
+        minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
+
+
+
 @timer_decorator
-def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
+def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False) -> None:
     domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
     # _problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
     problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
@@ -287,26 +439,17 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
     
-    # create a strategy synthesis handle and solve the game
-    # valid_str_syn_algos = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
-    # valid_human_stings = ["no-human", "random-human", "epsilon-human"]
-    # for st in valid_str_syn_algos:
-    #     for hs in valid_human_stings:
-    #         strategy_handle = compute_strategy(strategy_type=st, game=product_graph, debug=False, plot=False)
-
-    #         # rollout the stratgey
-    #         roller: Type[RolloutProvider] = rollout_strategy(strategy=strategy_handle,
-    #                                                          game=product_graph,
-    #                                                          debug=False,
-    #                                                          human_type=hs)
-    
-    strategy_handle = compute_strategy(strategy_type="BestEffortSafeReachQuant", game=product_graph, debug=False, plot=False)
-
-    # rollout the stratgey
-    roller: Type[RolloutProvider] = rollout_strategy(strategy=strategy_handle,
-                                                     game=product_graph,
-                                                     debug=True,
-                                                     human_type="no-human")
+    # create a strategy synthesis handle, solve the game, and roll out the strategy
+    if test_all_str:
+        run_all_synthesis_and_rollouts(game=product_graph,
+                                       debug=False)
+    else:    
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
+                                              game=product_graph,
+                                              human_type='no-human',
+                                              rollout_flag=True,
+                                              debug=True,
+                                              max_iterations=100)
 
     # return
     # ask the user if they want to save the str or not
@@ -319,17 +462,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False) -> None:
                  pos_seq=roller.action_seq,
                  adversarial=False)
 
-    # # simulate the str
-    # execute_str(actions=roller.action_seq,
-    #             causal_graph=causal_graph_instance,
-    #             transition_system=transition_system_instance,
-    #             exp_name="diag",
-    #             record_sim=record_flag,
-    #             debug=False)
-
 
 @timer_decorator
-def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
+def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False) -> None:
     domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/domain.pddl"
     problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/problem.pddl"
 
@@ -387,19 +522,17 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
 
-    # exit()
-    # create a strategy synthesis handle and solve the game
-    valid_str_syn_algos = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
-    valid_human_stings = ["no-human", "random-human", "epsilon-human"]
-    for st in valid_str_syn_algos:
-        for hs in valid_human_stings:
-            strategy_handle = compute_strategy(strategy_type=st, game=product_graph, debug=False, plot=False)
-
-            # rollout the stratgey
-            roller: Type[RolloutProvider] = rollout_strategy(strategy=strategy_handle,
-                                                             game=product_graph,
-                                                             debug=False,
-                                                             human_type=hs)
+    # create a strategy synthesis handle, solve the game, and roll out the strategy
+    if test_all_str:
+        run_all_synthesis_and_rollouts(game=product_graph,
+                                       debug=False)
+    else:    
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
+                                              game=product_graph,
+                                              human_type='no-human',
+                                              rollout_flag=True,
+                                              debug=True,
+                                              max_iterations=100)
 
     # ask the user if they want to save the str or not
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
@@ -411,14 +544,6 @@ def arch_main(print_flag: bool = False, record_flag: bool = False) -> None:
                  two_player_game=two_player_instance,
                  pos_seq=roller.action_seq,
                  adversarial=True)
-
-    # simulate the str
-    execute_str(actions=roller.action_seq,
-                causal_graph=causal_graph_instance,
-                transition_system=transition_system_instance,
-                exp_name="arch",
-                record_sim=record_flag,
-                debug=False)
 
 
 if __name__ == "__main__":
@@ -438,13 +563,13 @@ if __name__ == "__main__":
                           debug=False)
 
     else:
-        # starting the monitoring
+        # starting the monitor
         tracemalloc.start()
-        daig_main(print_flag=True, record_flag=record)
-        # arch_main(print_flag=False, record_flag=record)
+        construct_abstraction(abstraction_instance='minigrid', print_flag=True, record_flag=record, render_minigrid=True, test_all_str=False, max_iterations=100)
 
         # displaying the memory - output current memory usage and peak memory usage
         _,  peak_mem = tracemalloc.get_traced_memory()
         print(f" Peak memory [MB]: {peak_mem/(1024*1024)}")
+        
         # stopping the library
         tracemalloc.stop()
