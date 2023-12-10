@@ -260,17 +260,25 @@ class NonDeterministicMiniGrid():
         self._available_envs = nd_minigrid_envs
 
 
-    def build_automaton(self, use_alias: bool = False):
+    def build_automaton(self, use_alias: bool = False, ltlf: bool = True):
         """
         A method to construct automata using the regret_synthesis_tool.
         """
-        ltl_automaton = graph_factory.get('DFA',
-                                            graph_name="minigrid_ltl",
-                                            config_yaml="/config/minigrid_ltl",
-                                            save_flag=self.save_flag,
-                                            sc_ltl=self.formula,
-                                            use_alias=use_alias,
-                                            plot=self.plot_dfa)
+        if ltlf:
+            ltl_automaton = graph_factory.get('LTLfDFA',
+                                              graph_name="minigrid_ltl",
+                                              config_yaml="/config/minigrid_ltl",
+                                              save_flag=self.save_flag,
+                                              ltlf=self.formula,
+                                              plot=self.plot_dfa)
+        else:
+            ltl_automaton = graph_factory.get('DFA',
+                                                graph_name="minigrid_ltl",
+                                                config_yaml="/config/minigrid_ltl",
+                                                save_flag=self.save_flag,
+                                                sc_ltl=self.formula,
+                                                use_alias=use_alias,
+                                                plot=self.plot_dfa)
 
         if self.debug:
             print(f"The pddl formula is : {self.formula}")

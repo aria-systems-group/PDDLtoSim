@@ -329,7 +329,7 @@ def minigrid_main(debug: bool = False,
         print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
     # sys.exit(-1)
     minigrid_handle.set_edge_weights(print_flag=True)
-    minigrid_handle.build_automaton()
+    minigrid_handle.build_automaton(ltlf=True)
     minigrid_handle.build_product()
     end = time.time()
     print(f"Done Constrcuting the DFA Game: {end-start:0.2f} seconds")
