@@ -101,6 +101,30 @@ conda activate regret_syn_env
 python3 main.py
 ```
 
+## Tests
+
+All the tests related scripts are available in the `tests/` directory. I use python [unittest](https://docs.python.org/3.8/library/unittest.html) for testing individual components of my source code. Here are some commands to run the tests:
+
+To run a specific test package:
+
+```bash
+python3 -m unittest discover -s tests.<directory-name> -bv
+```
+
+To run a specific test script:
+
+```bash
+python3 -m tests.<directory-name>.<module-nane> -b
+```
+
+To run all tests:
+
+```bash
+python3 -m unittest -bv
+```
+
+For more details see the `tests/README.md`. Note, all commands must be run from `<root/of/project>`.
+
 ## Results
 
 Here are some glimpses of the simulated strategy using this toolbox. In our simulation world we consider two region of interest. A human region and a robot region. We say that the human (not shown) can reach and manipulate the boxes placed on the right side (human region) but not the ones placed on the left (robot region).  
