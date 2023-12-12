@@ -228,6 +228,11 @@ class RegretStrategyRolloutProvider(RolloutProvider):
 
     def set_strategy(self):
         self._strategy = self.strategy_handle.strategy
+    
+    def set_env_strategy(self):
+        assert bool(self.strategy_handle.env_str_dict) is True, "[Error] There does not exist a winning strategy for the env!" \
+        "Error in Value Iteration algorithm called from regret_str_synthesis.edge_weighted_arena_finite_reg_solver()."
+        self._env_strategy = self.strategy_handle.env_str_dict
 
     def set_target_states(self):
         self._target_states: List = self.strategy_handle.graph_of_alternatives.get_accepting_states()
@@ -310,7 +315,10 @@ class RegretStrategyRolloutProvider(RolloutProvider):
     
 
     def rollout_no_human_intervention(self):
-        pass
+        raise NotImplementedError
+
+    def rollout_with_strategy_dictionary(self):
+        raise NotImplementedError
 
 
     def rollout_with_human_intervention(self) -> None:
@@ -402,7 +410,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         self._strategy = self.strategy_handle.sys_best_effort_str
     
     def set_env_strategy(self):
-        assert bool(self.strategy_handle.env_winning_str) is True, "[Error] There does not exist a winning strategy for the env! Error in Value Iteration algorith."
+        assert bool(self.strategy_handle.env_winning_str) is True, "[Error] There does not exist a winning strategy for the env! Error in Value Iteration algorithm."
         self._env_strategy = self.strategy_handle.env_winning_str
 
     def set_target_states(self):
@@ -479,7 +487,6 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
 
     def manual_rollout(self):
-        # raise NotImplementedError
         states = []
         states.append(self.init_state)
         curr_state = self.init_state
@@ -721,6 +728,10 @@ class AdvStrategyRolloutProvider(BestEffortStrategyRolloutProvider):
 
     def set_strategy(self):
         self._strategy = self.strategy_handle.str_dict
+    
+    def set_env_strategy(self):
+        assert bool(self.strategy_handle.env_str_dict) is True, "[Error] There does not exist a winning strategy for the env! Error in Value Iteration algorithm."
+        self._env_strategy = self.strategy_handle.env_str_dict
     
     def set_state_values(self):
         self._state_values =  self.strategy_handle.state_value_dict

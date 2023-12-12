@@ -82,7 +82,6 @@ class TwoPlayerGame:
                                                   graph_name=_graph_name,
                                                   config_yaml=_config_yaml,
                                                   save_flag=True,
-                                                  pre_built=False,
                                                   plot=False)
 
         # lets create k copies of the system states
@@ -235,7 +234,6 @@ class TwoPlayerGame:
                                                            graph_name=_graph_name,
                                                            config_yaml=_config_yaml,
                                                            save_flag=True,
-                                                           pre_built=False,
                                                            plot=False)
 
         # iterate through all the states that have counter i = max_human_intervention. Then Make a copy of that node
@@ -851,7 +849,7 @@ class TwoPlayerGame:
 
     def build_LTL_automaton(self, formula: str, debug: bool = False, plot: bool = False, use_alias: bool = False):
         """
-        A method to construct automata using the regret_synthesis_tool.
+        A method to construct LTL automata using the regret_synthesis_tool.
         """
         self._formula = formula
 
@@ -870,6 +868,28 @@ class TwoPlayerGame:
             print(f"The pddl formula is : {formula}")
 
         return _ltl_automaton
+    
+    def build_LTLf_automaton(self, formula: str, debug: bool = False, plot: bool = False, use_alias: bool = False):
+        """
+         A method to construct LTLf automata using the regret_synthesis_tool.
+        """
+        self._formula = formula
+
+        if not isinstance(formula, str):
+            warnings.warn("Please make sure the input formula is of type string.")
+
+        _ltl_automaton = graph_factory.get('LTLfDFA',
+                                           graph_name="pddl_ltlf",
+                                           config_yaml="/config/pddl_ltlf",
+                                           save_flag=True,
+                                           ltlf=formula,
+                                           plot=plot)
+
+        if debug:
+            print(f"The pddl formula is : {formula}")
+
+        return _ltl_automaton
+
 
     def build_product(self, dfa, trans_sys, plot: bool = False):
         _product_automaton = graph_factory.get("ProductGraph",

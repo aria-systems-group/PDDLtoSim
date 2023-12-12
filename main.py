@@ -137,8 +137,9 @@ def run_synthesis_and_rollout(strategy_type: str,
                                                         human_type=human_type,
                                                         epsilon=epsilon,
                                                         max_iterations=max_iterations)
+        return str_handle, roller
     
-    return str_handle, roller
+    return str_handle, None
 
 
 def save_str(causal_graph: CausalGraph,
