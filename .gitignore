@@ -19,3 +19,6 @@ minigrid_env_logs/
 
 # ignore plots directory
 plots/
+
+# ignore helper test scripts
+tests/test_regret_str_synth/template_for_reg_print.py

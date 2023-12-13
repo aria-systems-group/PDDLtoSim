@@ -56,9 +56,8 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
         strategy_handle.solve(debug=debug, plot=plot)
     
     elif strategy_type == "Regret":
-        strategy_handle = RegMinStrSyn(game)
-        strategy_handle.edge_weighted_arena_finite_reg_solver(reg_factor=reg_factor,
-                                                              purge_states=True,
+        strategy_handle = RegMinStrSyn(game, reg_factor=reg_factor)
+        strategy_handle.edge_weighted_arena_finite_reg_solver(purge_states=True,
                                                               plot=plot)
     
     elif strategy_type == "BestEffortQual":
