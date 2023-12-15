@@ -57,6 +57,7 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
     
     elif strategy_type == "Regret":
         strategy_handle = RegMinStrSyn(game, reg_factor=reg_factor)
+        strategy_handle.sanity_checking = True
         strategy_handle.edge_weighted_arena_finite_reg_solver(purge_states=True,
                                                               plot=plot)
     
@@ -85,7 +86,7 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
 
 
 
-def run_all_synthesis_and_rollouts(game: DfaGame, debug: bool = False) -> None:
+def run_all_synthesis_and_rollouts(game: DfaGame, debug: bool = False, reg_factor: float = 1.25) -> None:
     """
     A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
     """
@@ -96,7 +97,7 @@ def run_all_synthesis_and_rollouts(game: DfaGame, debug: bool = False) -> None:
     # create a strategy synthesis handle and solve the game
     for st in VALID_STR_SYN_ALGOS:
         print(f"******************************************Rolling out: {st} strategy******************************************")
-        strategy_handle = compute_strategy(strategy_type=st, game=game, debug=debug, plot=False)
+        strategy_handle = compute_strategy(strategy_type=st, game=game, debug=debug, plot=False, reg_factor=reg_factor)
         
         # rollout the stratgey
         for hs in _env_string:
@@ -114,6 +115,7 @@ def run_synthesis_and_rollout(strategy_type: str,
                               rollout_flag: bool = False,
                               debug: bool = False,
                               epsilon: float = 0.1,
+                              reg_factor: float = 1.25, 
                               max_iterations: int = 100) -> Tuple[Strategy, RolloutProvider]:
     """
     A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
@@ -124,7 +126,8 @@ def run_synthesis_and_rollout(strategy_type: str,
     str_handle = compute_strategy(strategy_type=strategy_type,
                                   game=game,
                                   debug=False,
-                                  plot=False)
+                                  plot=False,
+                                  reg_factor=reg_factor)
 
     assert human_type in VALID_ENV_STRINGS, f"[Error] Please enter a valid human type from:[ {', '.join(VALID_ENV_STRINGS)} ]"
 
@@ -398,7 +401,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(implicit=True)
-    # two_player_instance.modify_edge_weights(implicit=True)
+    two_player_instance.modify_edge_weights(implicit=True)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -411,8 +414,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         elif d['player'] == 'eve':
             sys_count += 1
 
-    print(f"# of Sys states in Two player game: {sys_count}")
-    print(f"# of Env states in Two player game: {env_count}")
+    # print(f"# of Sys states in Two player game: {sys_count}")
+    # print(f"# of Env states in Two player game: {env_count}")
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
@@ -420,7 +423,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_1B_3L_AND_W_TRAP)
+    # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_2B_2L_OR)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -444,12 +448,13 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[2],
                                               game=product_graph,
-                                              human_type='no-human',
+                                              human_type='random-human',
                                               rollout_flag=True,
                                               debug=True,
-                                              max_iterations=100)
+                                              max_iterations=100,
+                                              reg_factor=1.25)
 
     # return
     # ask the user if they want to save the str or not
@@ -565,7 +570,12 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='minigrid', print_flag=True, record_flag=record, render_minigrid=True, test_all_str=False, max_iterations=100)
+        construct_abstraction(abstraction_instance='daig-main',
+                              print_flag=True,
+                              record_flag=record,
+                              render_minigrid=False,
+                              test_all_str=False,
+                              max_iterations=100)
 
         # displaying the memory - output current memory usage and peak memory usage
         _,  peak_mem = tracemalloc.get_traced_memory()
