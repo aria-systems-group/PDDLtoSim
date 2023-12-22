@@ -13,6 +13,11 @@ Primarily, we use this code to
 **Note**: the Pybullet sim is old will be phased out soon with probably a better simulator. Further, the keyword `:non-deterministic` and the additional operator `oneof` is not yet supported. These are standard ways of specifying non-deterministic outcomes under an action using the PDDL Semantics (Refer [PRP Paper](https://ojs.aaai.org/index.php/ICAPS/article/view/13520), [PRP Code](https://github.com/QuMuLab/planner-for-relevant-policies)). In my file, I add non-determinism as `human-move` action (See [my code](https://github.com/aria-systems-group/sym_quant_reactive_synth/blob/master/pddl_files/dynamic_franka_world/domain.pddl)).
 
 
+# Authors
+
+* [Karan Muvvala](https://muvvalakaran.github.io/) <[karan.muvvala@colorado.edu](mailto:karan.muvvala@colorado.edu)>
+
+
 # Installation
 
 ## Clone the code
@@ -187,11 +192,13 @@ If the code is useful in your research, and you would like to acknowledge it, pl
 - Efficient Symbolic Approaches for Quantitative Reactive Synthesis with Finite Tasks (Symbolic Approach) ([paper](https://arxiv.org/abs/2303.03686))
 
 ```
-@INPROCEEDINGS{muvvala2023symbolic,
+@article{muvvala2023efficient,
   title={Efficient Symbolic Approaches for Quantitative Reactive Synthesis with Finite Tasks},
   author={Muvvala, Karan and Lahijanian, Morteza},
-  journal={IEEE IROS/RSJ International Conference on Robotics and Systems},
-  year={2023 (to appear)}
+  booktitle={2023 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)}, 
+  year={2023},
+  pages={8666-8672},
+  doi={10.1109/IROS55552.2023.10342496}}
 }
 ```
 

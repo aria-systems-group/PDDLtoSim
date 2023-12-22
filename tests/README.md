@@ -34,7 +34,7 @@ Here is a list of available tests:
 - [ ] `Quantitative Best-Effort Strategy Synthesis (w and w/o realizable tasks) for Minigrid Abstraction for LTL and LTLf specifications`
 - [ ] `Qualitative Safe Reach Best-Effort Strategy Synthesis (w and w/o realizable tasks) for Franka Abstraction for LTL and LTLf specifications`
 - [ ] `Qualitative Safe Reach Best-Effort Strategy Synthesis (w and w/o realizable tasks) for Minigrid Abstraction for LTL and LTLf specifications`
-- [ ] `Regret-Minimizing strategy synthesis for Franka Abstraction`
+- [x] `Regret-Minimizing strategy synthesis for Franka Abstraction`
 - [ ] `Regret-Minimizing strategy synthesis for Minigrid Abstraction`
 
 ### Test Packages
