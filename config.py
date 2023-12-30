@@ -20,6 +20,10 @@ ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
 DIAG_FORMULA = "F((p22 & p14 & p03) || (p05 & p19 & p26))"
 
 
+######################### BE Streategy related Specificarions #########################
+SIMPLE_FORMULA = 'F(p02)'
+
+
 
 ################################### Minigrid #########################################
 # It is dictionary of environment names their corresponding formulas

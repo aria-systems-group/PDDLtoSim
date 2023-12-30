@@ -362,9 +362,15 @@ def minigrid_main(debug: bool = False,
 
 @timer_decorator
 def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False) -> None:
-    domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
+    # domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
     # _problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
-    problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
+    # problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
+
+
+    ##### BE Related domain files #####
+    domain_file_path = ROOT_PATH + '/pddl_files/be_unrealizable_world/domain.pddl'
+    problem_file_path = ROOT_PATH + '/pddl_files/be_unrealizable_world/problem.pddl'
+
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
                                          domain_file=domain_file_path,
@@ -424,7 +430,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
 
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_2B_2L_OR)
+    dfa = two_player_instance.build_LTLf_automaton(formula=SIMPLE_FORMULA)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -448,9 +454,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[2],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[4],
                                               game=product_graph,
-                                              human_type='random-human',
+                                              human_type='no-human',
                                               rollout_flag=True,
                                               debug=True,
                                               max_iterations=100,
