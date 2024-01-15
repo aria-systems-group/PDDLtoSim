@@ -310,9 +310,11 @@ def minigrid_main(debug: bool = False,
     """
     # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
-    #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
+    #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0',
+    # 'MiniGrid-SimpleReachAvoidAgent_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-FishAndShipwreckAvoidAgent-v0']
-    nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
+    nd_minigrid_envs = ['MiniGrid-SimpleReachAvoidAgent_karan-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
@@ -322,11 +324,12 @@ def minigrid_main(debug: bool = False,
                                                    plot_minigrid=False,
                                                    plot_dfa=False,
                                                    plot_product=False,
+                                                   env_dpi=300,
                                                    debug=debug)
         
         # now construct the abstraction, the dfa and take the product
-        minigrid_handle.build_minigrid_game(env_snap=False)
-        minigrid_handle.get_aps(print_flag=True)
+        minigrid_handle.build_minigrid_game(env_snap=True)
+        minigrid_handle.get_aps(print_flag=False)
         minigrid_handle.get_minigrid_edge_weights(print_flag=True)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
         print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
@@ -576,10 +579,10 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='daig-main',
+        construct_abstraction(abstraction_instance='minigrid',
                               print_flag=True,
                               record_flag=record,
-                              render_minigrid=False,
+                              render_minigrid=True,
                               test_all_str=False,
                               max_iterations=100)
 
