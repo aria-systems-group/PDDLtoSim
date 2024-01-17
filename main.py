@@ -313,13 +313,15 @@ def minigrid_main(debug: bool = False,
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0',
     # 'MiniGrid-SimpleReachAvoidAgent_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-FishAndShipwreckAvoidAgent-v0']
+
     # nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
-    nd_minigrid_envs = ['MiniGrid-SimpleReachAvoidAgent_karan-v0']
+    nd_minigrid_envs = ['MiniGrid-Ijcai24LavaComparison_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-ChasingAgentIn4Square-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
-                                                   formula='!(agent_blue_right) U (floor_green_open)',
-                                                   player_steps = {'sys': [1], 'env': [1]},
+                                                   formula='!(agent_blue_right) U (floor_green_open & !agent_blue_right)',
+                                                   player_steps = {'sys': [1], 'env': [1, 2]},
                                                    save_flag=True,
                                                    plot_minigrid=False,
                                                    plot_dfa=False,
@@ -328,7 +330,7 @@ def minigrid_main(debug: bool = False,
                                                    debug=debug)
         
         # now construct the abstraction, the dfa and take the product
-        minigrid_handle.build_minigrid_game(env_snap=True)
+        minigrid_handle.build_minigrid_game(env_snap=False)
         minigrid_handle.get_aps(print_flag=False)
         minigrid_handle.get_minigrid_edge_weights(print_flag=True)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
@@ -347,11 +349,12 @@ def minigrid_main(debug: bool = False,
     
     # synthesize a strategy 
     else:
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[4],
                                               game=minigrid_handle.dfa_game,
                                               human_type='epsilon-human',
+                                            #   human_type='manual',
                                               rollout_flag=True,
-                                              epsilon=0,
+                                              epsilon=0.0,
                                               debug=False,
                                               max_iterations=max_iterations)
 
@@ -399,9 +402,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
     two_player_instance.build_two_player_game(human_intervention=2,
-                                               human_intervention_cost=0,
-                                               plot_two_player_game=False,
-                                               arch_construction=False)
+                                              human_intervention_cost=0,
+                                              plot_two_player_game=False,
+                                              arch_construction=False)
 
     # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
 
@@ -410,7 +413,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(implicit=True)
-    two_player_instance.modify_edge_weights(implicit=True)
+    # two_player_instance.modify_edge_weights(implicit=True)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -432,8 +435,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
 
-    # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
-    dfa = two_player_instance.build_LTLf_automaton(formula=SIMPLE_FORMULA)
+    # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_AND_W_TRAP)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_2B_2L_OR_W_SAFETY)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -457,9 +460,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[4],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[6],
                                               game=product_graph,
                                               human_type='no-human',
+                                            #   human_type='manual',
                                               rollout_flag=True,
                                               debug=True,
                                               max_iterations=100,
@@ -561,7 +565,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 if __name__ == "__main__":
-    record = False
+    record = True
     use_saved_str = False
 
     if use_saved_str:
@@ -579,7 +583,7 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='minigrid',
+        construct_abstraction(abstraction_instance='daig-main',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=True,

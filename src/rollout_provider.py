@@ -259,6 +259,7 @@ class RegretStrategyRolloutProvider(RolloutProvider):
             print("[Error] There does not exist a winning strategy!")
             sys.exit(-1)
 
+
     def _get_successors_based_on_str(self, curr_state) -> str:
         succ_list = []
         succ_state = self.strategy.get(curr_state, None)
@@ -435,10 +436,13 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         """
          Since BEst Effort strategies always exists, it is essential to know if we are playing our Best or enforcing task completion, i.e. Winning stratgey
         """
+        print("*************************************************************************************")
         if not self.strategy_handle.is_winning():
-            print("*************************************************************************************")
             print("[Warning] We are playing Best Effort strategy. There does not exist a winning strategy!")
-            print("*************************************************************************************")
+        else:
+            print("There EXISTS a winning strategy!! Playing Winning strategy!")
+        print("*************************************************************************************")
+
         if self.debug:
             print("*************************************************************************************")
             if isinstance(self.strategy_handle, QualitativeSafeReachBestEffort):
@@ -475,7 +479,8 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
 
         # if succ_state is None:
         #     return
-        
+        print("*************************************************************************")
+        print("Current State: ", curr_state)
         for count, n in enumerate(list(self.game._graph.successors(curr_state))):
             edge_action = self.game._graph[curr_state][n][0].get("actions")
             print(f"[{count}], state:{n}, action: {edge_action}: {self.state_values[n]}")
@@ -684,14 +689,15 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         """
         _new_str_dict = self.env_strategy
 
-        for _from_state, _ in self.strategy.items():
-            if self.game.get_state_w_attribute(_from_state, 'player') == "adam":
-                _succ_states: List[tuple] = [_state for _state in self.game._graph.successors(_from_state)]
+        for _from_state, _ in self.env_strategy.items():
+            # if self.game.get_state_w_attribute(_from_state, 'player') == "adam":
+            assert self.game.get_state_w_attribute(_from_state, 'player') == "adam", "[Error] Env Dict has Non Env player state. Fix it!!!"
+            _succ_states: List[tuple] = [_state for _state in self.game._graph.successors(_from_state)]
 
-                # act random
-                if np.random.rand() < epsilon:
-                    _next_state = random.choice(_succ_states)
-                    _new_str_dict[_from_state] = _next_state
+            # act random
+            if np.random.rand() < epsilon:
+                _next_state = random.choice(_succ_states)
+                _new_str_dict[_from_state] = _next_state
 
         return _new_str_dict
     
@@ -713,7 +719,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
         
         new_strategy_dictionary = self._compute_epsilon_str_dict(epsilon=epsilon)
         
-        self._strategy = new_strategy_dictionary
+        self._env_strategy = new_strategy_dictionary
         # self.rollout_with_human_intervention()
         self.rollout_with_strategy_dictionary()
 

@@ -5,7 +5,8 @@
 FORMULA_2B_2L_OR = 'F(p01 || p17)'
 FORMULA_2B_2L_AND = 'F(p01 & p17)'
 # FORMULA_2B_2L_OR_W_SAFETY = 'F(p01 || p17) & G(!p18)'
-FORMULA_2B_2L_OR_W_SAFETY = 'F(p01) & G(!p18)'
+# FORMULA_2B_2L_OR_W_SAFETY = 'F(p01) & G(!p18)'
+FORMULA_2B_2L_OR_W_SAFETY = '!p17 U p01'
 FORMULA_2B_2L_AND_W_SAFETY = 'F(p01)  & F(p17) & G(!p18)'
 FORMULA_2B_2L_AND_W_TRAP = "!p18 U (p17 & p01)"
 
@@ -21,7 +22,7 @@ DIAG_FORMULA = "F((p22 & p14 & p03) || (p05 & p19 & p26))"
 
 
 ######################### BE Streategy related Specificarions #########################
-SIMPLE_FORMULA = 'F(p02)'
+SIMPLE_FORMULA = 'F(p06)'
 
 
 

@@ -255,7 +255,8 @@ class NonDeterministicMiniGrid():
         nd_minigrid_envs = {'MiniGrid-FloodingLava-v0': [], 'MiniGrid-CorridorLava-v0': [], 'MiniGrid-ToyCorridorLava-v0': [], 
                             'MiniGrid-FishAndShipwreckAvoidAgent-v0': [], 'MiniGrid-ChasingAgentIn4Square-v0': [],
                             'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
-                            'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-SimpleReachAvoidAgent_karan-v0': []}
+                            'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-SimpleReachAvoidAgent_karan-v0': [], 
+                            'MiniGrid-Ijcai24LavaComparison_karan-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -432,14 +433,14 @@ class NonDeterministicMiniGrid():
         # manually parse the actions, the first action is by Sys player, the next one is by Env ...
         for itr, act in enumerate(action_seq):
             if itr % 2 == 0:
-                assert act.split('__')[1] == 'None', "Error when rolling out strategy"
+                # assert act.split('__')[1] == 'None', "Error when rolling out strategy"
                 # action edge is of type North_North__None
                 sys_action = act.split('__')[0]
                 act_tuple = tuple(sys_action.split('_'))
                 system_actions.append(act_tuple)
                 
             elif itr % 2 != 0:
-                assert act.split('__')[0] == 'None', "Error when rolling out strategy"
+                # assert act.split('__')[0] == 'None', "Error when rolling out strategy"
                 # action edge is of type None__South_South
                 env_action = act.split('__')[1]
                 act_tuple = tuple(env_action.split('_'))
@@ -485,31 +486,10 @@ class CorridorLava(MultiAgentMiniGridEnv):
 
         # Generate the surrounding walls
         self.grid.wall_rect(0, 0, width, height)
-        # self.grid.wall_rect(3, 4, 5, 1)
-        # self.put_obj(Wall(), *(3, 5))
-        # self.put_obj(Wall(), *(7, 5))
-        # self.put_obj(Wall(), *(5, 6))
-
         # Place a goal square in the bottom-right corner
         for goal_pos in self.goal_pos:
             self.put_obj(Floor(color='green'), *goal_pos)
 
-        # self.put_obj(Water(), 3, 6)
-        # self.put_obj(Water(), 4, 6)
-        # self.put_obj(Water(), 4, 5)
-        # self.put_obj(Water(), 5, 5)
-        # self.put_obj(Water(), 6, 5)
-        # self.put_obj(Water(), 6, 6)
-        # self.put_obj(Water(), 7, 6)
-
-        # bottom carpet
-        # self.put_obj(Carpet(), 1, 2)
-        # self.put_obj(Carpet(), 1, 3)
-        # self.put_obj(Carpet(), 1, 4)
-        # self.put_obj(Carpet(), 9, 2)
-        # self.put_obj(Carpet(), 9, 3)
-        # self.put_obj(Carpet(), 9, 4)
-        # self.put_obj(Carpet(), 9, 5)
 
         # put lava around the goal region
         self.put_obj(Lava(), 7, 6)
@@ -547,6 +527,92 @@ class CorridorLava(MultiAgentMiniGridEnv):
                 *p,
                 d,
                 False)
+
+        self.mission = 'get to a green goal squares, don"t touch lava, ' + \
+                       'must dry off if you get wet'
+
+
+class SmallCorridorLava(MultiAgentMiniGridEnv):
+    """
+    Smaller version of the gridworld constructed in Corridor Lava env
+    """
+    # i = 1
+
+    def __init__(
+        self,
+        width=7,
+        height=7,
+        agent_start_pos=(1, 5),
+        agent_start_dir=0,
+        env_agent_start_pos=[(4, 5)],
+        env_agent_start_dir=[0],
+        goal_pos=[(4, 5)],
+    ):
+        self.agent_start_pos = agent_start_pos
+        self.agent_start_dir = agent_start_dir
+        self.env_agent_start_pos = env_agent_start_pos
+        self.env_agent_start_dir = env_agent_start_dir
+
+        self.goal_pos = goal_pos
+
+        super().__init__(
+            width=width,
+            height=height,
+            max_steps=4 * width * height,
+            # Set this to True for maximum speed
+            see_through_walls=True
+        )
+
+    def _gen_grid(self, width, height):
+
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # Place a goal square in the bottom-right corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+
+
+        # put lava around the goal region
+        self.put_obj(Lava(), 3, 5)
+        self.put_obj(Lava(), 5, 5)
+        self.put_obj(Lava(), 3, 4)
+        self.put_obj(Lava(), 5, 4) 
+
+        # Lava
+        # self.put_obj(Lava(), 3, 3)
+        # self.put_obj(Lava(), 4, 3)
+        # self.put_obj(Lava(), 5, 3)
+        # self.put_obj(Lava(), 6, 3)
+        # self.put_obj(Lava(), 7, 3)
+        
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            # restricted_positions = [(i+1, j+1) for i, j in itertools.product(range(8), range(3, 8))]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='blue',
+                    restricted_objs=['lava', 'carpet', 'water', 'floor'],
+                    # restricted_positions=restricted_positions
+                    ),
+                *p,
+                d,
+                False)
+        
+        # self.put_obj(Floor(color='grey'), 1, 3)
 
         self.mission = 'get to a green goal squares, don"t touch lava, ' + \
                        'must dry off if you get wet'
@@ -618,12 +684,16 @@ class SimpleReachAvoidAgent(MultiAgentMiniGridEnv):
 
         self.mission = 'get to a green goal squares, don"t touch lava, ' + \
                        'must dry off if you get wet'
-    
 
 
 register(
     id='MiniGrid-SimpleReachAvoidAgent_karan-v0',
     entry_point='src.graph_construction.minigrid_two_player_game:SimpleReachAvoidAgent'
+)
+
+register(
+    id='MiniGrid-Ijcai24LavaComparison_karan-v0',
+    entry_point='src.graph_construction.minigrid_two_player_game:SmallCorridorLava'
 )
 
 register(
