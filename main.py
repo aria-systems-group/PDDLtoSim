@@ -75,8 +75,8 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
         strategy_handle.compute_adm_strategies(plot=plot)
     
     elif strategy_type == 'QuantitativeGoUAdmissible':
-        strategy_handle = QuantitativeGoUAdmissible(budget=4, game=game, debug=debug)
-        strategy_handle.compute_adm_strategies(plot=plot)
+        strategy_handle = QuantitativeGoUAdmissible(budget=12, game=game, debug=debug)
+        strategy_handle.compute_adm_strategies(plot=plot, compute_str=False)
     
     # elif strategy_type == "BestEffortSafeReachQual":
     #     strategy_handle = QualitativeSafeReachBestEffort(game=game, debug=debug)
@@ -129,6 +129,9 @@ def run_synthesis_and_rollout(strategy_type: str,
     A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
     """
     assert strategy_type in VALID_STR_SYN_ALGOS, f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(VALID_STR_SYN_ALGOS)} ]"
+    
+    if strategy_type in ["QuantitativeNaiveAdmissible", "QuantitativeGoUAdmissible"]:
+        assert human_type == "manual" , "Trying to rollout Adm strategies. Currently you can only manually rollout. Please set 'human_type'='manual'."
     
     # create a strategy synthesis handle and solve the game
     str_handle = compute_strategy(strategy_type=strategy_type,
@@ -357,8 +360,8 @@ def minigrid_main(debug: bool = False,
     else:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=minigrid_handle.dfa_game,
-                                              human_type='epsilon-human',
-                                              rollout_flag=False,
+                                              human_type='manual',
+                                              rollout_flag=True,
                                               epsilon=0,
                                               debug=False,
                                               max_iterations=max_iterations)
@@ -563,7 +566,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 if __name__ == "__main__":
-    record = False
+    record = True
     use_saved_str = False
 
     if use_saved_str:

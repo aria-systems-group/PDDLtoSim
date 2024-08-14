@@ -560,11 +560,11 @@ class CorridorLavaAAAI25(MultiAgentMiniGridEnv):
 
     def __init__(
         self,
-        width=6,
-        height=6,
-        agent_start_pos=(1, 4),
+        width=7,
+        height=7,
+        agent_start_pos=(1, 5),
         agent_start_dir=0,
-        env_agent_start_pos=[(4, 1)],
+        env_agent_start_pos=[(1, 2)],
         env_agent_start_dir=[0],
         goal_pos=[(1, 1)],
     ):
@@ -592,6 +592,15 @@ class CorridorLavaAAAI25(MultiAgentMiniGridEnv):
         # Place a goal square in the top-left corner
         for goal_pos in self.goal_pos:
             self.put_obj(Floor(color='green'), *goal_pos)
+        
+        # put lava around the goal region
+        self.put_obj(Lava(), 2, 2)
+        self.put_obj(Lava(), 3, 2)
+        self.put_obj(Lava(), 4, 2)
+
+        # Lava
+        self.put_obj(Lava(), 4, 3)
+        self.put_obj(Lava(), 4, 4)
 
         # Place the agent
         p = self.agent_start_pos
