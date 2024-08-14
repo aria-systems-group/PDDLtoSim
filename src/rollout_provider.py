@@ -3,12 +3,13 @@ This script contains all Rollout povider classes for different types of Games an
 '''
 import re
 import sys
+import math
 import random
 import warnings
 import numpy as np
 
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import List, Union, Tuple, Set
 
 from src.graph_construction.two_player_game import TwoPlayerGame
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
@@ -55,11 +56,19 @@ def rollout_strategy(strategy: Strategy,
                                              debug=debug,
                                              max_steps=max_iterations)
     
+    elif isinstance(strategy, (QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible)):
+        rhandle = AdmStrategyRolloutProvider(game=strategy.game,
+                                             strategy_handle=strategy,
+                                             debug=debug,
+                                             max_steps=max_iterations)
+
     elif isinstance(strategy, (QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn)):
         rhandle = BestEffortStrategyRolloutProvider(game=game,
                                                     strategy_handle=strategy,
                                                     debug=debug,
                                                     max_steps=max_iterations)
+    
+    
     else:
         warnings.warn(f"[Error] We do not have rollout provder for strategy of type: {type(strategy)}")
         sys.exit(-1)
@@ -744,3 +753,183 @@ class AdvStrategyRolloutProvider(BestEffortStrategyRolloutProvider):
         if not self.strategy_handle.is_winning(): 
             print("[Error] There does not exist a winning strategy!")
             sys.exit(-1)
+
+
+class AdmStrategyRolloutProvider(RolloutProvider):
+    """
+     This class implements rollout provide for Adm strategy synthesis 
+    """
+
+    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10) -> None:
+        super().__init__(game, strategy_handle, debug, max_steps)
+        self.check_separate: bool = True
+
+    def set_strategy(self):
+        pass
+    
+    def set_env_strategy(self):
+        pass
+
+    def set_target_states(self):
+        self._target_states: List = self.game.get_accepting_states()
+
+    def set_init_states(self):
+        self._init_state = self.game.get_initial_states()[0][0]
+    
+    def set_absorbing_states(self):
+        self._absorbing_states: List = self.game.get_absorbing_state()
+        self._absorbing_states = set(self.absorbing_states).union(set(self.target_states))
+
+    def set_sink_states(self):
+        self._sink_states: List = self.game.get_trap_states()
+    
+
+    def set_state_values(self):
+        pass
+
+    def _check_if_winning(self):
+        """
+         Since Regret Minimizing strategies DO NOT always exists, 
+         it is essential to know if the strategy is enforcing task completion, i.e. is it a Winning strategy or not
+        """
+        if not self.strategy_handle.is_winning(): 
+            print("There does not exist a winning strategy!")
+
+    def _get_successors_based_on_str(self, curr_state, avalues: Set[int]) -> str:
+        succ_list = []
+        is_env_state: bool = True if self.game.get_state_w_attribute(state=curr_state, attribute='player') == 'adam' else False
+        idx_count = 0
+        for count, n in enumerate(list(self.game._graph.successors(curr_state))):
+            edge_action = self.game._graph[curr_state][n][0].get("actions")            
+            # check if admissible or not 
+            if not is_env_state and self.check_admissibility(source=curr_state, succ=n, avalues=avalues):
+                is_sc_strategy: bool = self.check_sc_strategy(curr_state, n, avalues)
+                is_sco_strategy: bool = self.check_sco_strategy(curr_state, n)
+                is_wcoop_strategy: bool = self.check_wcoop_strategy(curr_state, n)
+                
+                if is_sc_strategy and is_sco_strategy:
+                    print(f"[{idx_count}], Env state:{n}, Sys action: {edge_action}: SCO Adm")
+                elif is_sc_strategy:
+                    print(f"[{idx_count}], Env state:{n}, Sys action: {edge_action}: SC Adm")
+                if is_wcoop_strategy:
+                    print(f"[{idx_count}], Env state:{n}, Sys action: {edge_action}: WCoop Adm")
+                succ_list.append(n)
+                idx_count += 1
+            elif is_env_state:
+                print(f"[{idx_count}], Sys state:{n}, Env action: {edge_action}")
+                succ_list.append(n)
+                idx_count += 1
+        idx_num = input("Enter state to select from: ")
+        print(f"Choosing state: {succ_list[int(idx_num)]}")
+        return succ_list[int(idx_num)]
+    
+    def check_sco_strategy(self, source: Tuple, succ: Tuple) -> bool:
+        """
+          A function that check if the an edge is sc admissible or not
+        """
+        if self.strategy_handle.coop_winning_state_values[succ] == self.strategy_handle.coop_winning_state_values[source] :
+            return True
+        
+        return False
+
+    
+    def check_sc_strategy(self, source: Tuple, succ: Tuple, avalues: Set[int]) -> bool:
+        """
+          A function that check if the an edge is sc admissible or not
+        """
+        if self.strategy_handle.coop_winning_state_values[succ] < min(avalues):
+            return True
+        
+        return False
+
+    def check_wcoop_strategy(self, source: Tuple, succ: Tuple) -> bool:
+        """
+          A function that check if the an edge is wcoop admissible or not
+        """
+        if self.strategy_handle.winning_state_values[source] == self.strategy_handle.winning_state_values[succ] and \
+              self.strategy_handle.coop_winning_state_values[succ] == self.strategy_handle.adv_coop_state_values[source]:
+            return True
+        
+        return False
+
+    def check_admissibility(self, source: Tuple, succ: Tuple, avalues: Set[int]) -> bool:
+        """
+         A function that check if the an edge is admissible or not when traversing the tree of plays.
+        """
+        if self.strategy_handle.coop_winning_state_values[succ] < min(avalues):
+            return True
+        elif self.strategy_handle.winning_state_values[source] == self.strategy_handle.winning_state_values[succ] == \
+              self.strategy_handle.coop_winning_state_values[succ] == self.strategy_handle.adv_coop_state_values[source]:
+            return True
+        
+        return False
+    
+
+    # def check_admissible_winning(self, source: Tuple[str, int], succ: Tuple[str, int], avalues: Set[int]) -> bool:
+    #     """
+    #       A function that check if the an edge is admissible winning or not when traversing the tree of plays. 
+    #       There is an addition check for value presevation property.
+    #     """
+    #     if self.strategy_handle.coop_winning_state_values[succ] < min(avalues) and \
+    #     ((source not in self.strategy_handle.winning_region) or (self.strategy_handle.winning_state_values[succ] != math.inf)):
+    #         return True
+    #     elif self.strategy_handle.winning_state_values[source] == self.strategy_handle.winning_state_values[succ] == \
+    #           self.strategy_handle.coop_winning_state_values[succ] == self.strategy_handle.adv_coop_state_values[source]:
+    #         return True
+        
+    #     return False
+
+    def manual_rollout(self):
+        """
+         This method returns a rollout for the given strategy. This method asks human to input the actions during the rollout. Helpful in debugging.
+        """
+        states = []
+        states.append(self.init_state)
+        curr_state = self.init_state
+
+        # for _n in self.game._graph.successors(self.init_state):
+            # print(f"Adm str: {_n}: {self.state_values[_n]}")
+        avalues = set({self.strategy_handle.winning_state_values[curr_state]})
+        next_state = self._get_successors_based_on_str(curr_state, avalues)
+
+        self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+
+        steps = 0
+
+        while True:
+            curr_state = next_state
+            states.append(curr_state)
+            avalues.add(self.strategy_handle.winning_state_values[curr_state])
+            next_state = self._get_successors_based_on_str(curr_state, avalues=avalues)
+
+            if next_state in self.absorbing_states:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                
+                break
+
+            if next_state is not None:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                    print(self.action_seq[-1])
+            
+            steps += 1
+        
+        if self.debug:
+            print("Action Seq:")
+            for _action in self.action_seq:
+                print(_action)
+    
+    def rollout_with_human_intervention(self):
+        pass
+
+    def rollout_with_strategy_dictionary(self):
+        pass
+
+    def rollout_no_human_intervention(self):
+        pass
+
+    def rollout_with_epsilon_human_intervention(self):
+        pass
