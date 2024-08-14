@@ -20,10 +20,10 @@ from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import RegretMinimizationStrategySynthesis 
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
-from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_safe_reach import QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort
+from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible
 
 
-BestEffortClass = Union[QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn, QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort]
+BestEffortClass = Union[QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn]
 Strategy = Union[ValueIteration, RegretMinimizationStrategySynthesis, BestEffortClass]
 
 VALID_ENV_STRINGS = ["manual", "no-human", "random-human", "epsilon-human"]
@@ -55,7 +55,7 @@ def rollout_strategy(strategy: Strategy,
                                              debug=debug,
                                              max_steps=max_iterations)
     
-    elif isinstance(strategy, (QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn, QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort)):
+    elif isinstance(strategy, (QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn)):
         rhandle = BestEffortStrategyRolloutProvider(game=game,
                                                     strategy_handle=strategy,
                                                     debug=debug,
@@ -441,11 +441,11 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
             print("*************************************************************************************")
         if self.debug:
             print("*************************************************************************************")
-            if isinstance(self.strategy_handle, QualitativeSafeReachBestEffort):
-                print("We are rolling out Qualitative Safe Reach (Proposed) Best Effort strategy")
-            elif isinstance(self.strategy_handle, QuantitativeSafeReachBestEffort):
-                print("We are rolling out Quantitative Safe Reach (Proposed) Best Effort strategy")
-            elif isinstance(self.strategy_handle, QuantitativeBestEffortReachSyn):
+            # if isinstance(self.strategy_handle, QualitativeSafeReachBestEffort):
+            #     print("We are rolling out Qualitative Safe Reach (Proposed) Best Effort strategy")
+            # elif isinstance(self.strategy_handle, QuantitativeSafeReachBestEffort):
+            #     print("We are rolling out Quantitative Safe Reach (Proposed) Best Effort strategy")
+            if isinstance(self.strategy_handle, QuantitativeBestEffortReachSyn):
                 print("We are rolling out Quantitative Best Effort strategy")
             elif isinstance(self.strategy_handle, QualitativeBestEffortReachSyn):
                 print("We are rolling out Org. Qualitative Best Effort strategy")

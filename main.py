@@ -21,7 +21,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import
     RegretMinimizationStrategySynthesis as RegMinStrSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
-from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_safe_reach import QualitativeSafeReachBestEffort, QuantitativeSafeReachBestEffort
+from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible
 
 from src.rollout_provider import rollout_strategy, RolloutProvider, VALID_ENV_STRINGS, Strategy
 from src.execute_str import execute_saved_str
@@ -34,7 +34,7 @@ ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 DfaGame = Union[TwoPlayerGraph, TwoPlayerGame, NonDeterministicMiniGrid]
 
-VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "BestEffortSafeReachQual", "BestEffortSafeReachQuant"]
+VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "QuantitativeNaiveAdmissible", "QuantitativeGoUAdmissible"]
 VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid']
 
 
@@ -70,13 +70,21 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
         strategy_handle = QuantitativeBestEffortReachSyn(game=game, debug=debug)
         strategy_handle.compute_best_effort_strategies(plot=plot)
     
-    elif strategy_type == "BestEffortSafeReachQual":
-        strategy_handle = QualitativeSafeReachBestEffort(game=game, debug=debug)
-        strategy_handle.compute_best_effort_strategies(plot=plot)
+    elif strategy_type == 'QuantitativeNaiveAdmissible':
+        strategy_handle = QuantitativeNaiveAdmissible(budget=4, game=game, debug=debug)
+        strategy_handle.compute_adm_strategies(plot=plot)
     
-    elif strategy_type == "BestEffortSafeReachQuant":
-        strategy_handle = QuantitativeSafeReachBestEffort(game=game, debug=debug)
-        strategy_handle.compute_best_effort_strategies(plot=plot)
+    elif strategy_type == 'QuantitativeGoUAdmissible':
+        strategy_handle = QuantitativeGoUAdmissible(budget=4, game=game, debug=debug)
+        strategy_handle.compute_adm_strategies(plot=plot)
+    
+    # elif strategy_type == "BestEffortSafeReachQual":
+    #     strategy_handle = QualitativeSafeReachBestEffort(game=game, debug=debug)
+    #     strategy_handle.compute_best_effort_strategies(plot=plot)
+    
+    # elif strategy_type == "BestEffortSafeReachQuant":
+    #     strategy_handle = QuantitativeSafeReachBestEffort(game=game, debug=debug)
+    #     strategy_handle.compute_best_effort_strategies(plot=plot)
 
     else:
         warnings.warn(f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(VALID_STR_SYN_ALGOS)} ]")
@@ -302,7 +310,7 @@ def minigrid_main(debug: bool = False,
                   test_all_str: bool = False,
                   max_iterations: int = 100):
     """
-    Function that constructs the minigrid instances, constructs a product grapg and rolls out a strategy.
+    Function that constructs the minigrid instances, constructs a product graph and rolls out a strategy.
 
     Currently supported envs
     nd_minigrid_envs = {'MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
@@ -312,7 +320,8 @@ def minigrid_main(debug: bool = False,
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
     # nd_minigrid_envs = ['MiniGrid-FishAndShipwreckAvoidAgent-v0']
-    nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
+    nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
@@ -336,18 +345,20 @@ def minigrid_main(debug: bool = False,
     minigrid_handle.build_product()
     end = time.time()
     print(f"Done Constrcuting the DFA Game: {end-start:0.2f} seconds")
-
+    print(f"No. of nodes in the product graph is :{len(minigrid_handle.dfa_game._graph.nodes())}")
+    print(f"No. of edges in the product graph is :{len(minigrid_handle.dfa_game._graph.edges())}")
+    
     # run all synthesins and rollout algorithms
     if test_all_str:
         run_all_synthesis_and_rollouts(game=minigrid_handle.dfa_game,
-                                    debug=False)
+                                       debug=False)
     
     # synthesize a strategy 
     else:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=minigrid_handle.dfa_game,
                                               human_type='epsilon-human',
-                                              rollout_flag=True,
+                                              rollout_flag=False,
                                               epsilon=0,
                                               debug=False,
                                               max_iterations=max_iterations)
@@ -570,7 +581,7 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='daig-main',
+        construct_abstraction(abstraction_instance='minigrid',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,
