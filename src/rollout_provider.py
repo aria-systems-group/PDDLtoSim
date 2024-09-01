@@ -14,14 +14,14 @@ from typing import List, Union, Tuple, Set
 from src.graph_construction.two_player_game import TwoPlayerGame
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 
-from utls import timer_decorator
+from utls import timer_decorator, deprecated
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 # from regret_synthesis_toolbox.src.strategy_synthesis.adversarial_game import ReachabilityGame
 # from regret_synthesis_toolbox.src.strategy_synthesis.cooperative_game import CooperativeGame
 from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import RegretMinimizationStrategySynthesis 
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
-from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible
+from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
 
 
 BestEffortClass = Union[QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn]
@@ -39,6 +39,7 @@ def rollout_strategy(strategy: Strategy,
     """
     A function that calls the appropriate rollout provide based on the strategy instance.
 
+    TODO: Add cooperative human rollout for cooperative rollouts.
     Human_type: input
       "manual" for rollouts with user in the loop
       "no-human" for rollouts with no human intervention
@@ -55,6 +56,12 @@ def rollout_strategy(strategy: Strategy,
                                              strategy_handle=strategy,
                                              debug=debug,
                                              max_steps=max_iterations)
+
+    elif isinstance(strategy, QuantitativeGoUAdmissibleWinning):
+        rhandle = AdmWinStrategyRolloutProvider(game=strategy.game,
+                                                strategy_handle=strategy,
+                                                debug=debug,
+                                                max_steps=max_iterations)
     
     elif isinstance(strategy, (QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible)):
         rhandle = AdmStrategyRolloutProvider(game=strategy.game,
@@ -762,7 +769,6 @@ class AdmStrategyRolloutProvider(RolloutProvider):
 
     def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10) -> None:
         super().__init__(game, strategy_handle, debug, max_steps)
-        self.check_separate: bool = True
 
     def set_strategy(self):
         pass
@@ -804,12 +810,12 @@ class AdmStrategyRolloutProvider(RolloutProvider):
             # check if admissible or not 
             if not is_env_state and self.check_admissibility(source=curr_state, succ=n, avalues=avalues):
                 is_sc_strategy: bool = self.check_sc_strategy(curr_state, n, avalues)
-                is_sco_strategy: bool = self.check_sco_strategy(curr_state, n)
+                # is_sco_strategy: bool = self.check_sco_strategy(curr_state, n)
                 is_wcoop_strategy: bool = self.check_wcoop_strategy(curr_state, n)
                 
-                if is_sc_strategy and is_sco_strategy:
-                    print(f"[{idx_count}], Env state:{n}, Sys action: {edge_action}: SCO Adm")
-                elif is_sc_strategy:
+                # if is_sc_strategy and is_sco_strategy:
+                    # print(f"[{idx_count}], Env state:{n}, Sys action: {edge_action}: SCO Adm")
+                if is_sc_strategy:
                     print(f"[{idx_count}], Env state:{n}, Sys action: {edge_action}: SC Adm")
                 if is_wcoop_strategy:
                     print(f"[{idx_count}], Env state:{n}, Sys action: {edge_action}: WCoop Adm")
@@ -823,9 +829,13 @@ class AdmStrategyRolloutProvider(RolloutProvider):
         print(f"Choosing state: {succ_list[int(idx_num)]}")
         return succ_list[int(idx_num)]
     
+    @deprecated
     def check_sco_strategy(self, source: Tuple, succ: Tuple) -> bool:
         """
-          A function that check if the an edge is sc admissible or not
+          A function that check if the an edge is sc admissible or not. 
+
+          TODO: Need to Update the check: 
+            If (cVal(h) < aVal(h)) then cVal(h, \sigma) else aVal(h, \sigma) = aVal(h) = cVal(h).
         """
         if self.strategy_handle.coop_winning_state_values[succ] == self.strategy_handle.coop_winning_state_values[source] :
             return True
@@ -864,20 +874,6 @@ class AdmStrategyRolloutProvider(RolloutProvider):
         
         return False
     
-
-    # def check_admissible_winning(self, source: Tuple[str, int], succ: Tuple[str, int], avalues: Set[int]) -> bool:
-    #     """
-    #       A function that check if the an edge is admissible winning or not when traversing the tree of plays. 
-    #       There is an addition check for value presevation property.
-    #     """
-    #     if self.strategy_handle.coop_winning_state_values[succ] < min(avalues) and \
-    #     ((source not in self.strategy_handle.winning_region) or (self.strategy_handle.winning_state_values[succ] != math.inf)):
-    #         return True
-    #     elif self.strategy_handle.winning_state_values[source] == self.strategy_handle.winning_state_values[succ] == \
-    #           self.strategy_handle.coop_winning_state_values[succ] == self.strategy_handle.adv_coop_state_values[source]:
-    #         return True
-        
-    #     return False
 
     def manual_rollout(self):
         """
@@ -933,3 +929,50 @@ class AdmStrategyRolloutProvider(RolloutProvider):
 
     def rollout_with_epsilon_human_intervention(self):
         pass
+
+
+class AdmWinStrategyRolloutProvider(AdmStrategyRolloutProvider):
+    """
+     Overrides the base clas''admissibility checking method to compute admissible winning strategies. 
+    """
+    def __init__(self, game: ProductAutomaton, strategy_handle: QuantitativeGoUAdmissibleWinning, debug: bool = False, max_steps: int = 10) -> None:
+        super().__init__(game, strategy_handle, debug, max_steps)
+    
+
+    def check_sc_strategy(self, source: Tuple, succ: Tuple, avalues: Set[int]) -> bool:
+        """
+          Override base method for SC checking. There is an addition check for value presevation property.
+        """
+        if self.strategy_handle.coop_winning_state_values[succ] < min(avalues) and \
+              ((source not in self.strategy_handle.winning_region) or (self.strategy_handle.winning_state_values[succ] != math.inf)):
+            return True
+        
+        return False
+    
+    @deprecated
+    def check_sco_strategy(self, source: Tuple, succ: Tuple) -> bool:
+        """
+         Override base method for SCO checking.  There is an addition check for value presevation property.
+
+         TODO: Need to Update the check: 
+            If (cVal(h) < aVal(h)) then cVal(h, \sigma) else aVal(h, \sigma) = aVal(h) = cVal(h) and the additional value-preserving check.
+        """
+        if self.strategy_handle.coop_winning_state_values[succ] == self.strategy_handle.coop_winning_state_values[source] and \
+              ((source not in self.strategy_handle.winning_region) or (self.strategy_handle.winning_state_values[succ] != math.inf)) :
+            return True
+        
+        return False
+    
+
+    def check_admissibility(self, source: Tuple, succ: Tuple, avalues: Set[int]) -> bool:
+        """
+         Update this admissibility check
+        """
+        if self.strategy_handle.coop_winning_state_values[succ] < min(avalues) and \
+            ((source not in self.strategy_handle.winning_region) or (self.strategy_handle.winning_state_values[succ] != math.inf)):
+            return True
+        elif self.strategy_handle.winning_state_values[source] == self.strategy_handle.winning_state_values[succ] == \
+            self.strategy_handle.coop_winning_state_values[succ] == self.strategy_handle.adv_coop_state_values[source]:
+            return True
+        
+        return False
