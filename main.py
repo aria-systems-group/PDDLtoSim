@@ -21,7 +21,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import
     RegretMinimizationStrategySynthesis as RegMinStrSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
-from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible
+from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
 
 from src.rollout_provider import rollout_strategy, RolloutProvider, VALID_ENV_STRINGS, Strategy
 from src.execute_str import execute_saved_str
@@ -34,7 +34,8 @@ ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 DfaGame = Union[TwoPlayerGraph, TwoPlayerGame, NonDeterministicMiniGrid]
 
-VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "QuantitativeNaiveAdmissible", "QuantitativeGoUAdmissible"]
+VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "QuantitativeNaiveAdmissible", \
+                        "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning"]
 VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid']
 
 
@@ -65,7 +66,7 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
         strategy_handle = QualitativeBestEffortReachSyn(game=game, debug=debug)    
         strategy_handle.compute_best_effort_strategies(plot=plot)
     
-    # My propsoed algorithms
+    # My proposed algorithms
     elif strategy_type == "BestEffortQuant":
         strategy_handle = QuantitativeBestEffortReachSyn(game=game, debug=debug)
         strategy_handle.compute_best_effort_strategies(plot=plot)
@@ -74,18 +75,16 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
         strategy_handle = QuantitativeNaiveAdmissible(budget=4, game=game, debug=debug)
         strategy_handle.compute_adm_strategies(plot=plot)
     
-    elif strategy_type == 'QuantitativeGoUAdmissible':
+    elif strategy_type == "QuantitativeGoUAdmissible":
+        print("************************Playing QuantitativeGoUAdmissible************************")
         strategy_handle = QuantitativeGoUAdmissible(budget=12, game=game, debug=debug)
         strategy_handle.compute_adm_strategies(plot=plot, compute_str=False)
     
-    # elif strategy_type == "BestEffortSafeReachQual":
-    #     strategy_handle = QualitativeSafeReachBestEffort(game=game, debug=debug)
-    #     strategy_handle.compute_best_effort_strategies(plot=plot)
+    elif strategy_type == "QuantitativeGoUAdmissibleWinning":
+        print("************************Playing QuantitativeGoUAdmissibleWinning************************")
+        strategy_handle = QuantitativeGoUAdmissibleWinning(budget=12, game=game, debug=debug)
+        strategy_handle.compute_adm_strategies(plot=plot, compute_str=False)
     
-    # elif strategy_type == "BestEffortSafeReachQuant":
-    #     strategy_handle = QuantitativeSafeReachBestEffort(game=game, debug=debug)
-    #     strategy_handle.compute_best_effort_strategies(plot=plot)
-
     else:
         warnings.warn(f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(VALID_STR_SYN_ALGOS)} ]")
         sys.exit(-1)
@@ -130,7 +129,7 @@ def run_synthesis_and_rollout(strategy_type: str,
     """
     assert strategy_type in VALID_STR_SYN_ALGOS, f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(VALID_STR_SYN_ALGOS)} ]"
     
-    if strategy_type in ["QuantitativeNaiveAdmissible", "QuantitativeGoUAdmissible"]:
+    if strategy_type in ["QuantitativeNaiveAdmissible", "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning"]:
         assert human_type == "manual" , "Trying to rollout Adm strategies. Currently you can only manually rollout. Please set 'human_type'='manual'."
     
     # create a strategy synthesis handle and solve the game
@@ -351,14 +350,14 @@ def minigrid_main(debug: bool = False,
     print(f"No. of nodes in the product graph is :{len(minigrid_handle.dfa_game._graph.nodes())}")
     print(f"No. of edges in the product graph is :{len(minigrid_handle.dfa_game._graph.edges())}")
     
-    # run all synthesins and rollout algorithms
+    # run all synthesins and rollout algorithms0
     if test_all_str:
         run_all_synthesis_and_rollouts(game=minigrid_handle.dfa_game,
                                        debug=False)
     
     # synthesize a strategy 
     else:
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
                                               game=minigrid_handle.dfa_game,
                                               human_type='manual',
                                               rollout_flag=True,
@@ -376,9 +375,14 @@ def minigrid_main(debug: bool = False,
 
 @timer_decorator
 def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False) -> None:
-    domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
+    # domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
     # _problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
-    problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
+    # problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
+
+    ##### Adm Related domain files #####
+    domain_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/domain.pddl'
+    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem.pddl'
+
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
                                          domain_file=domain_file_path,
@@ -438,7 +442,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
 
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_2B_2L_OR)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_ADM)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -462,9 +466,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[2],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
                                               game=product_graph,
-                                              human_type='random-human',
+                                            #   human_type='random-human',
+                                              human_type='manual',
                                               rollout_flag=True,
                                               debug=True,
                                               max_iterations=100,

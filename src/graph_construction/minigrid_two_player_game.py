@@ -595,7 +595,7 @@ class CorridorLavaAAAI25(MultiAgentMiniGridEnv):
         
         # put lava around the goal region
         self.put_obj(Lava(), 2, 2)
-        self.put_obj(Lava(), 3, 2)
+        # self.put_obj(Lava(), 3, 2)
         self.put_obj(Lava(), 4, 2)
 
         # Lava
