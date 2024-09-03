@@ -22,7 +22,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
-
+from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible
 
 BestEffortClass = Union[QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn]
 Strategy = Union[ValueIteration, RegretMinimizationStrategySynthesis, BestEffortClass]
@@ -56,6 +56,9 @@ def rollout_strategy(strategy: Strategy,
                                              strategy_handle=strategy,
                                              debug=debug,
                                              max_steps=max_iterations)
+    
+    elif isinstance(strategy, QuantiativeRefinedAdmissible):
+        raise NotImplementedError
 
     elif isinstance(strategy, QuantitativeGoUAdmissibleWinning):
         rhandle = AdmWinStrategyRolloutProvider(game=strategy.game,

@@ -22,6 +22,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
+from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible
 
 from src.rollout_provider import rollout_strategy, RolloutProvider, VALID_ENV_STRINGS, Strategy
 from src.execute_str import execute_saved_str
@@ -35,7 +36,7 @@ ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 DfaGame = Union[TwoPlayerGraph, TwoPlayerGame, NonDeterministicMiniGrid]
 
 VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "QuantitativeNaiveAdmissible", \
-                        "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning"]
+                        "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning", "QuantiativeRefinedAdmissible"]
 VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid']
 
 
@@ -84,6 +85,10 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
         print("************************Playing QuantitativeGoUAdmissibleWinning************************")
         strategy_handle = QuantitativeGoUAdmissibleWinning(budget=12, game=game, debug=debug)
         strategy_handle.compute_adm_strategies(plot=plot, compute_str=False)
+    
+    elif strategy_type == "QuantiativeRefinedAdmissible":
+        strategy_handle = QuantiativeRefinedAdmissible(game=game, debug=debug)
+        strategy_handle.compute_adm_strategies(plot=plot)
     
     else:
         warnings.warn(f"[Error] Please enter a valid Strategy Synthesis variant:[ {', '.join(VALID_STR_SYN_ALGOS)} ]")
@@ -144,11 +149,11 @@ def run_synthesis_and_rollout(strategy_type: str,
     # rollout the stratgey
     if rollout_flag:
         roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
-                                                        game=game,
-                                                        debug=True,
-                                                        human_type=human_type,
-                                                        epsilon=epsilon,
-                                                        max_iterations=max_iterations)
+                                                         game=game,
+                                                         debug=True,
+                                                         human_type=human_type,
+                                                         epsilon=epsilon,
+                                                         max_iterations=max_iterations)
         return str_handle, roller
     
     return str_handle, None
