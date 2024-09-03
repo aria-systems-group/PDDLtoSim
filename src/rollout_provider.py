@@ -9,7 +9,8 @@ import warnings
 import numpy as np
 
 from abc import ABC, abstractmethod
-from typing import List, Union, Tuple, Set
+from collections import defaultdict
+from typing import List, Union, Tuple, Set, Optional, Dict
 
 from src.graph_construction.two_player_game import TwoPlayerGame
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
@@ -58,7 +59,10 @@ def rollout_strategy(strategy: Strategy,
                                              max_steps=max_iterations)
     
     elif isinstance(strategy, QuantiativeRefinedAdmissible):
-        raise NotImplementedError
+        rhandle = RefinedAdmStrategyRolloutProvider(game=game,
+                                                    strategy_handle=strategy,
+                                                    debug=debug,
+                                                    max_steps=max_iterations)
 
     elif isinstance(strategy, QuantitativeGoUAdmissibleWinning):
         rhandle = AdmWinStrategyRolloutProvider(game=strategy.game,
@@ -103,7 +107,7 @@ class RolloutProvider(ABC):
      An abstract class which needs to implemented for various strategy rollouts
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10) -> None:
+    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10) -> 'RolloutProvider':
         self._game: Union[ProductAutomaton, TwoPlayerGame] = game
         self._strategy_handle = strategy_handle
         self._strategy: dict = None
@@ -240,7 +244,7 @@ class RegretStrategyRolloutProvider(RolloutProvider):
     In Regret synthesis, Given the product graph, we construct the Graph of utility and then Graph of Best-Response.
     Then we compute the regret minimizing strategy on Graph of Best-Response. Regret Minimizing strategy is memoryless on this graph. Thus, when rolling out, we rollout on this graph.
     """
-    def __init__(self, game: ProductAutomaton, strategy_handle: RegretMinimizationStrategySynthesis, debug: bool = False,  max_steps: int = 10) -> None:
+    def __init__(self, game: ProductAutomaton, strategy_handle: RegretMinimizationStrategySynthesis, debug: bool = False,  max_steps: int = 10) -> 'RegretStrategyRolloutProvider':
         super().__init__(game, strategy_handle, debug, max_steps)
         self.twa_game: TwoPlayerGraph = strategy_handle.graph_of_alternatives
     
@@ -422,7 +426,7 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
      This class implements rollout provide for Best Effort strategy synthesis 
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10) -> None:
+    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10) -> 'BestEffortStrategyRolloutProvider':
         super().__init__(game, strategy_handle, debug, max_steps)
 
     def set_strategy(self):
@@ -770,7 +774,7 @@ class AdmStrategyRolloutProvider(RolloutProvider):
      This class implements rollout provide for Adm strategy synthesis 
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10) -> None:
+    def __init__(self, game: ProductAutomaton, strategy_handle: QuantitativeGoUAdmissible, debug: bool = False,  max_steps: int = 10) -> 'AdmStrategyRolloutProvider':
         super().__init__(game, strategy_handle, debug, max_steps)
 
     def set_strategy(self):
@@ -885,9 +889,6 @@ class AdmStrategyRolloutProvider(RolloutProvider):
         states = []
         states.append(self.init_state)
         curr_state = self.init_state
-
-        # for _n in self.game._graph.successors(self.init_state):
-            # print(f"Adm str: {_n}: {self.state_values[_n]}")
         avalues = set({self.strategy_handle.winning_state_values[curr_state]})
         next_state = self._get_successors_based_on_str(curr_state, avalues)
 
@@ -938,7 +939,7 @@ class AdmWinStrategyRolloutProvider(AdmStrategyRolloutProvider):
     """
      Overrides the base clas''admissibility checking method to compute admissible winning strategies. 
     """
-    def __init__(self, game: ProductAutomaton, strategy_handle: QuantitativeGoUAdmissibleWinning, debug: bool = False, max_steps: int = 10) -> None:
+    def __init__(self, game: ProductAutomaton, strategy_handle: QuantitativeGoUAdmissibleWinning, debug: bool = False, max_steps: int = 10) -> 'AdmWinStrategyRolloutProvider':
         super().__init__(game, strategy_handle, debug, max_steps)
     
 
@@ -979,3 +980,137 @@ class AdmWinStrategyRolloutProvider(AdmStrategyRolloutProvider):
             return True
         
         return False
+
+
+class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
+    """
+     This class inherits the base class for rolling out Admissible Strategy. In this class we roll out refined version of Adm strategy.
+
+     All admissible str are maximal in dominance order. As such we an informed way to choose amongst such strategie.
+       We order the an adm str from highest to lowest as follows: 
+     1. If a winning admissible strategy exists then compute Wcoop and choose those strategies.
+     2. If a safe-admissible strategy exists, choose that
+     3. If a safe-admissible does not exists then play hopeful admissible strategy. 
+
+     A hopeful-admissible str always exists and worst-case scenario is exactly the same as Admissible strategies. 
+    """
+
+    def __init__(self, game: ProductAutomaton, strategy_handle: QuantiativeRefinedAdmissible, debug: bool = False, max_steps: int = 10) -> 'RefinedAdmStrategyRolloutProvider':
+        super().__init__(game, strategy_handle, debug, max_steps)
+        self._env_coop_str: Optional[dict] = None
+        self._coop_state_values:  Dict[str, float] = strategy_handle.coop_winning_state_values
+        self._winning_region: set = self.strategy_handle.winning_region
+        self._losing_region: set = self.strategy_handle.losing_region
+        self._pending_region: set = self.strategy_handle.pending_region
+        
+
+    @property
+    def env_coop_str(self):
+        return self._env_coop_str
+    
+    @property
+    def coop_state_values(self):
+        return self._coop_state_values
+
+    @property
+    def winning_region(self):
+        return self._winning_region
+
+    @property
+    def losing_region(self):
+        return self._losing_region
+
+    @property
+    def pending_region(self):
+        return self._pending_region
+    
+    @env_coop_str.setter
+    def env_coop_str(self):
+        self._env_coop_str = self.strategy_handle.env_winning_str
+    
+    @coop_state_values.setter
+    def coop_state_values(self, coop_vals: Dict[str, float]):
+        self._coop_state_values = coop_vals
+    
+    @winning_region.setter
+    def winning_region(self, winning_states: set):
+        self._winning_region = winning_states
+    
+    @losing_region.setter
+    def losing_region(self, losing_states: set):
+        self._losing_region = losing_states
+
+    @pending_region.setter
+    def pending_region(self, pending_states: set):
+        self._pending_region = pending_states
+
+    def set_strategy(self):
+        self._strategy = self.strategy_handle.sys_adm_str
+    
+    def set_env_strategy(self):
+        self._env_strategy = self.strategy_handle.env_winning_str
+
+    def set_state_values(self):
+        self._state_values =  self.strategy_handle.winning_state_values
+    
+
+    def _get_successors_based_on_str(self, curr_state) -> str:
+        succ_list = []
+        # succ_state = self.strategy.get(curr_state, None)
+
+        # if succ_state is None:
+        #     return
+        is_winning: bool = True if curr_state in self.winning_region else False
+        for count, n in enumerate(list(self.game._graph.successors(curr_state))):
+            edge_action = self.game._graph[curr_state][n][0].get("actions")
+            print(f"[{count}], state:{n}: {'Win' if is_winning else 'Pen'}, action: {edge_action}: {self.state_values[n] if is_winning else self.coop_state_values[n]}")
+            succ_list.append(n)
+        
+        if self.game.get_state_w_attribute(curr_state, 'player') == "eve":
+            for act in self.strategy.get(curr_state):
+                if is_winning:
+                    print("Sys Strategy: [Win]", act)
+                elif act in self.strategy_handle.safe_adm_str.get(curr_state, []):
+                    print("Sys Strategy: [Safe-Adm]", act)
+                else:
+                    assert act in self.strategy_handle.hopeful_adm_str[curr_state], f"[Error] {act} is neither Wcoop, safe-adm, or hope-adm. Fix this bug!!!"
+                    print("Sys Strategy: [Hope-Adm]", act)
+        
+        idx_num = input("Enter state to select from: ")
+        print(f"Choosing state: {succ_list[int(idx_num)]}")
+        return succ_list[int(idx_num)]
+    
+
+    def manual_rollout(self):
+        states = []
+        states.append(self.init_state)
+        curr_state = self.init_state
+        next_state = self._get_successors_based_on_str(curr_state)
+
+        self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+        steps: int = 0
+
+        while True and steps < self.max_steps:
+            curr_state = next_state
+            states.append(curr_state)
+
+            next_state = self._get_successors_based_on_str(curr_state)
+
+            if next_state in self.absorbing_states:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                break
+                
+            if next_state is not None:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                    print(self.action_seq[-1])
+            
+            steps += 1
+        
+        if self.debug:
+            print("Action Seq:")
+            for _action in self.action_seq:
+                print(_action)
