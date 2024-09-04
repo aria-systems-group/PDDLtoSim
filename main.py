@@ -24,8 +24,9 @@ from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import Qual
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible
 
-from src.rollout_provider import rollout_strategy, RolloutProvider, VALID_ENV_STRINGS, Strategy
 from src.execute_str import execute_saved_str
+from src.rollout_str.rollout_provider_if import RolloutProvider
+from src.rollout_str.rollout_main import rollout_strategy, VALID_ENV_STRINGS, Strategy
 
 from config import *
 from utls import timer_decorator
@@ -447,7 +448,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
 
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_ADM)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_ADM_HOPELESS)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -471,7 +472,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=product_graph,
                                             #   human_type='random-human',
                                               human_type='manual',
@@ -594,7 +595,7 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='minigrid',
+        construct_abstraction(abstraction_instance='daig-main',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,
