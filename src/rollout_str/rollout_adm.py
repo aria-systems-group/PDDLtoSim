@@ -1,4 +1,5 @@
 import math
+import random
 
 from typing import List, Tuple, Set, Optional, Dict
 
@@ -238,12 +239,16 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
 
     def __init__(self, game: ProductAutomaton, strategy_handle: QuantiativeRefinedAdmissible, debug: bool = False, max_steps: int = 10) -> 'RefinedAdmStrategyRolloutProvider':
         super().__init__(game, strategy_handle, debug, max_steps)
-        self._env_coop_str: Optional[dict] = None
-        self._coop_state_values:  Dict[str, float] = strategy_handle.coop_winning_state_values
-        self._winning_region: set = self.strategy_handle.winning_region
-        self._losing_region: set = self.strategy_handle.losing_region
-        self._pending_region: set = self.strategy_handle.pending_region
-        
+        self.sys_opt_coop_str: Optional[dict] =  self.strategy_handle.coop_optimal_sys_str
+        self.env_coop_str: Optional[dict] = self.strategy_handle.env_winning_str
+        self.coop_state_values:  Dict[str, float] = self.strategy_handle.coop_winning_state_values
+        self.winning_region: set = self.strategy_handle.winning_region
+        self.losing_region: set = self.strategy_handle.losing_region
+        self.pending_region: set = self.strategy_handle.pending_region
+    
+    @property
+    def sys_opt_coop_str(self):
+        return self._sys_opt_coop_str
 
     @property
     def env_coop_str(self):
@@ -265,9 +270,13 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
     def pending_region(self):
         return self._pending_region
     
+    @sys_opt_coop_str.setter
+    def sys_opt_coop_str(self, str_dict: dict):
+        self._sys_opt_coop_str = str_dict
+    
     @env_coop_str.setter
-    def env_coop_str(self):
-        self._env_coop_str = self.strategy_handle.env_winning_str
+    def env_coop_str(self, str_dict: dict):
+        self._env_coop_str = str_dict
     
     @coop_state_values.setter
     def coop_state_values(self, coop_vals: Dict[str, float]):
@@ -320,6 +329,37 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         idx_num = input("Enter state to select from: ")
         print(f"Choosing state: {succ_list[int(idx_num)]}")
         return succ_list[int(idx_num)]
+
+
+    def get_next_state(self, curr_state, rand_hope_adm: bool = False) -> str:
+        """
+         A helper function that wrap around sys_strategy dictionary. 
+         If Sys strategy is deterministic, i.e., there is only one action to take then we return that action. 
+         If multiple actions exists, then: 
+            If a Wcoop strategy exists then we randomly choose one
+            If safe-adm strategy exists, then we randomly choose one
+            If Hope-adm strategy exists then we 
+        """
+        if len(self.strategy.get(curr_state)) == 1:
+            [state] = self.strategy.get(curr_state)
+            return state
+        
+        is_winning: bool = True if curr_state in self.winning_region else False
+
+        if is_winning:
+            return random.choice(self.strategy.get(curr_state)) 
+        # else if any of the str is safe-adm
+        elif random.choice(self.strategy.get(curr_state)) in self.strategy_handle.safe_adm_str.get(curr_state, []):
+            return random.choice(self.strategy.get(curr_state))
+        else:
+            act = random.choice(self.strategy.get(curr_state))
+            assert act in self.strategy_handle.hopeful_adm_str[curr_state], f"[Error] {act} is neither Wcoop, safe-adm, or hope-adm. Fix this bug!!!"
+            if rand_hope_adm:
+                return act
+            else:
+                # choose coop optimal strategy
+                assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperate Optimal str is not part of set of all Cooperative Stratehgy"
+                return self.sys_opt_coop_str[curr_state]
     
 
     def manual_rollout(self):
@@ -355,3 +395,51 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             print("Action Seq:")
             for _action in self.action_seq:
                 print(_action)
+    
+
+    def rollout_with_human_intervention(self):
+        """
+         This method returns a rollout for the given strategy with human intervention.
+        """
+        print("Rolling out with human interventions")
+        states = []
+        counter: int = 0
+        states.append(self.init_state)
+        curr_state = self.init_state
+        next_state = self.get_next_state(curr_state)
+        print(f"Init State: {curr_state}")
+
+        self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
+        print(f"Step {counter}: Conf: {curr_state} - Robot Act: {self.action_seq[-1]}")
+
+        while True:
+            curr_state = next_state
+            states.append(curr_state)
+            
+            # ask usr for human move
+            if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
+                next_state = self._get_successors_based_on_str(curr_state)
+            # get sys move from adm strategy dict.
+            else:
+                next_state = self.get_next_state(curr_state)
+
+            if next_state in self.target_states:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                break
+
+            if next_state is not None:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+            
+            counter += 1
+            print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}: {self.action_seq[-1]}")
+        
+        if self.debug:
+            print("Action Seq:")
+            for _action in self.action_seq:
+                print(_action)
+        
+        print("Done Rolling out")
