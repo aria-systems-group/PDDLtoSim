@@ -331,7 +331,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         return succ_list[int(idx_num)]
 
 
-    def get_next_state(self, curr_state, rand_hope_adm: bool = False) -> str:
+    def get_next_state(self, curr_state, rand_hope_adm: bool = False) -> Tuple[str, str]:
         """
          A helper function that wrap around sys_strategy dictionary. 
          If Sys strategy is deterministic, i.e., there is only one action to take then we return that action. 
@@ -341,25 +341,26 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             If Hope-adm strategy exists then we 
         """
         if len(self.strategy.get(curr_state)) == 1:
-            [state] = self.strategy.get(curr_state)
-            return state
+            self.strategy[curr_state] = list(self.strategy.get(curr_state))
+            # return state
         
         is_winning: bool = True if curr_state in self.winning_region else False
 
         if is_winning:
-            return random.choice(self.strategy.get(curr_state)) 
+            return random.choice(self.strategy.get(curr_state)), 'Win' 
         # else if any of the str is safe-adm
         elif random.choice(self.strategy.get(curr_state)) in self.strategy_handle.safe_adm_str.get(curr_state, []):
-            return random.choice(self.strategy.get(curr_state))
+            return random.choice(self.strategy.get(curr_state)), 'Safe-Adm'
         else:
             act = random.choice(self.strategy.get(curr_state))
             assert act in self.strategy_handle.hopeful_adm_str[curr_state], f"[Error] {act} is neither Wcoop, safe-adm, or hope-adm. Fix this bug!!!"
             if rand_hope_adm:
-                return act
+                return act, 'Hope-Adm'
             else:
                 # choose coop optimal strategy
-                assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperate Optimal str is not part of set of all Cooperative Stratehgy"
-                return self.sys_opt_coop_str[curr_state]
+                assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperative Optimal str is not part of set of all \
+                    Cooperative Stratehgies. This is a buf in Permissive VI. Fix this!!!!"
+                return self.sys_opt_coop_str[curr_state], 'Hope-Adm'
     
 
     def manual_rollout(self):
@@ -406,11 +407,11 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         counter: int = 0
         states.append(self.init_state)
         curr_state = self.init_state
-        next_state = self.get_next_state(curr_state)
+        next_state, str_type = self.get_next_state(curr_state)
         print(f"Init State: {curr_state}")
 
         self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
-        print(f"Step {counter}: Conf: {curr_state} - Robot Act: {self.action_seq[-1]}")
+        print(f"Step {counter}: Conf: {curr_state} - Robot Act [{str_type}]: {self.action_seq[-1]}")
 
         while True:
             curr_state = next_state
@@ -421,7 +422,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 next_state = self._get_successors_based_on_str(curr_state)
             # get sys move from adm strategy dict.
             else:
-                next_state = self.get_next_state(curr_state)
+                next_state, str_type = self.get_next_state(curr_state)
 
             if next_state in self.target_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
@@ -435,8 +436,9 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
             
             counter += 1
-            print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}: {self.action_seq[-1]}")
-        
+            print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
+                  f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
+            print("*****************************************************************************************************")
         if self.debug:
             print("Action Seq:")
             for _action in self.action_seq:
