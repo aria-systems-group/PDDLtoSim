@@ -1,7 +1,7 @@
 import math
 import random
 
-from typing import List, Tuple, Set, Optional, Dict
+from typing import List, Tuple, Set, Optional, Dict, Iterable
 
 from utls import deprecated
 from src.rollout_str.rollout_provider_if import RolloutProvider
@@ -382,18 +382,24 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
         steps: int = 0
 
+        if 'tic' in self.game_name and self.debug:
+            self.print_board(next_state)
+
         while True and steps < self.max_steps:
             curr_state = next_state
             states.append(curr_state)
 
             next_state = self._get_successors_based_on_str(curr_state)
-            self.print_board(next_state)
+            if 'tic' in self.game_name and self.debug:
+                self.print_board(next_state)
+            
 
             if next_state in self.absorbing_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
-                self.print_board(next_state)
+                if 'tic' in self.game_name and self.debug:
+                    self.print_board(next_state)
                 break
                 
             if next_state is not None:
@@ -436,6 +442,8 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
 
         self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
         print(f"Step {counter}: Conf: {curr_state} - Robot Act [{str_type}]: {self.action_seq[-1]}")
+        if 'tic' in self.game_name and self.debug:
+            self.print_board(next_state)
 
         while True:
             curr_state = next_state
@@ -452,7 +460,8 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
-                self.print_board(next_state)
+                if 'tic' in self.game_name and self.debug:
+                    self.print_board(next_state)
                 break
 
             if next_state is not None:
@@ -460,7 +469,8 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
             
-            self.print_board(next_state)
+            if 'tic' in self.game_name and self.debug:
+                self.print_board(next_state)
             counter += 1
             print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
                   f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")

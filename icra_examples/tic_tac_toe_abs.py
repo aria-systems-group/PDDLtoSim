@@ -45,7 +45,7 @@ class TicTacToe():
     def check_verticals(self, cells: Tuple[int]) -> int:
         for val in [1, 2]:
             for i in range(3): 
-                if cells[r_c_to_index(0, 1)] == val and cells[r_c_to_index(1, i)] == val and cells[r_c_to_index(2, i)] == val:
+                if cells[r_c_to_index(0, i)] == val and cells[r_c_to_index(1, i)] == val and cells[r_c_to_index(2, i)] == val:
                     return val
         return 0
 
@@ -82,11 +82,7 @@ class TicTacToe():
             return 'draw'
         else:
             return ''
-        
-        # return status
-        # if cells.count(1) >= 3:
-        #     # check if placec diagonally
-        #     idx = [loc for _, loc in enumerate(cells)]
+
 
 
     def construct_graph(self):
@@ -152,8 +148,8 @@ class TicTacToe():
 
     def build_product(self, dfa, trans_sys, plot: bool = False):
         _product_automaton = graph_factory.get("ProductGraph",
-                                               graph_name="pddl_product_graph",
-                                               config_yaml="/config/pddl_product_graph",
+                                               graph_name="tic_tac_toe_product_graph",
+                                               config_yaml="/config/tic_tac_toe_product_graph",
                                                trans_sys=trans_sys,
                                                automaton=dfa,
                                                # dfa=dfa,

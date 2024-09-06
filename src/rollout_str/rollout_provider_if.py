@@ -19,6 +19,7 @@ class RolloutProvider(ABC):
 
     def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10) -> 'RolloutProvider':
         self._game: Union[ProductAutomaton, TwoPlayerGame] = game
+        self._game_name: str = game.graph_name
         self._strategy_handle = strategy_handle
         self._strategy: dict = None
         self._env_strategy: dict = None
@@ -43,6 +44,11 @@ class RolloutProvider(ABC):
     @property
     def game(self):
         return self._game
+    
+
+    @property
+    def game_name(self):
+        return self._game_name
     
     @property
     def strategy_handle(self):
@@ -84,6 +90,10 @@ class RolloutProvider(ABC):
     def game(self, game: TwoPlayerGraph):
         assert isinstance(game, TwoPlayerGraph), "Please enter a graph which is of type TwoPlayerGraph"
         self._game = game
+    
+    @game_name.setter
+    def game_name(self, name: str):
+        self._game_name = name
     
     @abstractmethod
     def set_strategy(self):
