@@ -326,22 +326,32 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 print(f"[{count}], state:{n}: {'Win' if is_winning else 'Pen'}, action: {e}: {self.state_values[n] if is_winning else self.coop_state_values[n]}")
             succ_list.append(n)
         
+        # preprocess to check in operation
+        if not isinstance(self.sys_opt_coop_str[curr_state], list):
+            self.sys_opt_coop_str[curr_state] = [self.sys_opt_coop_str[curr_state]]
+        
         if self.game.get_state_w_attribute(curr_state, 'player') == "eve":
             for act in self.strategy.get(curr_state):
                 if is_winning:
                     print("Sys Strategy: [Win]", act)
                 elif act in self.strategy_handle.safe_adm_str.get(curr_state, []):
-                    print("Sys Strategy: [Safe-Adm]", act)
+                    if act in self.sys_opt_coop_str[curr_state]:
+                        print("Sys Strategy: [Safe-Adm][Coop Opt]", act)
+                    else:
+                        print("Sys Strategy: [Safe-Adm]", act)
                 else:
                     assert act in self.strategy_handle.hopeful_adm_str[curr_state], f"[Error] {act} is neither Wcoop, safe-adm, or hope-adm. Fix this bug!!!"
-                    print("Sys Strategy: [Hope-Adm]", act)
+                    if act in self.sys_opt_coop_str[curr_state]:
+                        print("Sys Strategy: [Hope-Adm][Coop Opt]", act)
+                    else:
+                        print("Sys Strategy: [Hope-Adm]", act)
         
         idx_num = input("Enter state to select from: ")
         print(f"Choosing state: {succ_list[int(idx_num)]}")
         return succ_list[int(idx_num)]
 
 
-    def get_next_state(self, curr_state, rand_hope_adm: bool = False) -> Tuple[str, str]:
+    def get_next_state(self, curr_state, rand_adm: bool = False) -> Tuple[str, str]:
         """
          A helper function that wrap around sys_strategy dictionary. 
          If Sys strategy is deterministic, i.e., there is only one action to take then we return that action. 
@@ -350,26 +360,28 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             If safe-adm strategy exists, then we randomly choose one
             If Hope-adm strategy exists then we 
         """
-        # if len(self.strategy.get(curr_state)) == 1:
         self.strategy[curr_state] = list(self.strategy.get(curr_state))
-            # return state
         
         is_winning: bool = True if curr_state in self.winning_region else False
-
+        act = random.choice(self.strategy.get(curr_state))
         if is_winning:
-            return random.choice(self.strategy.get(curr_state)), 'Win' 
-        # else if any of the str is safe-adm
-        elif random.choice(self.strategy.get(curr_state)) in self.strategy_handle.safe_adm_str.get(curr_state, []):
-            return random.choice(self.strategy.get(curr_state)), 'Safe-Adm'
+            return act, 'Win' 
+        elif act in self.strategy_handle.safe_adm_str.get(curr_state, []):
+            if rand_adm:
+                return act, 'Safe-Adm'
+            else:
+                assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperative Optimal str is not part of set of all \
+                    Cooperative Strategies. This is a buf in Permissive VI. Fix this!!!!"
+                return self.sys_opt_coop_str[curr_state], 'Safe-Adm'
         else:
-            act = random.choice(self.strategy.get(curr_state))
             assert act in self.strategy_handle.hopeful_adm_str[curr_state], f"[Error] {act} is neither Wcoop, safe-adm, or hope-adm. Fix this bug!!!"
-            if rand_hope_adm:
+            if rand_adm:
                 return act, 'Hope-Adm'
             else:
                 # choose coop optimal strategy
+                # TODO: Need to verify if this assert is always truue or not. Not it is!!!!
                 assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperative Optimal str is not part of set of all \
-                    Cooperative Stratehgies. This is a buf in Permissive VI. Fix this!!!!"
+                    Hopeful Strategies. This is a bug in Permissive VI. Fix this!!!!"
                 return self.sys_opt_coop_str[curr_state], 'Hope-Adm'
     
 

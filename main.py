@@ -393,8 +393,8 @@ def tic_tac_toe_main():
 
     _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=product_graph,
-                                            #   human_type='random-human',
-                                              human_type='manual',
+                                              human_type='random-human',
+                                            #   human_type='manual',
                                               rollout_flag=True,
                                               debug=True,
                                               max_iterations=100,
@@ -508,8 +508,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     else:    
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=product_graph,
-                                              human_type='random-human',
-                                            #   human_type='manual',
+                                            #   human_type='random-human',
+                                              human_type='manual',
                                               rollout_flag=True,
                                               debug=True,
                                               max_iterations=100,
@@ -629,7 +629,7 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='tic-tac-toe',
+        construct_abstraction(abstraction_instance='daig-main',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,
