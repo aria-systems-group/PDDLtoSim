@@ -16,6 +16,9 @@ FORMULA_ADM = '!(p09) U (p01 | (p06 & p17))'
 FORMULA_ADM_HOPELESS = '!(p09) U ((p06 & p17))'
 FORMULA_SAFE_ADM = 'F(p01) | F(p17)'
 
+## ADM -Tic-Tac-Toe 
+FORMULA_ADM_TIC_TAC_TOE = 'F(win | draw)'
+
 # Arch Formulas 
 ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
 

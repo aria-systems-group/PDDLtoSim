@@ -10,6 +10,8 @@ import warnings
 from typing import Optional, Dict, Type, Union, Tuple, List
 
 from icra_examples.safe_adm_game import modify_abstraction
+from icra_examples.tic_tac_toe_abs import TicTacToe
+
 from src.graph_construction.causal_graph import CausalGraph
 from src.graph_construction.two_player_game import TwoPlayerGame
 from src.graph_construction.transition_system import FiniteTransitionSystem
@@ -39,7 +41,7 @@ DfaGame = Union[TwoPlayerGraph, TwoPlayerGame, NonDeterministicMiniGrid]
 
 VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "QuantitativeNaiveAdmissible", \
                         "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning", "QuantiativeRefinedAdmissible"]
-VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid']
+VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid', 'tic-tac-toe']
 
 
 @timer_decorator
@@ -311,6 +313,8 @@ def construct_abstraction(abstraction_instance: str,
         arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
     elif abstraction_instance == 'minigrid':
         minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str, max_iterations=max_iterations)
+    elif abstraction_instance == 'tic-tac-toe':
+        tic_tac_toe_main()
 
 
 def minigrid_main(debug: bool = False,
@@ -377,6 +381,27 @@ def minigrid_main(debug: bool = False,
         system_actions, env_actions = minigrid_handle._action_parser(action_seq=roller.action_seq)
 
         minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
+
+
+@timer_decorator
+def tic_tac_toe_main():
+    game_handle = TicTacToe()
+    game_handle.construct_graph()
+
+    dfa = game_handle.build_LTLf_automaton(formula=FORMULA_ADM_TIC_TAC_TOE)
+    product_graph = game_handle.build_product(dfa=dfa, trans_sys=game_handle.two_player_game)
+
+    _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+                                              game=product_graph,
+                                            #   human_type='random-human',
+                                              human_type='manual',
+                                              rollout_flag=True,
+                                              debug=True,
+                                              max_iterations=100,
+                                              reg_factor=1.25)
+
+
+
 
 
 
@@ -604,7 +629,7 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='daig-main',
+        construct_abstraction(abstraction_instance='tic-tac-toe',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,

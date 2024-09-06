@@ -236,7 +236,6 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
 
      A hopeful-admissible str always exists and worst-case scenario is exactly the same as Admissible strategies. 
     """
-
     def __init__(self, game: ProductAutomaton, strategy_handle: QuantiativeRefinedAdmissible, debug: bool = False, max_steps: int = 10) -> 'RefinedAdmStrategyRolloutProvider':
         super().__init__(game, strategy_handle, debug, max_steps)
         self.sys_opt_coop_str: Optional[dict] =  self.strategy_handle.coop_optimal_sys_str
@@ -245,6 +244,8 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         self.winning_region: set = self.strategy_handle.winning_region
         self.losing_region: set = self.strategy_handle.losing_region
         self.pending_region: set = self.strategy_handle.pending_region
+        self._board = ['-','-','-', '-','-','-', '-','-','-']
+
     
     @property
     def sys_opt_coop_str(self):
@@ -386,11 +387,13 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             states.append(curr_state)
 
             next_state = self._get_successors_based_on_str(curr_state)
+            self.print_board(next_state)
 
             if next_state in self.absorbing_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                self.print_board(next_state)
                 break
                 
             if next_state is not None:
@@ -405,6 +408,18 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             print("Action Seq:")
             for _action in self.action_seq:
                 print(_action)
+    
+
+    def print_board(self, next_state: Tuple):
+        # update board
+        for idx, cell in enumerate(next_state[0]):
+            if cell == 1:
+                self._board[idx] = 'R'
+            elif cell == 2:
+                self._board[idx] = 'H'
+        print(self._board[0] + ' | ' + self._board[1] + ' | ' + self._board[2])
+        print(self._board[3] + ' | ' + self._board[4] + ' | ' + self._board[5])
+        print(self._board[6] + ' | ' + self._board[7] + ' | ' + self._board[8])
     
 
     def rollout_with_human_intervention(self):
@@ -437,6 +452,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                self.print_board(next_state)
                 break
 
             if next_state is not None:
@@ -444,10 +460,13 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
             
+            self.print_board(next_state)
             counter += 1
             print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
                   f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
             print("*****************************************************************************************************")
+            
+        
         if self.debug:
             print("Action Seq:")
             for _action in self.action_seq:
