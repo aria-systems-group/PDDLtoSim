@@ -304,16 +304,25 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         self._state_values =  self.strategy_handle.winning_state_values
     
 
+    def get_edge_action(self, curr_state, succ_state):
+        """
+         A tiny wrapper around to chekc there exists multiple edged between two states. If yes, then return both those actions
+        """
+        num_of_edges: int = len(self.game._graph[curr_state][succ_state])
+        if num_of_edges == 1:
+            return [self.game._graph[curr_state][succ_state][0].get("actions")]
+        else:
+            return [self.game._graph[curr_state][succ_state][i].get("actions") for i in range(num_of_edges)]
+    
+
     def _get_successors_based_on_str(self, curr_state) -> str:
         succ_list = []
-        # succ_state = self.strategy.get(curr_state, None)
-
-        # if succ_state is None:
-        #     return
         is_winning: bool = True if curr_state in self.winning_region else False
         for count, n in enumerate(list(self.game._graph.successors(curr_state))):
-            edge_action = self.game._graph[curr_state][n][0].get("actions")
-            print(f"[{count}], state:{n}: {'Win' if is_winning else 'Pen'}, action: {edge_action}: {self.state_values[n] if is_winning else self.coop_state_values[n]}")
+            # edge_action = self.game._graph[curr_state][n][0].get("actions")
+            edge_action = self.get_edge_action(curr_state=curr_state, succ_state=n)
+            for e in edge_action:
+                print(f"[{count}], state:{n}: {'Win' if is_winning else 'Pen'}, action: {e}: {self.state_values[n] if is_winning else self.coop_state_values[n]}")
             succ_list.append(n)
         
         if self.game.get_state_w_attribute(curr_state, 'player') == "eve":
@@ -340,8 +349,8 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             If safe-adm strategy exists, then we randomly choose one
             If Hope-adm strategy exists then we 
         """
-        if len(self.strategy.get(curr_state)) == 1:
-            self.strategy[curr_state] = list(self.strategy.get(curr_state))
+        # if len(self.strategy.get(curr_state)) == 1:
+        self.strategy[curr_state] = list(self.strategy.get(curr_state))
             # return state
         
         is_winning: bool = True if curr_state in self.winning_region else False

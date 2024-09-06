@@ -9,6 +9,7 @@ import warnings
 
 from typing import Optional, Dict, Type, Union, Tuple, List
 
+from icra_examples.safe_adm_game import modify_abstraction
 from src.graph_construction.causal_graph import CausalGraph
 from src.graph_construction.two_player_game import TwoPlayerGame
 from src.graph_construction.transition_system import FiniteTransitionSystem
@@ -387,7 +388,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     ##### Adm Related domain files #####
     domain_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/domain.pddl'
-    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem.pddl'
+    # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem.pddl'
+
+    #### Safe-Adm game domain file - ICRA 25 ####
+    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_2.pddl'
 
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
@@ -425,7 +429,12 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(implicit=True)
-    two_player_instance.modify_edge_weights(implicit=True)
+    # two_player_instance.modify_edge_weights(implicit=True)
+    modify_abstraction(game=two_player_instance.two_player_implicit_game,
+                       all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
+                       hopeless_human_loc=set(['l6', 'l7', 'l8']),
+                       human_only_loc=set(['l9']),
+                       debug=False)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -446,9 +455,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
-
+    # sys.exit(-1)
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_ADM_HOPELESS)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)

@@ -14,7 +14,7 @@ FORMULA_1B_3L_AND_W_TRAP = "G(!p08) U F(p07 & F(p06))"
 # Adm Formula - start  in winning region..
 FORMULA_ADM = '!(p09) U (p01 | (p06 & p17))'
 FORMULA_ADM_HOPELESS = '!(p09) U ((p06 & p17))'
-
+FORMULA_SAFE_ADM = 'F(p01) | F(p17)'
 
 # Arch Formulas 
 ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
