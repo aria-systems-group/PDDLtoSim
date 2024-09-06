@@ -163,12 +163,13 @@ def run_synthesis_and_rollout(strategy_type: str,
     return str_handle, None
 
 
-def save_str(causal_graph: CausalGraph,
-             transition_system: FiniteTransitionSystem,
-             two_player_game: TwoPlayerGame,
+def save_str(two_player_game: ProductAutomaton,
              pos_seq: list,
+             causal_graph: Optional[CausalGraph] = None,
+             transition_system: Optional[FiniteTransitionSystem] = None,
              regret_graph_of_alternatives: Optional[TwoPlayerGraph] = None,
              game_reg_value: Optional[dict] = None,
+             admissible: bool = False,
              adversarial: bool = False):
     """
     A helper method that dumps the regret value and the corresponding strategy computed for given abstraction and an
@@ -186,31 +187,39 @@ def save_str(causal_graph: CausalGraph,
         7. LTL Formula used
         8. strategy compute (a sequence of actions)
     """
-    
-    _task_name: str = causal_graph.get_task_name()
-    _boxes = causal_graph.task_objects
-    _locations = causal_graph.task_locations
+    if causal_graph is not None:
+        _task_name: str = causal_graph.get_task_name()
+        _boxes = causal_graph.task_objects
+        _locations = causal_graph.task_locations
+    else:
+        _task_name: str = two_player_game.graph_name
+        _boxes = None
+        _locations = None
 
-    if not adversarial:
+    if regret_graph_of_alternatives is not None:
         _init_state = regret_graph_of_alternatives.get_initial_states()[0][0]
         _reg_value: Optional[int] = game_reg_value.get(_init_state)
     else:
         _reg_value = None
+        _init_state = two_player_game.trans_sys.get_initial_states()[0][0]
 
-    _init_state = transition_system.transition_system.get_initial_states()[0][0]
-    _init_conf = transition_system.transition_system.get_state_w_attribute(_init_state, "list_ap")
-
-    _possible_human_interventions: int = two_player_game.human_interventions
+    try:
+        _init_conf = two_player_game.trans_sys.get_state_w_attribute(_init_state, "list_ap")
+    except KeyError:
+        _init_conf = two_player_game.trans_sys.get_state_w_attribute(_init_state, "ap")
 
     # transition system nodes and edges
-    _trans_sys_nodes = len(transition_system.transition_system._graph.nodes())
-    _trans_sys_edges = len(transition_system.transition_system._graph.edges())
+    if transition_system is not None:
+        _trans_sys_nodes = len(transition_system.transition_system._graph.nodes())
+        _trans_sys_edges = len(transition_system.transition_system._graph.edges())
+    else:
+        _trans_sys_nodes = _trans_sys_edges = None
 
     # product graph nodes and edges
     _prod_nodes = len(two_player_game.two_player_game._graph.nodes())
     _prod_edges = len(two_player_game.two_player_game._graph.edges())
 
-    if not adversarial:
+    if regret_graph_of_alternatives is not None:
         # graph of alternatives nodes and edges
         _graph_of_alts_nodes = len(regret_graph_of_alternatives._graph.nodes())
         _graph_of_alts_edges = len(regret_graph_of_alternatives._graph.edges())
@@ -232,7 +241,6 @@ def save_str(causal_graph: CausalGraph,
             'num': len(_locations),
             'objects': _locations
         },
-        max_human_int=_possible_human_interventions,
         init_worl_conf=_init_conf,
         ltl_formula=_ltl_formula,
         abstractions={
@@ -250,11 +258,14 @@ def save_str(causal_graph: CausalGraph,
     # now dump the data in a file
     if adversarial:
         _file_name: str = \
-            f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_{_possible_human_interventions}_h_" \
+            f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_h_" \
             f"{_reg_value}_adv_"
+    elif admissible:
+        _file_name: str = \
+            f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc__adm_"
     else:
         _file_name: str =\
-        f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_{_possible_human_interventions}_h_" \
+        f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_h_" \
         f"{_reg_value}_reg_"
 
     _current_date_time_stamp = str(datetime.datetime.now())
@@ -400,9 +411,15 @@ def tic_tac_toe_main():
                                               max_iterations=100,
                                               reg_factor=1.25)
 
-
-
-
+    _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
+    # save strs
+    if _dump_strs == "y" or _dump_strs == "Y":
+        save_str(admissible=True,
+                 two_player_game=product_graph,
+                 pos_seq=roller.action_seq,
+                 causal_graph=None,
+                 transition_system=None,
+                 adversarial=False)
 
 
 @timer_decorator
@@ -482,7 +499,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
     # sys.exit(-1)
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -520,7 +537,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
     # save strs
     if _dump_strs == "y" or _dump_strs == "Y":
-        save_str(causal_graph=causal_graph_instance,
+        save_str(admissible=True,
+                 causal_graph=causal_graph_instance,
                  transition_system=transition_system_instance,
                  two_player_game=two_player_instance,
                  pos_seq=roller.action_seq,

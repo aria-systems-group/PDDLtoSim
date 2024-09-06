@@ -7,6 +7,7 @@ from icra_examples.tic_tac_toe import genGame, State, NUM_CELLS, print_labels, r
 from regret_synthesis_toolbox.src.graph import graph_factory
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 
+
 class TicTacToe():
     """
      Construct an absatrct two player graph from out ICRA 24 paper.

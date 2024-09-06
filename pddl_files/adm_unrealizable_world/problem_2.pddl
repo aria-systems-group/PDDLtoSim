@@ -25,16 +25,16 @@
 (:init
     (ready else)
 
-    (on b0 l0)
-    (on b1 l6)
+    (on b0 l6)
+    (on b1 l7)
 )
 
 ;todo: put the goal condition here
 (:goal (and
 ; always add the config of the hbox loc here. It's fine not to include any of the box_loc config
 
-    (on b0 l6)
-    (on b1 l7)
+    (on b0 l7)
+    (on b1 l6)
 ))
 
 )
