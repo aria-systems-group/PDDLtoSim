@@ -19,6 +19,8 @@ FORMULA_SAFE_ADM_TEST = 'F(p07 & p16) | F(p01 & X F(p02))'   # very optimistic b
 
 ## ADM -Tic-Tac-Toe 
 FORMULA_ADM_TIC_TAC_TOE = 'F(win | draw)'
+FORMULA_ADM_TIC_TAC_TOE_2 = 'F(win)'
+FORMULA_ADM_TIC_TAC_TOE_3 = '(!(lose) U win)'
 
 # Arch Formulas 
 ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"

@@ -395,21 +395,22 @@ def minigrid_main(debug: bool = False,
 
 
 @timer_decorator
-def tic_tac_toe_main():
+def tic_tac_toe_main() -> None:
     game_handle = TicTacToe()
-    game_handle.construct_graph()
+    game_handle.construct_graph(modify_weights=True)
 
     dfa = game_handle.build_LTLf_automaton(formula=FORMULA_ADM_TIC_TAC_TOE)
     product_graph = game_handle.build_product(dfa=dfa, trans_sys=game_handle.two_player_game)
 
     _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=product_graph,
-                                              human_type='random-human',
-                                            #   human_type='manual',
+                                            #   human_type='random-human',
+                                              human_type='manual',
                                               rollout_flag=True,
                                               debug=True,
                                               max_iterations=100,
                                               reg_factor=1.25)
+
 
     _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
     # save strs
@@ -647,7 +648,7 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='daig-main',
+        construct_abstraction(abstraction_instance='tic-tac-toe',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,

@@ -370,6 +370,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             if rand_adm:
                 return act, 'Safe-Adm'
             else:
+                # TODO: Need to update this as sys_opt_coop_str[s] returns a list and strategy[s] is a list too
                 assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperative Optimal str is not part of set of all \
                     Cooperative Strategies. This is a buf in Permissive VI. Fix this!!!!"
                 return self.sys_opt_coop_str[curr_state], 'Safe-Adm'

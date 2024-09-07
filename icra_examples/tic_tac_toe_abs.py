@@ -78,15 +78,15 @@ class TicTacToe():
         if status != 0:
             return 'win' if status == 1 else 'lose'
         
-        # game is still going, no-label
+        # no empty cells. Game has reached a draw state
         if cells.count(0) == 0:
             return 'draw'
+        # game is still going, no-label
         else:
             return ''
+        
 
-
-
-    def construct_graph(self):
+    def construct_graph(self, modify_weights: bool = True):
         """
          Main function to build the game as per our ICRA code and then wrap construct a game out of it.
         """
@@ -109,21 +109,20 @@ class TicTacToe():
             stpl = tuple(state.cells)
             if not self._two_player_game._graph.has_node(stpl):
                 self._two_player_game.add_state(stpl, **{'init': False, 'ap': self.get_state_label(cells=stpl), 'player': "eve" if state.robot_turn is True else "adam"})
-                # self._two_player_game._graph.nodes[stpl]['init'] = False
-                # self._two_player_game._graph.nodes[stpl]['ap'] = self.get_state_label(cells=stpl)
-                # self._two_player_game._graph.nodes[stpl]['player'] = "eve" if state.robot_turn is True else "adam"
 
             for j in range(len(state.transitions)):
                 tran = state.transitions[j]
                 for s_prime, p in tran.prob_distr:
-                    succ_tpl = tuple(s_prime.cells)
-                    if not self._two_player_game._graph.has_node(succ_tpl):    
-                        self._two_player_game.add_state(succ_tpl, **{'init': False, 'ap': self.get_state_label(cells=succ_tpl), 'player': "eve" if s_prime.robot_turn is True else "adam"})
-                        # self._two_player_game._graph.nodes[succ_tpl]['init'] = False
-                        # self._two_player_game._graph.nodes[succ_tpl]['ap'] = self.get_state_label(cells=succ_tpl)
-                        # self._two_player_game._graph.nodes[succ_tpl]['player'] = "eve" if s_prime.robot_turn is True else "adam"
+                    succ_tpl: str = tuple(s_prime.cells)
+                    succ_ap: str = self.get_state_label(cells=succ_tpl)    
+                    if not self._two_player_game._graph.has_node(succ_tpl):
+                        self._two_player_game.add_state(succ_tpl, **{'init': False, 'ap': succ_ap, 'player': "eve" if s_prime.robot_turn is True else "adam"})
 
                     self._two_player_game.add_edge(stpl, succ_tpl, **{'weight': 1 if state.robot_turn else 0 , 'actions': tran.action})
+
+                    # modify edge wieght to draw state to 100
+                    if modify_weights and succ_ap == 'draw':
+                        self._two_player_game._graph[stpl][succ_tpl][0]['weight'] = 100
         
         assert len(game) == len(self._two_player_game._graph.nodes()), "[Error] Mismatch in # of state in the Game Abs and the Tic-Tac-Toe code"
 
