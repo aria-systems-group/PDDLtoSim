@@ -307,6 +307,7 @@ def construct_abstraction(abstraction_instance: str,
                           record_flag: bool = False,
                           render_minigrid: bool = False,
                           test_all_str: bool = False,
+                          rollout_flag: bool = False,
                           max_iterations: int = 100):
     """
     A function that will construct call the correct. Currently, we support Non-deterministic Manipulator and Minigrid instances . 
@@ -319,13 +320,13 @@ def construct_abstraction(abstraction_instance: str,
         sys.exit(-1)
     
     if abstraction_instance == 'daig-main':
-        daig_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
+        daig_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str, rollout_flag=rollout_flag)
     elif abstraction_instance == 'arch-main':
         arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
     elif abstraction_instance == 'minigrid':
         minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str, max_iterations=max_iterations)
     elif abstraction_instance == 'tic-tac-toe':
-        tic_tac_toe_main()
+        tic_tac_toe_main(rollout_flag=rollout_flag, print_flag=print_flag)
 
 
 def minigrid_main(debug: bool = False,
@@ -395,36 +396,48 @@ def minigrid_main(debug: bool = False,
 
 
 @timer_decorator
-def tic_tac_toe_main() -> None:
+def tic_tac_toe_main(rollout_flag: bool = False, print_flag: bool = False) -> None:
     game_handle = TicTacToe()
-    game_handle.construct_graph(modify_weights=True)
+    game_handle.construct_graph(modify_weights=False)
 
-    dfa = game_handle.build_LTLf_automaton(formula=FORMULA_ADM_TIC_TAC_TOE)
+    if print_flag:
+        print(f"No. of nodes in the Two player game is :"
+              f"{len(game_handle._two_player_game._graph.nodes())}")
+        print(f"No. of edges in the Two player game is :"
+              f"{len(game_handle._two_player_game._graph.edges())}")
+
+    dfa = game_handle.build_LTLf_automaton(formula=FORMULA_ADM_TIC_TAC_TOE_2)
     product_graph = game_handle.build_product(dfa=dfa, trans_sys=game_handle.two_player_game)
+
+    if print_flag:
+        print(f"No. of nodes in the DFA game is :"
+              f"{len(product_graph._graph.nodes())}")
+        print(f"No. of edges in the DFA game is :"
+              f"{len(product_graph._graph.edges())}")
 
     _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=product_graph,
                                             #   human_type='random-human',
                                               human_type='manual',
-                                              rollout_flag=True,
+                                              rollout_flag=rollout_flag,
                                               debug=True,
                                               max_iterations=100,
                                               reg_factor=1.25)
 
 
-    _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
-    # save strs
-    if _dump_strs == "y" or _dump_strs == "Y":
-        save_str(admissible=True,
-                 two_player_game=product_graph,
-                 pos_seq=roller.action_seq,
-                 causal_graph=None,
-                 transition_system=None,
-                 adversarial=False)
+    # _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
+    # # save strs
+    # if _dump_strs == "y" or _dump_strs == "Y":
+    #     save_str(admissible=True,
+    #              two_player_game=product_graph,
+    #              pos_seq=roller.action_seq,
+    #              causal_graph=None,
+    #              transition_system=None,
+    #              adversarial=False)
 
 
 @timer_decorator
-def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False) -> None:
+def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False, rollout_flag: bool = False) -> None:
     # domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
     # _problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
     # problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
@@ -434,7 +447,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem.pddl'
 
     #### Safe-Adm game domain file - ICRA 25 ####
-    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_2.pddl'
+    # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_2.pddl'
+    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
 
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
@@ -499,8 +513,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
     # sys.exit(-1)
-    # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_2B_2L_OR)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST)
+    # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_SAFE_ADM_TEST_2,  plot=True)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=True)
+    # sys.exit(-1)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -528,22 +543,22 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
                                               game=product_graph,
                                             #   human_type='random-human',
                                               human_type='manual',
-                                              rollout_flag=True,
+                                              rollout_flag=rollout_flag,
                                               debug=True,
                                               max_iterations=100,
                                               reg_factor=1.25)
 
     # return
     # ask the user if they want to save the str or not
-    _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
-    # save strs
-    if _dump_strs == "y" or _dump_strs == "Y":
-        save_str(admissible=True,
-                 causal_graph=causal_graph_instance,
-                 transition_system=transition_system_instance,
-                 two_player_game=two_player_instance,
-                 pos_seq=roller.action_seq,
-                 adversarial=False)
+    # _dump_strs = input("Do you want to save the strategy,Enter: Y/y")
+    # # save strs
+    # if _dump_strs == "y" or _dump_strs == "Y":
+    #     save_str(admissible=True,
+    #              causal_graph=causal_graph_instance,
+    #              transition_system=transition_system_instance,
+    #              two_player_game=two_player_instance,
+    #              pos_seq=roller.action_seq,
+    #              adversarial=False)
 
 
 @timer_decorator
@@ -653,6 +668,7 @@ if __name__ == "__main__":
                               record_flag=record,
                               render_minigrid=False,
                               test_all_str=False,
+                              rollout_flag= True,
                               max_iterations=100)
 
         # displaying the memory - output current memory usage and peak memory usage

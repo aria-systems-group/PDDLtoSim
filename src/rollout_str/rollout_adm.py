@@ -319,11 +319,21 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
     def _get_successors_based_on_str(self, curr_state) -> str:
         succ_list = []
         is_winning: bool = True if curr_state in self.winning_region else False
+        
+        if isinstance(self.strategy_handle, QuantiativeRefinedAdmissible):
+            is_hopeful: bool = self.strategy_handle.play_hopeful_game
+        
         for count, n in enumerate(list(self.game._graph.successors(curr_state))):
             # edge_action = self.game._graph[curr_state][n][0].get("actions")
             edge_action = self.get_edge_action(curr_state=curr_state, succ_state=n)
             for e in edge_action:
-                print(f"[{count}], state:{n}: {'Win' if is_winning else 'Pen'}, action: {e}: {self.state_values[n] if is_winning else self.coop_state_values[n]}")
+                if is_winning:
+                    state_val = self.state_values[n] 
+                elif is_hopeful:
+                    state_val = self.strategy_handle.hopeful_game.state_value_dict[n]
+                else:
+                    state_val = self.coop_state_values[n]
+                print(f"[{count}], state:{n}: {'Win' if is_winning else 'Pen'}, action: {e}: {state_val}")
             succ_list.append(n)
         
         # preprocess to check in operation
@@ -333,7 +343,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         if self.game.get_state_w_attribute(curr_state, 'player') == "eve":
             for act in self.strategy.get(curr_state):
                 if is_winning:
-                    print("Sys Strategy: [Win]", act)
+                    print("Sys Strategy: [Wcoop]", act)
                 elif act in self.strategy_handle.safe_adm_str.get(curr_state, []):
                     if act in self.sys_opt_coop_str[curr_state]:
                         print("Sys Strategy: [Safe-Adm][Coop Opt]", act)

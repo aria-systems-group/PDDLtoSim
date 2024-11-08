@@ -16,6 +16,7 @@ FORMULA_ADM = '!(p09) U (p01 | (p06 & p17))'
 FORMULA_ADM_HOPELESS = '!(p09) U ((p06 & p17))'
 FORMULA_SAFE_ADM = 'F(p01) | F(p17)'   # very optimistic beh.
 FORMULA_SAFE_ADM_TEST = 'F(p07 & p16) | F(p01 & X F(p02))'   # very optimistic beh.
+FORMULA_SAFE_ADM_TEST_2 = 'F((p18 | p12) & X F((p20 & p11) | (p16 & p07)))'   # very optimistic beh.
 
 ## ADM -Tic-Tac-Toe 
 FORMULA_ADM_TIC_TAC_TOE = 'F(win | draw)'
