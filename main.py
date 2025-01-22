@@ -501,9 +501,13 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     #                 hopeless_human_loc=set(['l6', 'l7', 'l8']),
     #                 human_only_loc=set(['l9']),
     #                 debug=False)
-    two_player_instance.modify_abstraction()
+    two_player_instance.modify_abstraction(plot_two_player_game=False)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
+
+    # sanity checking  - run modify abstraction and ensure that you do not have any more states to remove
+    two_player_instance.modify_abstraction()
+
 
     # print # of Sys and Env state
     env_count = 0
@@ -522,7 +526,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
-    # sys.exit(-1)
+    sys.exit(-1)
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_SAFE_ADM_TEST_2,  plot=True)
     dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=True)
     # sys.exit(-1)

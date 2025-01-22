@@ -946,7 +946,7 @@ class TwoPlayerGameHumanUndo(TwoPlayerGame):
 
     
     # just add a post-processing step here to remove human-edges that do not correspond to human-undo move.
-    def modify_abstraction(self, debug: bool = False):
+    def modify_abstraction(self, plot_two_player_game: bool = False, debug: bool = False):
         # method that remove the non human-undo moves.
         correct_nodes = set()
         source = self.two_player_implicit_game.get_initial_states()[0][0]
@@ -995,7 +995,7 @@ class TwoPlayerGameHumanUndo(TwoPlayerGame):
                             if parent == source:
                                 continue
                             
-                            # need to go back trace 7 states check its str_ap to check if this is indeed an human undo-move
+                            # need to backtrace 7 states check its str_ap to check if this is indeed an human undo-move
                             current_ap =  self.two_player_implicit_game._graph.nodes[child]['str_ap']
                             prior_node = self.__get_prev_ap(visited_stack)
                             prior_ap = self.two_player_implicit_game._graph.nodes[prior_node]['str_ap']
@@ -1012,10 +1012,23 @@ class TwoPlayerGameHumanUndo(TwoPlayerGame):
             # when you are done exploring, pop
             except StopIteration:
                 stack.pop()
-    
-    def construct_modified_abs(self):
-        """
-         Run a rechability code and only retain the states that belong to the valid states from the modify_abstraction() method.
-        """
-        pass
+        
+
+        _org_node_set: set = set(self.two_player_implicit_game._graph.nodes())
+        _nodes_to_be_purged = _org_node_set - correct_nodes
+        self.two_player_implicit_game._graph.remove_nodes_from(_nodes_to_be_purged)
+
+        if plot_two_player_game:
+            # if relabel_nodes:
+            _relabelled_graph = self.internal_node_mapping(self._two_player_implicit_game)
+            _relabelled_graph.plot_graph()
+            print("Done plotting")
+
+    # def construct_modified_abs(self):
+    #     """
+    #      Run a rechability code and only retain the states that belong to the valid states from the modify_abstraction() method.
+    #     """
+    #     _old_two_player_implicit_game: TwoPlayerGraph = copy.deepcopy(self._two_player_implicit_game)
+
+    #     for 
 
