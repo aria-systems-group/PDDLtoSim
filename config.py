@@ -23,6 +23,8 @@ FORMULA_ADM_TIC_TAC_TOE = 'F(win | draw)'
 FORMULA_ADM_TIC_TAC_TOE_2 = 'F(win)'
 FORMULA_ADM_TIC_TAC_TOE_3 = '(!(lose) U win)'
 
+## ADM IJCAI 25
+FORMULA_ADM_ARCH = 'F(p04 & p15 & X(p26 || p36))'
 # Arch Formulas 
 ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
 

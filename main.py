@@ -82,7 +82,7 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
     
     elif strategy_type == "QuantitativeGoUAdmissible":
         print("************************Playing QuantitativeGoUAdmissible************************")
-        strategy_handle = QuantitativeGoUAdmissible(budget=12, game=game, debug=debug)
+        strategy_handle = QuantitativeGoUAdmissible(budget=13, game=game, debug=debug)
         strategy_handle.compute_adm_strategies(plot=plot, compute_str=False)
     
     elif strategy_type == "QuantitativeGoUAdmissibleWinning":
@@ -506,7 +506,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
     # sanity checking  - run modify abstraction and ensure that you do not have any more states to remove
-    two_player_instance.modify_abstraction()
+    # two_player_instance.modify_abstraction()
 
 
     # print # of Sys and Env state
@@ -526,9 +526,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
-    sys.exit(-1)
+    # sys.exit(-1)
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_SAFE_ADM_TEST_2,  plot=True)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=True)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_ADM_ARCH, plot=False)
     # sys.exit(-1)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
@@ -553,7 +553,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-3],
                                               game=product_graph,
                                             #   human_type='random-human',
                                               human_type='manual',

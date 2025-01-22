@@ -1,6 +1,7 @@
 import re
 import warnings
 import copy
+import pprint
 import networkx as nx
 
 from typing import Tuple, Dict, List, Optional, Iterable
@@ -1018,17 +1019,50 @@ class TwoPlayerGameHumanUndo(TwoPlayerGame):
         _nodes_to_be_purged = _org_node_set - correct_nodes
         self.two_player_implicit_game._graph.remove_nodes_from(_nodes_to_be_purged)
 
+        self.construct_modified_abs(arch_loc=['l4', 'l5', 'l6'], heavy_obj=[3], debug=False)
+
         if plot_two_player_game:
-            # if relabel_nodes:
             _relabelled_graph = self.internal_node_mapping(self._two_player_implicit_game)
             _relabelled_graph.plot_graph()
             print("Done plotting")
 
-    # def construct_modified_abs(self):
-    #     """
-    #      Run a rechability code and only retain the states that belong to the valid states from the modify_abstraction() method.
-    #     """
-    #     _old_two_player_implicit_game: TwoPlayerGraph = copy.deepcopy(self._two_player_implicit_game)
+    def construct_modified_abs(self, arch_loc: List[str], heavy_obj: List[int], debug: bool = False):
+        """
+         Run a rechability code and only retain the states that belong to the valid states from the modify_abstraction() method.
+        """
+        # _old_two_player_implicit_game: TwoPlayerGraph = copy.deepcopy(self._two_player_implicit_game)
 
-    #     for 
+        loc_pattern = "[l|L][\d]+"
+        box_pattern = "[b|B][\d]+"
+        box_id_pattern = "\d+"
+        edges_to_rm = set()
+        
+        for _e in self.two_player_implicit_game._graph.edges():
+            _u: str = _e[0]
+            _v: str = _e[1]
+            edge_action: str = self.two_player_implicit_game._graph[_u][_v][0].get('actions')
+
+            if self.two_player_implicit_game._graph.nodes[_u]['player'] == 'adam':
+                if 'human-move' not in edge_action:
+                    continue
+                loc_states: List[str] = re.findall(loc_pattern, edge_action)
+                assert len(loc_states) == 2, "[Error] From and To loc missing from transit or transfer action. Fix this!!!"
+                _from_loc = loc_states[0]
+                _to_loc = loc_states[1]
+
+                if _to_loc in arch_loc:
+                    edges_to_rm.add(_e)
+            elif self.two_player_implicit_game._graph.nodes[_u]['player'] == 'eve':
+                if 'transfer' in edge_action:
+                    _box_state: str = re.search(box_pattern, edge_action).group()
+                    _box_id: int = int(re.search(box_id_pattern, _box_state).group())
+                    if _box_id in heavy_obj:
+                        self.two_player_implicit_game._graph[_u][_v][0]['weight'] = 2
+        
+        if debug:
+            print(f"# of Edges to remove: {len(edges_to_rm)}")
+            pprint.pp(edges_to_rm)
+    
+        # remove edges
+        self.two_player_implicit_game._graph.remove_edges_from(edges_to_rm)
 
