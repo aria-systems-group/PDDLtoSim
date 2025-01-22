@@ -82,7 +82,7 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
     
     elif strategy_type == "QuantitativeGoUAdmissible":
         print("************************Playing QuantitativeGoUAdmissible************************")
-        strategy_handle = QuantitativeGoUAdmissible(budget=12, game=game, debug=debug)
+        strategy_handle = QuantitativeGoUAdmissible(budget=44, game=game, debug=debug)
         strategy_handle.compute_adm_strategies(plot=plot, compute_str=False)
     
     elif strategy_type == "QuantitativeGoUAdmissibleWinning":
@@ -144,7 +144,7 @@ def run_synthesis_and_rollout(strategy_type: str,
     # create a strategy synthesis handle and solve the game
     str_handle = compute_strategy(strategy_type=strategy_type,
                                   game=game,
-                                  debug=False,
+                                  debug=True,
                                   plot=False,
                                   reg_factor=reg_factor)
 
@@ -444,11 +444,11 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     ##### Adm Related domain files #####
     domain_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/domain.pddl'
-    # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem.pddl'
+    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem.pddl'
 
     #### Safe-Adm game domain file - ICRA 25 ####
     # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_2.pddl'
-    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
+    # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
 
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
@@ -486,12 +486,12 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(implicit=True)
-    # two_player_instance.modify_edge_weights(implicit=True)
-    modify_abstraction(game=two_player_instance.two_player_implicit_game,
-                       all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
-                       hopeless_human_loc=set(['l6', 'l7', 'l8']),
-                       human_only_loc=set(['l9']),
-                       debug=False)
+    two_player_instance.modify_edge_weights(implicit=True)
+    # modify_abstraction(game=two_player_instance.two_player_implicit_game,
+    #                    all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
+    #                    hopeless_human_loc=set(['l6', 'l7', 'l8']),
+    #                    human_only_loc=set(['l9']),
+    #                    debug=False)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -503,7 +503,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
             env_count += 1
         elif d['player'] == 'eve':
             sys_count += 1
-
+    print(f"# of Sys states in Two player game: {sys_count + env_count}")
     # print(f"# of Sys states in Two player game: {sys_count}")
     # print(f"# of Env states in Two player game: {env_count}")
 
@@ -514,8 +514,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
     # sys.exit(-1)
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_SAFE_ADM_TEST_2,  plot=True)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=True)
-    # sys.exit(-1)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_ADM_B4, plot=False)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -533,13 +532,14 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     if print_flag:
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
+    # sys.exit(-1)
     
     # create a strategy synthesis handle, solve the game, and roll out the strategy
     if test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-3],
                                               game=product_graph,
                                             #   human_type='random-human',
                                               human_type='manual',
@@ -663,12 +663,12 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='tic-tac-toe',
+        construct_abstraction(abstraction_instance='daig-main',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,
                               test_all_str=False,
-                              rollout_flag= True,
+                              rollout_flag= False,
                               max_iterations=100)
 
         # displaying the memory - output current memory usage and peak memory usage

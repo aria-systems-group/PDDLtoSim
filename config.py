@@ -18,6 +18,13 @@ FORMULA_SAFE_ADM = 'F(p01) | F(p17)'   # very optimistic beh.
 FORMULA_SAFE_ADM_TEST = 'F(p07 & p16) | F(p01 & X F(p02))'   # very optimistic beh.
 FORMULA_SAFE_ADM_TEST_2 = 'F((p18 | p12) & X F((p20 & p11) | (p16 & p07)))'   # very optimistic beh.
 
+# Benchmark formulas
+FORMULA_ADM_B1 = 'F(p06)'
+FORMULA_ADM_B2 = 'F(p06 & F(p07))'
+FORMULA_ADM_B3 = 'F(p06 & F(p07 & F(p08)))'
+FORMULA_ADM_B4 = 'F(p06 & F(p07 & F(p08 & F(p09))))'
+
+
 ## ADM -Tic-Tac-Toe 
 FORMULA_ADM_TIC_TAC_TOE = 'F(win | draw)'
 FORMULA_ADM_TIC_TAC_TOE_2 = 'F(win)'
