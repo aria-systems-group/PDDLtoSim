@@ -13,7 +13,7 @@ from icra_examples.safe_adm_game import modify_abstraction
 from icra_examples.tic_tac_toe_abs import TicTacToe
 
 from src.graph_construction.causal_graph import CausalGraph
-from src.graph_construction.two_player_game import TwoPlayerGame
+from src.graph_construction.two_player_game import TwoPlayerGame, TwoPlayerGameHumanUndo
 from src.graph_construction.transition_system import FiniteTransitionSystem
 from src.graph_construction.minigrid_two_player_game import NonDeterministicMiniGrid
 
@@ -308,6 +308,7 @@ def construct_abstraction(abstraction_instance: str,
                           render_minigrid: bool = False,
                           test_all_str: bool = False,
                           rollout_flag: bool = False,
+                          ijcai_flag: bool = False,
                           max_iterations: int = 100):
     """
     A function that will construct call the correct. Currently, we support Non-deterministic Manipulator and Minigrid instances . 
@@ -320,7 +321,7 @@ def construct_abstraction(abstraction_instance: str,
         sys.exit(-1)
     
     if abstraction_instance == 'daig-main':
-        daig_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str, rollout_flag=rollout_flag)
+        daig_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str, rollout_flag=rollout_flag, modified_ijcai_flag=ijcai_flag)
     elif abstraction_instance == 'arch-main':
         arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
     elif abstraction_instance == 'minigrid':
@@ -437,7 +438,7 @@ def tic_tac_toe_main(rollout_flag: bool = False, print_flag: bool = False) -> No
 
 
 @timer_decorator
-def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False, rollout_flag: bool = False) -> None:
+def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False, rollout_flag: bool = False, modified_ijcai_flag: bool = False) -> None:
     # domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
     # _problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
     # problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
@@ -449,6 +450,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     #### Safe-Adm game domain file - ICRA 25 ####
     # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_2.pddl'
     problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
+
+    #### Adm game problem file - IJCAI 25 ####
+    if modified_ijcai_flag:
+        problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_4.pddl'
 
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
@@ -473,11 +478,15 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         print(f"No. of edges in the Transition System is :"
               f"{len(transition_system_instance.transition_system._graph.edges())}")
 
-    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    # normal two-player game 
+    if not modified_ijcai_flag:
+        two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    else:
+        two_player_instance = TwoPlayerGameHumanUndo(causal_graph_instance, transition_system_instance)
     two_player_instance.build_two_player_game(human_intervention=2,
-                                               human_intervention_cost=0,
-                                               plot_two_player_game=False,
-                                               arch_construction=False)
+                                              human_intervention_cost=0,
+                                              plot_two_player_game=False,
+                                              arch_construction=False)
 
     # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
 
@@ -487,11 +496,12 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(implicit=True)
     # two_player_instance.modify_edge_weights(implicit=True)
-    modify_abstraction(game=two_player_instance.two_player_implicit_game,
-                       all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
-                       hopeless_human_loc=set(['l6', 'l7', 'l8']),
-                       human_only_loc=set(['l9']),
-                       debug=False)
+    # modify_abstraction(game=two_player_instance.two_player_implicit_game,
+    #                 all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
+    #                 hopeless_human_loc=set(['l6', 'l7', 'l8']),
+    #                 human_only_loc=set(['l9']),
+    #                 debug=False)
+    two_player_instance.modify_abstraction()
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -663,12 +673,13 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='tic-tac-toe',
+        construct_abstraction(abstraction_instance='daig-main',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,
                               test_all_str=False,
                               rollout_flag= True,
+                              ijcai_flag = True,
                               max_iterations=100)
 
         # displaying the memory - output current memory usage and peak memory usage

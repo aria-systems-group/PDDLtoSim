@@ -3,9 +3,9 @@ import warnings
 import copy
 import networkx as nx
 
-from typing import Tuple, Dict, List, Optional
-from collections import deque, defaultdict
-from bidict import bidict
+from typing import Tuple, Dict, List, Optional, Iterable
+from collections import deque, defaultdict, OrderedDict
+from bidict import bidict, OrderedBidict
 
 from regret_synthesis_toolbox.src.graph import graph_factory
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, ProductAutomaton
@@ -917,4 +917,105 @@ class TwoPlayerGame:
         #                                            attribute_value="eve")
 
         return _product_automaton
+
+
+
+class TwoPlayerGameHumanUndo(TwoPlayerGame):
+    """
+    A class to build IJCAI 25 Game abstraction where we allows human-undo moves only.
+
+    Simple Implementation: Human-undo moves are simply human intervention of objects that the robot trasnfered just belofre the release state. If
+       the the human does not "undo" then it has lost its opportunity. 
+     
+     More Complicated (TODO): I might implement a relistic human-undo move where we keep track of the robot movements of objects and let 
+     human-undo at any moment. 
+    """
+    def states_from_iter(self, node) -> Iterable[List]:
+        return iter(self.two_player_implicit_game._graph[node])
+    
+
+    def __get_prev_ap(self, visited_stack: OrderedDict):
+        """
+         A helper function to backtrace from the curr node to previous 7 states.
+        """
+        i = 0
+        for prev_node, _  in reversed(visited_stack.items()):
+            if i == 7:
+                return prev_node
+            i += 1
+
+    
+    # just add a post-processing step here to remove human-edges that do not correspond to human-undo move.
+    def modify_abstraction(self, debug: bool = False):
+        # method that remove the non human-undo moves.
+        correct_nodes = set()
+        source = self.two_player_implicit_game.get_initial_states()[0][0]
+        stack = [(source, self.states_from_iter(source))]
+        visited_stack = OrderedDict()
+
+        while stack:
+            parent, children = stack[-1]
+            try:
+                child = next(children)
+                # every edge from Sys state is will be retained in the modified abstarction
+                if self.two_player_implicit_game._graph.nodes(data='player')[parent] == 'eve' :
+                    if child not in correct_nodes:
+                        stack.append((child, self.states_from_iter(child)))
+                    if debug: 
+                        print(f"Allowable edge: {parent}: {child}")
+                    
+                    correct_nodes.add(parent)
+                    correct_nodes.add(child)
+                    visited_stack[parent] = child
+                
+                else:
+                    assert self.two_player_implicit_game._graph.nodes(data='player')[parent] in 'adam', f"[Warning] Encountered state: {parent} without player attribute in the tree."
+                    # only under release the human can move the most recent object.
+                    if 'transit' not in parent:
+                        # only explore the human non-intervening edge
+                        if 'human' not in self._two_player_implicit_game._graph.get_edge_data(parent, child)[0]['actions']:
+                            if child not in correct_nodes:
+                                stack.append((child, self.states_from_iter(child)))
+                            correct_nodes.add(parent)
+                            correct_nodes.add(child)
+                            visited_stack[parent] = child
+
+                    # here we allow human-undo moves along with non-intervening edges 
+                    elif 'transit' in parent:
+                        if 'human' not in self._two_player_implicit_game._graph.get_edge_data(parent, child)[0]['actions']:
+                            if child not in correct_nodes:
+                                stack.append((child, self.states_from_iter(child)))
+                            correct_nodes.add(parent)
+                            correct_nodes.add(child)
+                            visited_stack[parent] = child
+                        
+                        # check if undo move - then allow it
+                        else:
+                            # skip if the prior node is init state
+                            if parent == source:
+                                continue
+                            
+                            # need to go back trace 7 states check its str_ap to check if this is indeed an human undo-move
+                            current_ap =  self.two_player_implicit_game._graph.nodes[child]['str_ap']
+                            prior_node = self.__get_prev_ap(visited_stack)
+                            prior_ap = self.two_player_implicit_game._graph.nodes[prior_node]['str_ap']
+                            if current_ap == prior_ap:
+                                if child not in correct_nodes:
+                                    stack.append((child, self.states_from_iter(child)))
+                                correct_nodes.add(parent)
+                                correct_nodes.add(child)
+                                visited_stack[parent] = child
+
+                    if debug: 
+                        print(f"Allowable edge: {parent}: {child}")
+            
+            # when you are done exploring, pop
+            except StopIteration:
+                stack.pop()
+    
+    def construct_modified_abs(self):
+        """
+         Run a rechability code and only retain the states that belong to the valid states from the modify_abstraction() method.
+        """
+        pass
 
