@@ -1,0 +1,188 @@
+root@668db2aaa591:~/pddltosim# /usr/bin/python3 /root/pddltosim/main.py
+No protocol specified
+pybullet build time: Nov 28 2023 23:45:17
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :120
+No. of edges in the Causal Graph is :672
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :13441
+No. of edges in the Transition System is :33604
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 437.6395709514618******************************
+No. of nodes in the Two player game is :51755
+No. of edges in the Two player game is :270008
+Done building the Product Automaton
+No. of nodes in the product graph is :103511
+No. of edges in the product graph is :534245
+************************Playing QuantitativeGoUAdmissible************************
+Starting purging nodes
+Done purging nodes
+Time to construct the Admissbility Tree: 41.48
+Computing Winning strategy
+/root/pddltosim/regret_synthesis_toolbox/src/strategy_synthesis/value_iteration.py:681: RuntimeWarning: invalid value encountered in cast
+  _int_val_vector = self.val_vector[:, -1].astype(int)
+Computing Cooperative Winning strategy
+Computing Adversarial-Cooperative strategy
+Function compute_strategy took 679.9303081035614 seconds to run.
+There does not exist a winning strategy!
+[0], Env state:(('h(ready else)l0_l1_l2_l3_free(transit b0 else l0)', 'q1'), 1), Sys action: (transit b0 else l0): SC Adm
+[0], Env state:(('h(ready else)l0_l1_l2_l3_free(transit b0 else l0)', 'q1'), 1), Sys action: (transit b0 else l0): WCoop Adm
+[1], Env state:(('h(ready else)l0_l1_l2_l3_free(transit b2 else l2)', 'q1'), 1), Sys action: (transit b2 else l2): SC Adm
+[2], Env state:(('h(ready else)l0_l1_l2_l3_free(transit b1 else l1)', 'q1'), 1), Sys action: (transit b1 else l1): SC Adm
+[2], Env state:(('h(ready else)l0_l1_l2_l3_free(transit b1 else l1)', 'q1'), 1), Sys action: (transit b1 else l1): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(ready else)l0_l1_l2_l3_free(transit b0 else l0)', 'q1'), 1)
+[0], Sys state:(('(to-obj b0 l0)l0_l1_l2_l3_free', 'q1'), 1), Env action: (transit b0 else l0)
+Enter state to select from: 0
+Choosing state: (('(to-obj b0 l0)l0_l1_l2_l3_free', 'q1'), 1)
+[0], Env state:(('h(to-obj b0 l0)l0_l1_l2_l3_free(grasp b0 l0)', 'q1'), 2), Sys action: (grasp b0 l0): SC Adm
+[0], Env state:(('h(to-obj b0 l0)l0_l1_l2_l3_free(grasp b0 l0)', 'q1'), 2), Sys action: (grasp b0 l0): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(to-obj b0 l0)l0_l1_l2_l3_free(grasp b0 l0)', 'q1'), 2)
+(grasp b0 l0)
+[0], Sys state:(('(holding b0 l0)gripper_l1_l2_l3_b0', 'q1'), 2), Env action: (grasp b0 l0)
+Enter state to select from: 0
+Choosing state: (('(holding b0 l0)gripper_l1_l2_l3_b0', 'q1'), 2)
+[0], Env state:(('h(holding b0 l0)gripper_l1_l2_l3_b0(transfer b0 l0 l4)', 'q1'), 3), Sys action: (transfer b0 l0 l4): SC Adm
+[0], Env state:(('h(holding b0 l0)gripper_l1_l2_l3_b0(transfer b0 l0 l4)', 'q1'), 3), Sys action: (transfer b0 l0 l4): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(holding b0 l0)gripper_l1_l2_l3_b0(transfer b0 l0 l4)', 'q1'), 3)
+(transfer b0 l0 l4)
+[0], Sys state:(('(to-loc b0 l4)gripper_l1_l2_l3_l4', 'q1'), 3), Env action: (transfer b0 l0 l4)
+[1], Sys state:(('(to-loc b0 l4)gripper_l0_l2_l3_l4', 'q1'), 3), Env action: (human-move b1 l1 l0)
+[2], Sys state:(('(to-loc b0 l4)gripper_l1_l0_l3_l4', 'q1'), 3), Env action: (human-move b2 l2 l0)
+[3], Sys state:(('(to-loc b0 l4)gripper_l1_l2_l0_l4', 'q1'), 3), Env action: (human-move b3 l3 l0)
+Enter state to select from: 0
+Choosing state: (('(to-loc b0 l4)gripper_l1_l2_l3_l4', 'q1'), 3)
+[0], Env state:(('h(to-loc b0 l4)gripper_l1_l2_l3_l4(release b0 l4)', 'q1'), 4), Sys action: (release b0 l4): SC Adm
+[0], Env state:(('h(to-loc b0 l4)gripper_l1_l2_l3_l4(release b0 l4)', 'q1'), 4), Sys action: (release b0 l4): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(to-loc b0 l4)gripper_l1_l2_l3_l4(release b0 l4)', 'q1'), 4)
+(release b0 l4)
+[0], Sys state:(('(ready l4)l4_l1_l2_l3_free', 'q1'), 4), Env action: (release b0 l4)
+[1], Sys state:(('(ready l4)l4_l0_l2_l3_free', 'q1'), 4), Env action: (human-move b1 l1 l0)
+[2], Sys state:(('(ready l4)l4_l1_l0_l3_free', 'q1'), 4), Env action: (human-move b2 l2 l0)
+[3], Sys state:(('(ready l4)l4_l1_l2_l0_free', 'q1'), 4), Env action: (human-move b3 l3 l0)
+Enter state to select from: 0
+Choosing state: (('(ready l4)l4_l1_l2_l3_free', 'q1'), 4)
+[0], Env state:(('h(ready l4)l4_l1_l2_l3_free(transit b2 l4 l2)', 'q1'), 5), Sys action: (transit b2 l4 l2): SC Adm
+[1], Env state:(('h(ready l4)l4_l1_l2_l3_free(transit b1 l4 l1)', 'q1'), 5), Sys action: (transit b1 l4 l1): SC Adm
+[1], Env state:(('h(ready l4)l4_l1_l2_l3_free(transit b1 l4 l1)', 'q1'), 5), Sys action: (transit b1 l4 l1): WCoop Adm
+Enter state to select from: 1
+Choosing state: (('h(ready l4)l4_l1_l2_l3_free(transit b1 l4 l1)', 'q1'), 5)
+(transit b1 l4 l1)
+[0], Sys state:(('(to-obj b1 l1)l4_l1_l2_l3_free', 'q1'), 5), Env action: (transit b1 l4 l1)
+[1], Sys state:(('(to-obj b1 l1)l0_l1_l2_l3_free', 'q1'), 5), Env action: (human-move b0 l4 l0)
+[2], Sys state:(('(to-obj b1 l1)l4_l1_l0_l3_free', 'q1'), 5), Env action: (human-move b2 l2 l0)
+[3], Sys state:(('(to-obj b1 l1)l4_l1_l2_l0_free', 'q1'), 5), Env action: (human-move b3 l3 l0)
+Enter state to select from: 0
+Choosing state: (('(to-obj b1 l1)l4_l1_l2_l3_free', 'q1'), 5)
+[0], Env state:(('h(to-obj b1 l1)l4_l1_l2_l3_free(grasp b1 l1)', 'q1'), 6), Sys action: (grasp b1 l1): SC Adm
+[0], Env state:(('h(to-obj b1 l1)l4_l1_l2_l3_free(grasp b1 l1)', 'q1'), 6), Sys action: (grasp b1 l1): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(to-obj b1 l1)l4_l1_l2_l3_free(grasp b1 l1)', 'q1'), 6)
+(grasp b1 l1)
+[0], Sys state:(('(holding b1 l1)l4_gripper_l2_l3_b1', 'q1'), 6), Env action: (grasp b1 l1)
+[1], Sys state:(('(holding b1 l1)l0_gripper_l2_l3_b1', 'q1'), 6), Env action: (human-move b0 l4 l0)
+[2], Sys state:(('(holding b1 l1)l4_gripper_l0_l3_b1', 'q1'), 6), Env action: (human-move b2 l2 l0)
+[3], Sys state:(('(holding b1 l1)l4_gripper_l2_l0_b1', 'q1'), 6), Env action: (human-move b3 l3 l0)
+Enter state to select from: 0
+Choosing state: (('(holding b1 l1)l4_gripper_l2_l3_b1', 'q1'), 6)
+[0], Env state:(('h(holding b1 l1)l4_gripper_l2_l3_b1(transfer b1 l1 l5)', 'q1'), 7), Sys action: (transfer b1 l1 l5): SC Adm
+[0], Env state:(('h(holding b1 l1)l4_gripper_l2_l3_b1(transfer b1 l1 l5)', 'q1'), 7), Sys action: (transfer b1 l1 l5): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(holding b1 l1)l4_gripper_l2_l3_b1(transfer b1 l1 l5)', 'q1'), 7)
+(transfer b1 l1 l5)
+[0], Sys state:(('(to-loc b1 l5)l4_gripper_l2_l3_l5', 'q1'), 7), Env action: (transfer b1 l1 l5)
+[1], Sys state:(('(to-loc b1 l5)l0_gripper_l2_l3_l5', 'q1'), 7), Env action: (human-move b0 l4 l0)
+[2], Sys state:(('(to-loc b1 l5)l1_gripper_l2_l3_l5', 'q1'), 7), Env action: (human-move b0 l4 l1)
+[3], Sys state:(('(to-loc b1 l5)l4_gripper_l0_l3_l5', 'q1'), 7), Env action: (human-move b2 l2 l0)
+[4], Sys state:(('(to-loc b1 l5)l4_gripper_l1_l3_l5', 'q1'), 7), Env action: (human-move b2 l2 l1)
+[5], Sys state:(('(to-loc b1 l5)l4_gripper_l2_l0_l5', 'q1'), 7), Env action: (human-move b3 l3 l0)
+[6], Sys state:(('(to-loc b1 l5)l4_gripper_l2_l1_l5', 'q1'), 7), Env action: (human-move b3 l3 l1)
+Enter state to select from: 0
+Choosing state: (('(to-loc b1 l5)l4_gripper_l2_l3_l5', 'q1'), 7)
+[0], Env state:(('h(to-loc b1 l5)l4_gripper_l2_l3_l5(release b1 l5)', 'q1'), 8), Sys action: (release b1 l5): SC Adm
+[0], Env state:(('h(to-loc b1 l5)l4_gripper_l2_l3_l5(release b1 l5)', 'q1'), 8), Sys action: (release b1 l5): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(to-loc b1 l5)l4_gripper_l2_l3_l5(release b1 l5)', 'q1'), 8)
+(release b1 l5)
+[0], Sys state:(('(ready l5)l4_l5_l2_l3_free', 'q2'), 8), Env action: (release b1 l5)
+[1], Sys state:(('(ready l5)l0_l5_l2_l3_free', 'q1'), 8), Env action: (human-move b0 l4 l0)
+[2], Sys state:(('(ready l5)l1_l5_l2_l3_free', 'q1'), 8), Env action: (human-move b0 l4 l1)
+[3], Sys state:(('(ready l5)l4_l5_l0_l3_free', 'q2'), 8), Env action: (human-move b2 l2 l0)
+[4], Sys state:(('(ready l5)l4_l5_l1_l3_free', 'q2'), 8), Env action: (human-move b2 l2 l1)
+[5], Sys state:(('(ready l5)l4_l5_l2_l0_free', 'q2'), 8), Env action: (human-move b3 l3 l0)
+[6], Sys state:(('(ready l5)l4_l5_l2_l1_free', 'q2'), 8), Env action: (human-move b3 l3 l1)
+Enter state to select from: 0
+Choosing state: (('(ready l5)l4_l5_l2_l3_free', 'q2'), 8)
+[0], Env state:(('h(ready l5)l4_l5_l2_l3_free(transit b2 l5 l2)', 'q2'), 9), Sys action: (transit b2 l5 l2): SC Adm
+[0], Env state:(('h(ready l5)l4_l5_l2_l3_free(transit b2 l5 l2)', 'q2'), 9), Sys action: (transit b2 l5 l2): WCoop Adm
+[1], Env state:(('h(ready l5)l4_l5_l2_l3_free(transit b3 l5 l3)', 'q2'), 9), Sys action: (transit b3 l5 l3): SC Adm
+Enter state to select from: 1
+Choosing state: (('h(ready l5)l4_l5_l2_l3_free(transit b3 l5 l3)', 'q2'), 9)
+(transit b3 l5 l3)
+[0], Sys state:(('(to-obj b3 l3)l4_l5_l2_l3_free', 'q2'), 9), Env action: (transit b3 l5 l3)
+[1], Sys state:(('(to-obj b3 l3)l0_l5_l2_l3_free', 'q1'), 9), Env action: (human-move b0 l4 l0)
+[2], Sys state:(('(to-obj b3 l3)l1_l5_l2_l3_free', 'q1'), 9), Env action: (human-move b0 l4 l1)
+[3], Sys state:(('(to-obj b3 l3)l4_l0_l2_l3_free', 'q1'), 9), Env action: (human-move b1 l5 l0)
+[4], Sys state:(('(to-obj b3 l3)l4_l1_l2_l3_free', 'q1'), 9), Env action: (human-move b1 l5 l1)
+[5], Sys state:(('(to-obj b3 l3)l4_l5_l0_l3_free', 'q2'), 9), Env action: (human-move b2 l2 l0)
+[6], Sys state:(('(to-obj b3 l3)l4_l5_l1_l3_free', 'q2'), 9), Env action: (human-move b2 l2 l1)
+Enter state to select from: 0
+Choosing state: (('(to-obj b3 l3)l4_l5_l2_l3_free', 'q2'), 9)
+[0], Env state:(('h(to-obj b3 l3)l4_l5_l2_l3_free(grasp b3 l3)', 'q2'), 10), Sys action: (grasp b3 l3): SC Adm
+[0], Env state:(('h(to-obj b3 l3)l4_l5_l2_l3_free(grasp b3 l3)', 'q2'), 10), Sys action: (grasp b3 l3): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(to-obj b3 l3)l4_l5_l2_l3_free(grasp b3 l3)', 'q2'), 10)
+(grasp b3 l3)
+[0], Sys state:(('(holding b3 l3)l4_l5_l2_gripper_b3', 'q2'), 10), Env action: (grasp b3 l3)
+[1], Sys state:(('(holding b3 l3)l0_l5_l2_gripper_b3', 'q1'), 10), Env action: (human-move b0 l4 l0)
+[2], Sys state:(('(holding b3 l3)l1_l5_l2_gripper_b3', 'q1'), 10), Env action: (human-move b0 l4 l1)
+[3], Sys state:(('(holding b3 l3)l4_l0_l2_gripper_b3', 'q1'), 10), Env action: (human-move b1 l5 l0)
+[4], Sys state:(('(holding b3 l3)l4_l1_l2_gripper_b3', 'q1'), 10), Env action: (human-move b1 l5 l1)
+[5], Sys state:(('(holding b3 l3)l4_l5_l0_gripper_b3', 'q2'), 10), Env action: (human-move b2 l2 l0)
+[6], Sys state:(('(holding b3 l3)l4_l5_l1_gripper_b3', 'q2'), 10), Env action: (human-move b2 l2 l1)
+Enter state to select from: 0
+Choosing state: (('(holding b3 l3)l4_l5_l2_gripper_b3', 'q2'), 10)
+[0], Env state:(('h(holding b3 l3)l4_l5_l2_gripper_b3(transfer b3 l3 l6)', 'q2'), 12), Sys action: (transfer b3 l3 l6): SC Adm
+[0], Env state:(('h(holding b3 l3)l4_l5_l2_gripper_b3(transfer b3 l3 l6)', 'q2'), 12), Sys action: (transfer b3 l3 l6): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(holding b3 l3)l4_l5_l2_gripper_b3(transfer b3 l3 l6)', 'q2'), 12)
+(transfer b3 l3 l6)
+[0], Sys state:(('(to-loc b3 l6)l4_l5_l2_gripper_l6', 'q2'), 12), Env action: (transfer b3 l3 l6)
+[1], Sys state:(('(to-loc b3 l6)l0_l5_l2_gripper_l6', 'q1'), 12), Env action: (human-move b0 l4 l0)
+[2], Sys state:(('(to-loc b3 l6)l1_l5_l2_gripper_l6', 'q1'), 12), Env action: (human-move b0 l4 l1)
+[3], Sys state:(('(to-loc b3 l6)l3_l5_l2_gripper_l6', 'q1'), 12), Env action: (human-move b0 l4 l3)
+[4], Sys state:(('(to-loc b3 l6)l4_l0_l2_gripper_l6', 'q1'), 12), Env action: (human-move b1 l5 l0)
+[5], Sys state:(('(to-loc b3 l6)l4_l3_l2_gripper_l6', 'q1'), 12), Env action: (human-move b1 l5 l3)
+[6], Sys state:(('(to-loc b3 l6)l4_l1_l2_gripper_l6', 'q1'), 12), Env action: (human-move b1 l5 l1)
+[7], Sys state:(('(to-loc b3 l6)l4_l5_l3_gripper_l6', 'q2'), 12), Env action: (human-move b2 l2 l3)
+[8], Sys state:(('(to-loc b3 l6)l4_l5_l0_gripper_l6', 'q2'), 12), Env action: (human-move b2 l2 l0)
+[9], Sys state:(('(to-loc b3 l6)l4_l5_l1_gripper_l6', 'q2'), 12), Env action: (human-move b2 l2 l1)
+Enter state to select from: 0
+Choosing state: (('(to-loc b3 l6)l4_l5_l2_gripper_l6', 'q2'), 12)
+[0], Env state:(('h(to-loc b3 l6)l4_l5_l2_gripper_l6(release b3 l6)', 'q2'), 13), Sys action: (release b3 l6): WCoop Adm
+Enter state to select from: 0
+Choosing state: (('h(to-loc b3 l6)l4_l5_l2_gripper_l6(release b3 l6)', 'q2'), 13)
+(release b3 l6)
+[0], Sys state:('q3', 13), Env action: (release b3 l6)
+Enter state to select from: 0
+Choosing state: ('q3', 13)
+Action Seq:
+(transit b0 else l0)
+(grasp b0 l0)
+(transfer b0 l0 l4)
+(release b0 l4)
+(transit b1 l4 l1)
+(grasp b1 l1)
+(transfer b1 l1 l5)
+(release b1 l5)
+(transit b3 l5 l3)
+(grasp b3 l3)
+(transfer b3 l3 l6)
+(release b3 l6)
+Function rollout_strategy took 535.936959028244 seconds to run.
+Function run_synthesis_and_rollout took 1215.8678317070007 seconds to run.
+Function daig_main took 1797.2042167186737 seconds to run.
+ Peak memory [MB]: 8038.137307167053

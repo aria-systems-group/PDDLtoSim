@@ -1,0 +1,320 @@
+Run 1:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 0.9897401332855225******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.3692328929901123 ****************************
+Time to construct the Admissbility Tree: 1.37
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 61.627421140670776 seconds to run.
+Function run_synthesis_and_rollout took 61.627456188201904 seconds to run.
+Function daig_main took 65.8069818019867 seconds to run.
+ Peak memory [MB]: 299.38443183898926
+-----------------------------------------------------------------------------------------------------
+Run 2:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 1.0345933437347412******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.334230899810791 ****************************
+Time to construct the Admissbility Tree: 1.33
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 63.56752419471741 seconds to run.
+Function run_synthesis_and_rollout took 63.567633390426636 seconds to run.
+Function daig_main took 67.9915714263916 seconds to run.
+ Peak memory [MB]: 299.38471698760986
+-----------------------------------------------------------------------------------------------------
+Run 3:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 0.9167959690093994******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.4139976501464844 ****************************
+Time to construct the Admissbility Tree: 1.41
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 63.196107387542725 seconds to run.
+Function run_synthesis_and_rollout took 63.19683504104614 seconds to run.
+Function daig_main took 67.23877716064453 seconds to run.
+ Peak memory [MB]: 299.3832530975342
+-----------------------------------------------------------------------------------------------------
+Run 4:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 0.9207720756530762******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.4060695171356201 ****************************
+Time to construct the Admissbility Tree: 1.41
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 65.69137191772461 seconds to run.
+Function run_synthesis_and_rollout took 65.69205641746521 seconds to run.
+Function daig_main took 70.04983401298523 seconds to run.
+ Peak memory [MB]: 299.3851070404053
+-----------------------------------------------------------------------------------------------------
+Run 5:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 0.9055995941162109******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.4100496768951416 ****************************
+Time to construct the Admissbility Tree: 1.41
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 69.5645854473114 seconds to run.
+Function run_synthesis_and_rollout took 69.56529235839844 seconds to run.
+Function daig_main took 73.75483870506287 seconds to run.
+ Peak memory [MB]: 299.38421154022217
+-----------------------------------------------------------------------------------------------------
+Run 6:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 1.005314826965332******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.3940551280975342 ****************************
+Time to construct the Admissbility Tree: 1.39
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 67.6059160232544 seconds to run.
+Function run_synthesis_and_rollout took 67.60594940185547 seconds to run.
+Function daig_main took 71.76735758781433 seconds to run.
+ Peak memory [MB]: 299.38412952423096
+-----------------------------------------------------------------------------------------------------
+Run 7:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 0.9651284217834473******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.349574089050293 ****************************
+Time to construct the Admissbility Tree: 1.35
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 67.77543807029724 seconds to run.
+Function run_synthesis_and_rollout took 67.77547407150269 seconds to run.
+Function daig_main took 72.28827023506165 seconds to run.
+ Peak memory [MB]: 299.38421535491943
+-----------------------------------------------------------------------------------------------------
+Run 8:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 0.9447145462036133******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.3608853816986084 ****************************
+Time to construct the Admissbility Tree: 1.36
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 67.27999806404114 seconds to run.
+Function run_synthesis_and_rollout took 67.28003168106079 seconds to run.
+Function daig_main took 71.489431142807 seconds to run.
+ Peak memory [MB]: 299.3838224411011
+-----------------------------------------------------------------------------------------------------
+Run 9:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 0.917363166809082******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.3316030502319336 ****************************
+Time to construct the Admissbility Tree: 1.33
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 65.50974202156067 seconds to run.
+Function run_synthesis_and_rollout took 65.50977802276611 seconds to run.
+Function daig_main took 69.74412226676941 seconds to run.
+ Peak memory [MB]: 299.38396072387695
+-----------------------------------------------------------------------------------------------------
+Run 10:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :55
+No. of edges in the Causal Graph is :216
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :241
+No. of edges in the Transition System is :542
+Iterating for the second time to check if human interventions created any new nodes
+******************************Original Graph construction time: 1.115180492401123******************************
+# of Sys states in Two player game: 1119
+No. of nodes in the Two player game is :1119
+No. of edges in the Two player game is :3522
+Done building the Product Automaton
+No. of nodes in the product graph is :3358
+No. of edges in the product graph is :10515
+************************Playing QuantitativeGoUAdmissible************************
+There exists a path from the Initial State
+Starting purging nodes
+Done purging nodes
+******************************Removing non-reachable states on Graph of Utility : 1.3818647861480713 ****************************
+Time to construct the Admissbility Tree: 1.38
+Computing Winning strategy
+Computing Cooperative Winning strategy
+There exists a path from the Initial State
+Computing Adversarial-Cooperative strategy
+No. of nodes in the Tree :36570
+No. of edges in the Tree :113976
+Function compute_strategy took 67.80769681930542 seconds to run.
+Function run_synthesis_and_rollout took 67.80773305892944 seconds to run.
+Function daig_main took 72.39163875579834 seconds to run.
+ Peak memory [MB]: 299.38344860076904
+-----------------------------------------------------------------------------------------------------
