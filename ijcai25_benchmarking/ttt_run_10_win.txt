@@ -1,0 +1,200 @@
+Run 1:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.700498104095459 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 6.329817771911621 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.0768592357635498 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 6.2895543575286865 ********************
+Function compute_strategy took 19.417349338531494 seconds to run.
+Function run_synthesis_and_rollout took 19.417394161224365 seconds to run.
+Function tic_tac_toe_main took 25.825194597244263 seconds to run.
+ Peak memory [MB]: 92.64734745025635
+-----------------------------------------------------------------------------------------------------
+Run 2:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.143944501876831 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.718283414840698 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.07164740562438965 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 5.565882682800293 ********************
+Function compute_strategy took 17.51874613761902 seconds to run.
+Function run_synthesis_and_rollout took 17.51879119873047 seconds to run.
+Function tic_tac_toe_main took 24.204347133636475 seconds to run.
+ Peak memory [MB]: 92.646409034729
+-----------------------------------------------------------------------------------------------------
+Run 3:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.878295660018921 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.729515552520752 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.07456803321838379 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 5.500563859939575 ********************
+Function compute_strategy took 17.204020977020264 seconds to run.
+Function run_synthesis_and_rollout took 17.204068422317505 seconds to run.
+Function tic_tac_toe_main took 23.194916248321533 seconds to run.
+ Peak memory [MB]: 92.64672756195068
+-----------------------------------------------------------------------------------------------------
+Run 4:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.145398855209351 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 6.189075469970703 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.08105635643005371 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 6.036255359649658 ********************
+Function compute_strategy took 18.470667123794556 seconds to run.
+Function run_synthesis_and_rollout took 18.470709323883057 seconds to run.
+Function tic_tac_toe_main took 25.407679080963135 seconds to run.
+ Peak memory [MB]: 92.64761638641357
+-----------------------------------------------------------------------------------------------------
+Run 5:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.580672025680542 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.145864248275757 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.07167983055114746 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 5.216923236846924 ********************
+Function compute_strategy took 17.033321142196655 seconds to run.
+Function run_synthesis_and_rollout took 17.033357620239258 seconds to run.
+Function tic_tac_toe_main took 24.01800560951233 seconds to run.
+ Peak memory [MB]: 92.64693641662598
+-----------------------------------------------------------------------------------------------------
+Run 6:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.715599775314331 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.416972398757935 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.07158637046813965 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 5.491395950317383 ********************
+Function compute_strategy took 16.71443510055542 seconds to run.
+Function run_synthesis_and_rollout took 16.714475631713867 seconds to run.
+Function tic_tac_toe_main took 22.706969261169434 seconds to run.
+ Peak memory [MB]: 92.64693927764893
+-----------------------------------------------------------------------------------------------------
+Run 7:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.78372597694397 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.029527425765991 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.07145977020263672 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 5.145617961883545 ********************
+Function compute_strategy took 16.048097610473633 seconds to run.
+Function run_synthesis_and_rollout took 16.04813241958618 seconds to run.
+Function tic_tac_toe_main took 21.984941005706787 seconds to run.
+ Peak memory [MB]: 92.64746475219727
+-----------------------------------------------------------------------------------------------------
+Run 8:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.184930324554443 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.536081314086914 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.07576155662536621 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 5.9126386642456055 ********************
+Function compute_strategy took 17.728990077972412 seconds to run.
+Function run_synthesis_and_rollout took 17.72903060913086 seconds to run.
+Function tic_tac_toe_main took 24.168145656585693 seconds to run.
+ Peak memory [MB]: 92.64648246765137
+-----------------------------------------------------------------------------------------------------
+Run 9:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.827548503875732 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.117817401885986 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.07593965530395508 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 5.354179382324219 ********************
+Function compute_strategy took 16.394012689590454 seconds to run.
+Function run_synthesis_and_rollout took 16.394051551818848 seconds to run.
+Function tic_tac_toe_main took 22.354993104934692 seconds to run.
+ Peak memory [MB]: 92.64639186859131
+-----------------------------------------------------------------------------------------------------
+Run 10:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.437998056411743 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 6.145530939102173 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.07517743110656738 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 5.821280002593994 ********************
+Function compute_strategy took 18.498541593551636 seconds to run.
+Function run_synthesis_and_rollout took 18.49858021736145 seconds to run.
+Function tic_tac_toe_main took 24.984647750854492 seconds to run.
+ Peak memory [MB]: 92.6473741531372
+-----------------------------------------------------------------------------------------------------

@@ -1,0 +1,150 @@
+Run 1:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.166396617889404 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 6.438616991043091 ********************
+Function compute_strategy took 12.613284826278687 seconds to run.
+Function run_synthesis_and_rollout took 12.613314390182495 seconds to run.
+Function tic_tac_toe_main took 19.045541048049927 seconds to run.
+ Peak memory [MB]: 90.44030284881592
+-----------------------------------------------------------------------------------------------------
+Run 2:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.929723501205444 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.880518913269043 ********************
+Function compute_strategy took 11.81921672821045 seconds to run.
+Function run_synthesis_and_rollout took 11.819243431091309 seconds to run.
+Function tic_tac_toe_main took 18.290197372436523 seconds to run.
+ Peak memory [MB]: 90.43995952606201
+-----------------------------------------------------------------------------------------------------
+Run 3:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.158868074417114 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 6.144691705703735 ********************
+Function compute_strategy took 12.311898708343506 seconds to run.
+Function run_synthesis_and_rollout took 12.31192398071289 seconds to run.
+Function tic_tac_toe_main took 18.533507347106934 seconds to run.
+ Peak memory [MB]: 90.44059753417969
+-----------------------------------------------------------------------------------------------------
+Run 4:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.1461708545684814 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.875638961791992 ********************
+Function compute_strategy took 12.03030514717102 seconds to run.
+Function run_synthesis_and_rollout took 12.030330419540405 seconds to run.
+Function tic_tac_toe_main took 18.55027174949646 seconds to run.
+ Peak memory [MB]: 90.439528465271
+-----------------------------------------------------------------------------------------------------
+Run 5:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.797247648239136 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.78596043586731 ********************
+Function compute_strategy took 11.591597557067871 seconds to run.
+Function run_synthesis_and_rollout took 11.591623067855835 seconds to run.
+Function tic_tac_toe_main took 17.803364515304565 seconds to run.
+ Peak memory [MB]: 90.43982219696045
+-----------------------------------------------------------------------------------------------------
+Run 6:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.639104127883911 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.826589822769165 ********************
+Function compute_strategy took 11.473693609237671 seconds to run.
+Function run_synthesis_and_rollout took 11.47371792793274 seconds to run.
+Function tic_tac_toe_main took 17.599353075027466 seconds to run.
+ Peak memory [MB]: 90.43974208831787
+-----------------------------------------------------------------------------------------------------
+Run 7:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.838420629501343 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.843351125717163 ********************
+Function compute_strategy took 11.69003963470459 seconds to run.
+Function run_synthesis_and_rollout took 11.690066576004028 seconds to run.
+Function tic_tac_toe_main took 17.909476280212402 seconds to run.
+ Peak memory [MB]: 90.44065380096436
+-----------------------------------------------------------------------------------------------------
+Run 8:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.104780435562134 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.8793511390686035 ********************
+Function compute_strategy took 11.992595195770264 seconds to run.
+Function run_synthesis_and_rollout took 11.992620944976807 seconds to run.
+Function tic_tac_toe_main took 18.201281785964966 seconds to run.
+ Peak memory [MB]: 90.4389762878418
+-----------------------------------------------------------------------------------------------------
+Run 9:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 5.901150465011597 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.896056413650513 ********************
+Function compute_strategy took 11.805946111679077 seconds to run.
+Function run_synthesis_and_rollout took 11.805972576141357 seconds to run.
+Function tic_tac_toe_main took 18.060716152191162 seconds to run.
+ Peak memory [MB]: 90.44027137756348
+-----------------------------------------------------------------------------------------------------
+Run 10:
+No. of nodes in the Two player game is :5478
+No. of edges in the Two player game is :16167
+Done building the Product Automaton
+No. of nodes in the DFA game is :5479
+No. of edges in the DFA game is :17038
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 6.059246063232422 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 5.836035966873169 ********************
+Function compute_strategy took 11.903608322143555 seconds to run.
+Function run_synthesis_and_rollout took 11.90363597869873 seconds to run.
+Function tic_tac_toe_main took 18.223997116088867 seconds to run.
+ Peak memory [MB]: 90.43913650512695
+-----------------------------------------------------------------------------------------------------

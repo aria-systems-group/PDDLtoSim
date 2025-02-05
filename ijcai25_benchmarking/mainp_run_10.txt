@@ -1,0 +1,300 @@
+Run 1:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 38.73412013053894******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 25.954402208328247 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 14.270211935043335 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.2771565914154053 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 12.902433633804321 ********************
+Function compute_strategy took 53.50238847732544 seconds to run.
+Function run_synthesis_and_rollout took 53.50439929962158 seconds to run.
+Function daig_main took 121.5851263999939 seconds to run.
+ Peak memory [MB]: 696.6147089004517
+-----------------------------------------------------------------------------------------------------
+Run 2:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 38.60459280014038******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 24.071115016937256 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 14.355269432067871 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.29286766052246094 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 14.04990291595459 ********************
+Function compute_strategy took 52.86527156829834 seconds to run.
+Function run_synthesis_and_rollout took 52.86532139778137 seconds to run.
+Function daig_main took 121.18080615997314 seconds to run.
+ Peak memory [MB]: 696.6191463470459
+-----------------------------------------------------------------------------------------------------
+Run 3:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 36.47804927825928******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 25.834601879119873 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 15.19486141204834 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.3117234706878662 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 14.880073070526123 ********************
+Function compute_strategy took 56.329086780548096 seconds to run.
+Function run_synthesis_and_rollout took 56.32975673675537 seconds to run.
+Function daig_main took 121.68501162528992 seconds to run.
+ Peak memory [MB]: 696.6111974716187
+-----------------------------------------------------------------------------------------------------
+Run 4:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 39.111963510513306******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 27.096782207489014 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 14.181849956512451 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.2949402332305908 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 15.212928295135498 ********************
+Function compute_strategy took 56.89201283454895 seconds to run.
+Function run_synthesis_and_rollout took 56.892680168151855 seconds to run.
+Function daig_main took 127.40221667289734 seconds to run.
+ Peak memory [MB]: 696.6153497695923
+-----------------------------------------------------------------------------------------------------
+Run 5:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 38.96836519241333******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 24.35021185874939 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 13.594854354858398 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.2941927909851074 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 13.23462200164795 ********************
+Function compute_strategy took 51.57127118110657 seconds to run.
+Function run_synthesis_and_rollout took 51.573293924331665 seconds to run.
+Function daig_main took 119.59379529953003 seconds to run.
+ Peak memory [MB]: 696.6211805343628
+-----------------------------------------------------------------------------------------------------
+Run 6:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 36.171085834503174******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 25.480931758880615 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 15.016863346099854 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.36137938499450684 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 13.433881282806396 ********************
+Function compute_strategy took 54.39654326438904 seconds to run.
+Function run_synthesis_and_rollout took 54.397765159606934 seconds to run.
+Function daig_main took 120.10216927528381 seconds to run.
+ Peak memory [MB]: 696.6088752746582
+-----------------------------------------------------------------------------------------------------
+Run 7:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 38.53864908218384******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 24.07692241668701 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 12.760005950927734 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.2697017192840576 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 13.309813022613525 ********************
+Function compute_strategy took 50.50856423377991 seconds to run.
+Function run_synthesis_and_rollout took 50.510571002960205 seconds to run.
+Function daig_main took 117.50637531280518 seconds to run.
+ Peak memory [MB]: 696.6203022003174
+-----------------------------------------------------------------------------------------------------
+Run 8:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 34.26679873466492******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 22.544315099716187 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 12.755831241607666 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.27100634574890137 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 13.030742645263672 ********************
+Function compute_strategy took 48.69935202598572 seconds to run.
+Function run_synthesis_and_rollout took 48.70019769668579 seconds to run.
+Function daig_main took 110.33284330368042 seconds to run.
+ Peak memory [MB]: 696.6151371002197
+-----------------------------------------------------------------------------------------------------
+Run 9:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 33.61753964424133******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 22.620262145996094 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 12.80389952659607 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.2740609645843506 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 12.661377191543579 ********************
+Function compute_strategy took 48.452354192733765 seconds to run.
+Function run_synthesis_and_rollout took 48.45240139961243 seconds to run.
+Function daig_main took 109.06401443481445 seconds to run.
+ Peak memory [MB]: 696.6116333007812
+-----------------------------------------------------------------------------------------------------
+Run 10:
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 34.60928773880005******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+******************** Co-op Computation time: 22.787835359573364 ********************
+Computing Winning strategy
+******************** WCo-op Computation time: 12.787482500076294 ********************
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+******************** Safe-Admissible Computation time: 0.26970362663269043 ********************
+Computing Hopeful strategy
+******************** Hope-Admissible Computation time: 12.533134460449219 ********************
+Function compute_strategy took 48.469518423080444 seconds to run.
+Function run_synthesis_and_rollout took 48.47094774246216 seconds to run.
+Function daig_main took 112.89790177345276 seconds to run.
+ Peak memory [MB]: 696.6139717102051
+-----------------------------------------------------------------------------------------------------

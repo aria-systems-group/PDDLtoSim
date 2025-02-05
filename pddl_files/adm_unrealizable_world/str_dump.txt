@@ -1,0 +1,245 @@
+############################################# Drying problem - Human does not interven ##############################################
+
+root@668db2aaa591:~/pddltosim# /usr/bin/python3 /root/pddltosim/main.py
+pybullet build time: Nov 28 2023 23:45:17
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 39.616124391555786******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+/root/pddltosim/regret_synthesis_toolbox/src/strategy_synthesis/value_iteration.py:429: RuntimeWarning: invalid value encountered in cast
+  _int_val_vector = self.val_vector[:, -1].astype(int)
+Computing Winning strategy
+/root/pddltosim/regret_synthesis_toolbox/src/strategy_synthesis/value_iteration.py:681: RuntimeWarning: invalid value encountered in cast
+  _int_val_vector = self.val_vector[:, -1].astype(int)
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+Computing Hopeful strategy
+Function compute_strategy took 50.37421488761902 seconds to run.
+/root/pddltosim/regret_synthesis_toolbox/src/graph/base.py:553: UserWarning: WARNING: The set of trap states is empty. Returning an empty list.
+  warnings.warn("WARNING: The set of trap states is empty. Returning an empty list.")
+There does not exist a winning strategy!
+[0], state:('h(ready else)l6_l7_l0_free(transit b0 else l6)', 'q1'): Pen, action: (transit b0 else l6): 3
+[1], state:('h(ready else)l6_l7_l0_free(transit b1 else l7)', 'q1'): Pen, action: (transit b1 else l7): 2
+[2], state:('h(ready else)l6_l7_l0_free(transit b2 else l0)', 'q1'): Pen, action: (transit b2 else l0): 2
+Sys Strategy: [Hope-Adm] ('h(ready else)l6_l7_l0_free(transit b0 else l6)', 'q1')
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(ready else)l6_l7_l0_free(transit b1 else l7)', 'q1')
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(ready else)l6_l7_l0_free(transit b2 else l0)', 'q1')
+Enter state to select from: 1
+Choosing state: ('h(ready else)l6_l7_l0_free(transit b1 else l7)', 'q1')
+[0], state:('(to-obj b1 l7)l6_l7_l0_free', 'q1'): Pen, action: (transit b1 else l7): 4
+[1], state:('(to-obj b1 l7)l9_l7_l0_free', 'q1'): Pen, action: (human-move b0 l6 l9): 4
+[2], state:('(to-obj b1 l7)l8_l7_l0_free', 'q1'): Pen, action: (human-move b0 l6 l8): 4
+[3], state:('(to-obj b1 l7)l6_l8_l0_free', 'q2'): Pen, action: (human-move b1 l7 l8): 2
+[4], state:('(to-obj b1 l7)l6_l7_l1_free', 'q1'): Pen, action: (human-move b2 l0 l1): 4
+[5], state:('(to-obj b1 l7)l6_l7_l2_free', 'q1'): Pen, action: (human-move b2 l0 l2): 4
+Enter state to select from: 0
+Choosing state: ('(to-obj b1 l7)l6_l7_l0_free', 'q1')
+[0], state:('h(to-obj b1 l7)l6_l7_l0_free(grasp b1 l7)', 'q1'): Pen, action: (grasp b1 l7): 3
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(to-obj b1 l7)l6_l7_l0_free(grasp b1 l7)', 'q1')
+Enter state to select from: 0
+Choosing state: ('h(to-obj b1 l7)l6_l7_l0_free(grasp b1 l7)', 'q1')
+(grasp b1 l7)
+[0], state:('(holding b1 l7)l6_gripper_l0_b1', 'q1'): Pen, action: (grasp b1 l7): 3
+[1], state:('(holding b1 l7)l9_gripper_l0_b1', 'q1'): Pen, action: (human-move b0 l6 l9): 3
+[2], state:('(holding b1 l7)l8_gripper_l0_b1', 'q1'): Pen, action: (human-move b0 l6 l8): 3
+[3], state:('(holding b1 l7)l6_gripper_l1_b1', 'q1'): Pen, action: (human-move b2 l0 l1): 3
+[4], state:('(holding b1 l7)l6_gripper_l2_b1', 'q1'): Pen, action: (human-move b2 l0 l2): 3
+Enter state to select from: 0
+Choosing state: ('(holding b1 l7)l6_gripper_l0_b1', 'q1')
+[0], state:('h(holding b1 l7)l6_gripper_l0_b1(transfer b1 l7 l8)', 'q1'): Pen, action: (transfer b1 l7 l8): 2
+[1], state:('h(holding b1 l7)l6_gripper_l0_b1(transfer b1 l7 l7)', 'q1'): Pen, action: (transfer b1 l7 l7): 3
+[2], state:('h(holding b1 l7)l6_gripper_l0_b1(transfer b1 l7 l2)', 'q1'): Pen, action: (transfer b1 l7 l2): 2
+[3], state:('h(holding b1 l7)l6_gripper_l0_b1(transfer b1 l7 l1)', 'q1'): Pen, action: (transfer b1 l7 l1): 3
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(holding b1 l7)l6_gripper_l0_b1(transfer b1 l7 l2)', 'q1')
+Enter state to select from: 2
+Choosing state: ('h(holding b1 l7)l6_gripper_l0_b1(transfer b1 l7 l2)', 'q1')
+(transfer b1 l7 l2)
+[0], state:('(to-loc b1 l2)l6_gripper_l0_l2', 'q1'): Pen, action: (transfer b1 l7 l2): 2
+[1], state:('(to-loc b1 l2)l7_gripper_l0_l2', 'q1'): Pen, action: (human-move b0 l6 l7): 2
+[2], state:('(to-loc b1 l2)l9_gripper_l0_l2', 'q1'): Pen, action: (human-move b0 l6 l9): 2
+[3], state:('(to-loc b1 l2)l8_gripper_l0_l2', 'q1'): Pen, action: (human-move b0 l6 l8): 2
+[4], state:('(to-loc b1 l2)l6_gripper_l1_l2', 'q1'): Pen, action: (human-move b2 l0 l1): 2
+[5], state:('(to-loc b1 l2)l6_gripper_l2_l2', 'q1'): Pen, action: (human-move b2 l0 l2): 3
+Enter state to select from: 0
+Choosing state: ('(to-loc b1 l2)l6_gripper_l0_l2', 'q1')
+[0], state:('h(to-loc b1 l2)l6_gripper_l0_l2(release b1 l2)', 'q1'): Pen, action: (release b1 l2): 1
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(to-loc b1 l2)l6_gripper_l0_l2(release b1 l2)', 'q1')
+Enter state to select from: 0
+Choosing state: ('h(to-loc b1 l2)l6_gripper_l0_l2(release b1 l2)', 'q1')
+(release b1 l2)
+[0], state:('(ready l2)l6_l2_l0_free', 'q2'): Pen, action: (release b1 l2): 1
+[1], state:('(ready l2)l7_l2_l0_free', 'q2'): Pen, action: (human-move b0 l6 l7): 1
+[2], state:('(ready l2)l9_l2_l0_free', 'q2'): Pen, action: (human-move b0 l6 l9): 1
+[3], state:('(ready l2)l8_l2_l0_free', 'q2'): Pen, action: (human-move b0 l6 l8): 1
+[4], state:('(ready l2)l6_l2_l1_free', 'q2'): Pen, action: (human-move b2 l0 l1): 2
+Enter state to select from: 0
+Choosing state: ('(ready l2)l6_l2_l0_free', 'q2')
+[0], state:('h(ready l2)l6_l2_l0_free(transit b0 l2 l6)', 'q2'): Pen, action: (transit b0 l2 l6): 0
+[1], state:('h(ready l2)l6_l2_l0_free(transit b1 l2 l2)', 'q2'): Pen, action: (transit b1 l2 l2): 0
+[2], state:('h(ready l2)l6_l2_l0_free(transit b2 l2 l0)', 'q2'): Pen, action: (transit b2 l2 l0): 0
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(ready l2)l6_l2_l0_free(transit b2 l2 l0)', 'q2')
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(ready l2)l6_l2_l0_free(transit b1 l2 l2)', 'q2')
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(ready l2)l6_l2_l0_free(transit b0 l2 l6)', 'q2')
+Enter state to select from: 1
+Choosing state: ('h(ready l2)l6_l2_l0_free(transit b1 l2 l2)', 'q2')
+(transit b1 l2 l2)
+[0], state:('(to-obj b1 l2)l6_l2_l0_free', 'q2'): Pen, action: (transit b1 l2 l2): 3
+[1], state:('(to-obj b1 l2)l7_l2_l0_free', 'q2'): Pen, action: (human-move b0 l6 l7): 3
+[2], state:('(to-obj b1 l2)l9_l2_l0_free', 'q2'): Pen, action: (human-move b0 l6 l9): 3
+[3], state:('(to-obj b1 l2)l8_l2_l0_free', 'q2'): Pen, action: (human-move b0 l6 l8): 3
+[4], state:q3: Pen, action: (human-move b1 l2 l1): 0
+[5], state:('(to-obj b1 l2)l6_l2_l1_free', 'q2'): Pen, action: (human-move b2 l0 l1): 3
+Enter state to select from: 0
+Choosing state: ('(to-obj b1 l2)l6_l2_l0_free', 'q2')
+[0], state:('h(to-obj b1 l2)l6_l2_l0_free(grasp b1 l2)', 'q2'): Pen, action: (grasp b1 l2): 2
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(to-obj b1 l2)l6_l2_l0_free(grasp b1 l2)', 'q2')
+Enter state to select from: 0
+Choosing state: ('h(to-obj b1 l2)l6_l2_l0_free(grasp b1 l2)', 'q2')
+(grasp b1 l2)
+[0], state:('(holding b1 l2)l6_gripper_l0_b1', 'q2'): Pen, action: (grasp b1 l2): 2
+[1], state:('(holding b1 l2)l7_gripper_l0_b1', 'q2'): Pen, action: (human-move b0 l6 l7): 2
+[2], state:('(holding b1 l2)l9_gripper_l0_b1', 'q2'): Pen, action: (human-move b0 l6 l9): 2
+[3], state:('(holding b1 l2)l8_gripper_l0_b1', 'q2'): Pen, action: (human-move b0 l6 l8): 2
+[4], state:('(holding b1 l2)l6_gripper_l1_b1', 'q2'): Pen, action: (human-move b2 l0 l1): 3
+Enter state to select from: 0
+Choosing state: ('(holding b1 l2)l6_gripper_l0_b1', 'q2')
+[0], state:('h(holding b1 l2)l6_gripper_l0_b1(transfer b1 l2 l8)', 'q2'): Pen, action: (transfer b1 l2 l8): 2
+[1], state:('h(holding b1 l2)l6_gripper_l0_b1(transfer b1 l2 l7)', 'q2'): Pen, action: (transfer b1 l2 l7): 2
+[2], state:('h(holding b1 l2)l6_gripper_l0_b1(transfer b1 l2 l2)', 'q2'): Pen, action: (transfer b1 l2 l2): 2
+[3], state:('h(holding b1 l2)l6_gripper_l0_b1(transfer b1 l2 l1)', 'q2'): Pen, action: (transfer b1 l2 l1): 1
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(holding b1 l2)l6_gripper_l0_b1(transfer b1 l2 l1)', 'q2')
+Enter state to select from: 3
+Choosing state: ('h(holding b1 l2)l6_gripper_l0_b1(transfer b1 l2 l1)', 'q2')
+(transfer b1 l2 l1)
+[0], state:('(to-loc b1 l1)l6_gripper_l0_l1', 'q2'): Pen, action: (transfer b1 l2 l1): 1
+[1], state:('(to-loc b1 l1)l7_gripper_l0_l1', 'q2'): Pen, action: (human-move b0 l6 l7): 1
+[2], state:('(to-loc b1 l1)l9_gripper_l0_l1', 'q2'): Pen, action: (human-move b0 l6 l9): 1
+[3], state:('(to-loc b1 l1)l8_gripper_l0_l1', 'q2'): Pen, action: (human-move b0 l6 l8): 1
+[4], state:('(to-loc b1 l1)l6_gripper_l1_l1', 'q2'): Pen, action: (human-move b2 l0 l1): 3
+[5], state:('(to-loc b1 l1)l6_gripper_l2_l1', 'q2'): Pen, action: (human-move b2 l0 l2): 1
+Enter state to select from: 0
+Choosing state: ('(to-loc b1 l1)l6_gripper_l0_l1', 'q2')
+[0], state:('h(to-loc b1 l1)l6_gripper_l0_l1(release b1 l1)', 'q2'): Pen, action: (release b1 l1): 0
+Sys Strategy: [Safe-Adm][Coop Opt] ('h(to-loc b1 l1)l6_gripper_l0_l1(release b1 l1)', 'q2')
+Enter state to select from: 0
+Choosing state: ('h(to-loc b1 l1)l6_gripper_l0_l1(release b1 l1)', 'q2')
+(release b1 l1)
+[0], state:q3: Pen, action: (release b1 l1): 0
+[0], state:q3: Pen, action: (human-move b0 l6 l7): 0
+[0], state:q3: Pen, action: (human-move b0 l6 l9): 0
+[0], state:q3: Pen, action: (human-move b0 l6 l8): 0
+[1], state:('(ready l1)l6_l1_l2_free', 'q2'): Pen, action: (human-move b2 l0 l2): 1
+Enter state to select from: 0
+Choosing state: q3
+Action Seq:
+(transit b1 else l7)
+(grasp b1 l7)
+(transfer b1 l7 l2)
+(release b1 l2)
+(transit b1 l2 l2)
+(grasp b1 l2)
+(transfer b1 l2 l1)
+(release b1 l1)
+Function rollout_strategy took 360.2149407863617 seconds to run.
+Function run_synthesis_and_rollout took 410.59011793136597 seconds to run.
+
+
+############################################# Drying problem - Human fully cooperative interven ##############################################
+
+root@668db2aaa591:~/pddltosim# /usr/bin/python3 /root/pddltosim/main.py
+pybullet build time: Nov 28 2023 23:45:17
+No. of times the human can intervene is : 0
+No. of nodes in the Causal Graph is :92
+No. of edges in the Causal Graph is :504
+No. of times the human can intervene is : 0
+No. of nodes in the Transition System is :2521
+No. of edges in the Transition System is :6303
+Iterating for the second time to check if human interventions created any new nodes
+Starting purging nodes
+Done purging nodes: # Nodes Purged: 9144
+******************************Original Graph construction time: 34.750184774398804******************************
+No. of nodes in the Two player game is :11272
+No. of edges in the Two player game is :47220
+Done building the Product Automaton
+No. of nodes in the product graph is :22545
+No. of edges in the product graph is :94297
+Computing Cooperative Winning strategy
+/root/pddltosim/regret_synthesis_toolbox/src/strategy_synthesis/value_iteration.py:429: RuntimeWarning: invalid value encountered in cast
+  _int_val_vector = self.val_vector[:, -1].astype(int)
+Computing Winning strategy
+/root/pddltosim/regret_synthesis_toolbox/src/strategy_synthesis/value_iteration.py:681: RuntimeWarning: invalid value encountered in cast
+  _int_val_vector = self.val_vector[:, -1].astype(int)
+Computing Safety strategy
+Checking Safe-Adm strategy exists
+Computing Hopeful strategy
+Function compute_strategy took 51.30710029602051 seconds to run.
+/root/pddltosim/regret_synthesis_toolbox/src/graph/base.py:553: UserWarning: WARNING: The set of trap states is empty. Returning an empty list.
+  warnings.warn("WARNING: The set of trap states is empty. Returning an empty list.")
+There does not exist a winning strategy!
+[0], state:('h(ready else)l6_l7_l0_free(transit b0 else l6)', 'q1'): Pen, action: (transit b0 else l6): 3
+[1], state:('h(ready else)l6_l7_l0_free(transit b1 else l7)', 'q1'): Pen, action: (transit b1 else l7): 2
+[2], state:('h(ready else)l6_l7_l0_free(transit b2 else l0)', 'q1'): Pen, action: (transit b2 else l0): 2
+Sys Strategy: [Hope-Adm] ('h(ready else)l6_l7_l0_free(transit b0 else l6)', 'q1')
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(ready else)l6_l7_l0_free(transit b1 else l7)', 'q1')
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(ready else)l6_l7_l0_free(transit b2 else l0)', 'q1')
+Enter state to select from: 2
+Choosing state: ('h(ready else)l6_l7_l0_free(transit b2 else l0)', 'q1')
+[0], state:('(to-obj b2 l0)l6_l7_l0_free', 'q1'): Pen, action: (transit b2 else l0): 3
+[1], state:('(to-obj b2 l0)l9_l7_l0_free', 'q1'): Pen, action: (human-move b0 l6 l9): 7
+[2], state:('(to-obj b2 l0)l8_l7_l0_free', 'q1'): Pen, action: (human-move b0 l6 l8): 4
+[3], state:('(to-obj b2 l0)l6_l8_l0_free', 'q2'): Pen, action: (human-move b1 l7 l8): 2
+[4], state:('(to-obj b2 l0)l6_l7_l1_free', 'q1'): Pen, action: (human-move b2 l0 l1): 3
+[5], state:('(to-obj b2 l0)l6_l7_l2_free', 'q1'): Pen, action: (human-move b2 l0 l2): 3
+Enter state to select from: 3
+Choosing state: ('(to-obj b2 l0)l6_l8_l0_free', 'q2')
+(human-move b1 l7 l8)
+[0], state:('h(to-obj b2 l0)l6_l8_l0_free(grasp b2 l0)', 'q2'): Pen, action: (grasp b2 l0): 1
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(to-obj b2 l0)l6_l8_l0_free(grasp b2 l0)', 'q2')
+Enter state to select from: 0
+Choosing state: ('h(to-obj b2 l0)l6_l8_l0_free(grasp b2 l0)', 'q2')
+(grasp b2 l0)
+[0], state:('(holding b2 l0)l6_l8_gripper_b2', 'q2'): Pen, action: (grasp b2 l0): 2
+[1], state:('(holding b2 l0)l7_l8_gripper_b2', 'q2'): Pen, action: (human-move b0 l6 l7): 1
+[2], state:('(holding b2 l0)l9_l8_gripper_b2', 'q2'): Pen, action: (human-move b0 l6 l9): 6
+[3], state:('(holding b2 l0)l6_l7_gripper_b2', 'q2'): Pen, action: (human-move b1 l8 l7): 3
+Enter state to select from: 1
+Choosing state: ('(holding b2 l0)l7_l8_gripper_b2', 'q2')
+(human-move b0 l6 l7)
+[0], state:('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l1)', 'q2'): Pen, action: (transfer b2 l0 l1): 0
+[1], state:('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l6)', 'q2'): Pen, action: (transfer b2 l0 l6): 0
+[2], state:('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l2)', 'q2'): Pen, action: (transfer b2 l0 l2): 0
+[3], state:('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l0)', 'q2'): Pen, action: (transfer b2 l0 l0): 0
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l1)', 'q2')
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l6)', 'q2')
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l2)', 'q2')
+Sys Strategy: [Hope-Adm][Coop Opt] ('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l0)', 'q2')
+Enter state to select from: 0
+Choosing state: ('h(holding b2 l0)l7_l8_gripper_b2(transfer b2 l0 l1)', 'q2')
+(transfer b2 l0 l1)
+[0], state:('(to-loc b2 l1)l7_l8_gripper_l1', 'q2'): Pen, action: (transfer b2 l0 l1): 1
+[1], state:('(to-loc b2 l1)l9_l8_gripper_l1', 'q2'): Pen, action: (human-move b0 l7 l9): 5
+[2], state:('(to-loc b2 l1)l6_l8_gripper_l1', 'q2'): Pen, action: (human-move b0 l7 l6): 2
+[3], state:q3: Pen, action: (human-move b1 l8 l6): 0
+Enter state to select from: 3
+Choosing state: q3
+Action Seq:
+(transit b2 else l0)
+(human-move b1 l7 l8)
+(grasp b2 l0)
+(human-move b0 l6 l7)
+(transfer b2 l0 l1)
+(human-move b1 l8 l6)
+Function rollout_strategy took 378.30042576789856 seconds to run.
+Function run_synthesis_and_rollout took 429.60882806777954 seconds to run.
