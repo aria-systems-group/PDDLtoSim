@@ -255,7 +255,8 @@ class NonDeterministicMiniGrid():
         nd_minigrid_envs = {'MiniGrid-FloodingLava-v0': [], 'MiniGrid-CorridorLava-v0': [], 'MiniGrid-ToyCorridorLava-v0': [], 
                             'MiniGrid-FishAndShipwreckAvoidAgent-v0': [], 'MiniGrid-ChasingAgentIn4Square-v0': [],
                             'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
-                            'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-LavaAdm_karan-v0': []}
+                            'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-LavaAdm_karan-v0': [],
+                            'MiniGrid-NarrowLavaAdm_karan-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -627,6 +628,135 @@ class CorridorLavaAAAI25(MultiAgentMiniGridEnv):
                 False)
 
         self.mission = 'get to a green goal squares, don"t touch lava'
+
+
+
+class NarrowCorridorLavaRAL25(MultiAgentMiniGridEnv):
+    """
+    Create a minigrid env. 7 by 5 gridworld with Goal on top right. 
+     Sys agent start on thr bottom left and Env agent starts on the top right.  A winning stratgey does not exists. 
+    """
+
+    def __init__(
+        self,
+        width=9,
+        height=7,
+        agent_start_pos=(1, 5),
+        agent_start_dir=0,
+        env_agent_start_pos=[(7, 1)],
+        env_agent_start_dir=[0],
+        goal_pos=[(7, 1)],
+    ):
+        self.agent_start_pos = agent_start_pos
+        self.agent_start_dir = agent_start_dir
+        self.env_agent_start_pos = env_agent_start_pos
+        self.env_agent_start_dir = env_agent_start_dir
+
+        self.goal_pos = goal_pos
+
+        super().__init__(
+            width=width,
+            height=height,
+            max_steps=4 * width * height,
+            # Set this to True for maximum speed
+            see_through_walls=True
+        )
+
+    def _gen_grid(self, width, height):
+
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # Place a goal square in the top-left corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+        
+        ## Narrow lava corridor
+        wall: bool = False
+        if wall:
+        # horizontal lava
+            self.put_obj(Wall(), 1, 4)
+            self.put_obj(Wall(), 2, 4)
+            self.put_obj(Wall(), 3, 4)
+
+            # vertical lava
+            self.put_obj(Wall(), 3, 3)
+            self.put_obj(Wall(), 3, 2)
+
+            # horizontal lava
+            self.put_obj(Wall(), 2, 2)
+            self.put_obj(Wall(), 1, 2)
+
+            # Build the other side
+            self.put_obj(Wall(), 7, 2)
+            self.put_obj(Wall(), 6, 2)
+            self.put_obj(Wall(), 5, 2)
+
+            # vertical lava
+            self.put_obj(Wall(), 5, 3)
+            self.put_obj(Wall(), 5, 4)
+
+            # horizontal lava
+            self.put_obj(Wall(), 6, 4)
+            self.put_obj(Wall(), 7, 4)
+        else:
+            self.put_obj(Water(), 1, 4)
+            self.put_obj(Water(), 2, 4)
+            self.put_obj(Water(), 3, 4)
+            self.put_obj(Water(), 1, 3)
+            self.put_obj(Water(), 2, 3)
+            
+
+            # vertical lava
+            self.put_obj(Water(), 3, 3)
+            self.put_obj(Water(), 3, 2)
+
+            # horizontal lava
+            self.put_obj(Water(), 2, 2)
+            self.put_obj(Water(), 1, 2)
+
+            # Build the other side
+            self.put_obj(Water(), 7, 2)
+            self.put_obj(Water(), 6, 2)
+            self.put_obj(Water(), 5, 2)
+
+            # vertical lava
+            self.put_obj(Water(), 5, 3)
+            self.put_obj(Water(), 5, 4)
+
+            # horizontal lava
+            self.put_obj(Water(), 6, 4)
+            self.put_obj(Water(), 7, 4)
+            self.put_obj(Water(), 6, 3)
+            self.put_obj(Water(), 7, 3)
+
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            # restricted_positions = [(i+1, j+1) for i, j in itertools.product(range(8), range(3, 8))]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='blue',
+                    restricted_objs=['lava', 'floor', 'water'],
+                    # restricted_positions=restricted_positions
+                    ),
+                *p,
+                d,
+                False)
+
+        self.mission = 'get to a green goal square thorught a narrow lava corridor, don"t touch lava'
     
 
 
@@ -638,4 +768,10 @@ register(
 register(
     id='MiniGrid-LavaAdm_karan-v0',
     entry_point='src.graph_construction.minigrid_two_player_game:CorridorLavaAAAI25'
+)
+
+
+register(
+    id='MiniGrid-NarrowLavaAdm_karan-v0',
+    entry_point='src.graph_construction.minigrid_two_player_game:NarrowCorridorLavaRAL25'
 )

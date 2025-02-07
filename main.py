@@ -346,6 +346,8 @@ def minigrid_main(debug: bool = False,
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
     # nd_minigrid_envs = ['MiniGrid-FishAndShipwreckAvoidAgent-v0']
     nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-CorridorLava-v0']
+    # nd_minigrid_envs = ['MiniGrid-NarrowLavaAdm_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
     start = time.time()
     for id in nd_minigrid_envs:
@@ -369,6 +371,7 @@ def minigrid_main(debug: bool = False,
     minigrid_handle.build_automaton(ltlf=True)
     minigrid_handle.build_product()
     end = time.time()
+    # sys.exit(-1)
     print(f"Done Constrcuting the DFA Game: {end-start:0.2f} seconds")
     print(f"No. of nodes in the product graph is :{len(minigrid_handle.dfa_game._graph.nodes())}")
     print(f"No. of edges in the product graph is :{len(minigrid_handle.dfa_game._graph.edges())}")
@@ -380,7 +383,7 @@ def minigrid_main(debug: bool = False,
     
     # synthesize a strategy 
     else:
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=minigrid_handle.dfa_game,
                                               human_type='manual',
                                               rollout_flag=True,
@@ -663,7 +666,7 @@ if __name__ == "__main__":
     else:
         # starting the monitor
         tracemalloc.start()
-        construct_abstraction(abstraction_instance='tic-tac-toe',
+        construct_abstraction(abstraction_instance='minigrid',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,

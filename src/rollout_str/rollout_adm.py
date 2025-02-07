@@ -228,8 +228,8 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
     """
      This class inherits the base class for rolling out Admissible Strategy. In this class we roll out refined version of Adm strategy.
 
-     All admissible str are maximal in dominance order. As such we an informed way to choose amongst such strategie.
-       We order the an adm str from highest to lowest as follows: 
+     All admissible str are maximal in dominance order. As such we dont have an informed way to choose amongst such strategie.
+       We order the adm strs from highest to lowest as follows: 
      1. If a winning admissible strategy exists then compute Wcoop and choose those strategies.
      2. If a safe-admissible strategy exists, choose that
      3. If a safe-admissible does not exists then play hopeful admissible strategy. 
