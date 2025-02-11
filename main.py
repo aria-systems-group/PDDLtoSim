@@ -5,7 +5,13 @@ import time
 import datetime
 import tracemalloc
 import yaml
+import json
+import flask
 import warnings
+
+import numpy as np
+import networkx as nx
+
 
 from typing import Optional, Dict, Type, Union, Tuple, List
 
@@ -18,7 +24,7 @@ from src.graph_construction.transition_system import FiniteTransitionSystem
 from src.graph_construction.minigrid_two_player_game import NonDeterministicMiniGrid
 
 # call the regret synthesis code
-from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
+from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, Graph
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import\
     RegretMinimizationStrategySynthesis as RegMinStrSyn
@@ -31,6 +37,7 @@ from src.execute_str import execute_saved_str
 from src.rollout_str.rollout_provider_if import RolloutProvider
 from src.rollout_str.rollout_main import rollout_strategy, VALID_ENV_STRINGS, Strategy
 
+from helper import DFSPersonal
 from config import *
 from utls import timer_decorator
 
@@ -329,45 +336,49 @@ def construct_abstraction(abstraction_instance: str,
         tic_tac_toe_main(rollout_flag=rollout_flag, print_flag=print_flag)
 
 
-def visualize_game(game):
-        # from networkx.readwrite import d3_js
-        import flask
-        import networkx as nx
-        import json
-        import numpy as np
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
-        class NpEncoder(json.JSONEncoder):
-            def default(self, obj):
-                if isinstance(obj, np.integer):
-                    return int(obj)
-                if isinstance(obj, np.floating):
-                    return float(obj)
-                if isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                return super(NpEncoder, self).default(obj)
+def visualize_game(game: Graph, depth_limit: None):
+    """
+     Updated Method
+    """
+    # call NEtworkX and construct Tree for a given depth limit
+    if depth_limit is None:
+        depth_limit = len(game._graph)
 
-        for n in game._graph:
-            game._graph.nodes[n]["name"] = str(n)
-            if 'id' in game._graph.nodes[n]:
-                del game._graph.nodes[n]['id']
-        
-        # write json formatted data
-        d = nx.json_graph.node_link_data(game._graph)  # node-link format to serialize
-        # write json
-        json.dump(d, open("force/input_graph_tree.json", "w"), cls=NpEncoder)
-        print("Wrote node-link JSON data to force/force.json")
+    # run dfs
+    dfs_tree = DFSPersonal(game=game)
+    dfs_tree.tree_dfs(depth_limit=5)
+    d = DFSPersonal.tree_data(G=dfs_tree._tree, root=game.get_initial_states()[0][0], ident="parent")
+    # sys.exit(-1)
+    # dfs_tree: nx.DiGraph = nx.dfs_tree(game._graph, source=game.get_initial_states()[0][0], depth_limit=depth_limit)
 
-        # Serve the file over http to allow for cross origin requests
-        app = flask.Flask(__name__, static_folder="force")
-
-
-        @app.route("/")
-        def static_proxy():
-            return app.send_static_file("force.html")
+    # d = nx.json_graph.tree_data(dfs_tree, root=game.get_initial_states()[0][0], ident="parent")  # node-link format to serialize
+    
+    # write json
+    json.dump(d, open("force/tree_dfs.json", "w"), cls=NpEncoder)
+    print("Wrote node-link JSON data to force/force.json")
+     # Serve the file over http to allow for cross origin requests
+    app = flask.Flask(__name__, static_folder="force")
 
 
-        print("\nGo to http://localhost:8000 to see the example\n")
-        app.run(port=8000)
+    @app.route("/")
+    def static_proxy():
+        # return app.send_static_file("tree_dfs_players.html")
+        # return app.send_static_file("tree_dfs_all_attrs.html")
+        return app.send_static_file("tree_dfs_all_attrs_adaptive.html")
+
+
+    print("\nGo to http://localhost:8000 to see the example\n")
+    app.run(port=8000)
 
 
 def minigrid_main(debug: bool = False,
@@ -411,7 +422,7 @@ def minigrid_main(debug: bool = False,
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
         print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
     # sys.exit(-1)
-    visualize_game(minigrid_handle.two_player_trans_sys)
+    visualize_game(minigrid_handle.two_player_trans_sys, depth_limit=20)
     minigrid_handle.set_edge_weights(print_flag=True)
     minigrid_handle.build_automaton(ltlf=True)
     minigrid_handle.build_product()

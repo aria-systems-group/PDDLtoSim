@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <style>
-
 .node {
   cursor: pointer;
 }
@@ -22,16 +21,18 @@
   stroke-width: 3px;
 }
 
+/* Add styles for edge labels */
+.edge-label {
+  font: 8px sans-serif;
+  fill: #666;
+}
 </style>
 <body>
 <script src="https://d3js.org/d3.v3.min.js"></script>
 <script>
-
 var margin = {top: 20, right: 120, bottom: 20, left: 120},
-    // canvas_height = 700,
-    // canvas_width = 960
     canvas_height = 1440,
-    canvas_width = 2560
+    canvas_width = 2560,
     tree_width = canvas_width - margin.right - margin.left,
     tree_height = canvas_height - margin.top - margin.bottom,
     tree_level_depth = 180;
@@ -72,7 +73,6 @@ d3.json("force/tree_dfs.json", function(error, tree_data) {
 d3.select(self.frameElement).style("height", "800px");
 
 function update(source) {
-
   // Compute the new tree layout.
   var nodes = tree.nodes(root),
       links = tree.links(nodes);
@@ -80,7 +80,7 @@ function update(source) {
   // Normalize for fixed-depth.
   nodes.forEach(function(d) { d.y = d.depth * tree_level_depth; });
 
-  // Set unique ID for each node
+  // Update the nodes
   var node = svg.selectAll("g.node")
       .data(nodes, function(d) { return d.id || (d.id = ++i); });
 
@@ -104,27 +104,28 @@ function update(source) {
   // Transition nodes to their new position.
   var moved_node = node.transition().duration(duration)
       .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
+
   moved_node.select("circle")
       .attr("r", 4.5)
       .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
   moved_node.select("text")
       .style("fill-opacity", 1);
-
 
   // Transition exiting nodes to the parent's new position.
   var hidden_nodes = node.exit().transition().duration(duration)
       .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
       .remove();
+
   hidden_nodes.select("circle")
       .attr("r", 1e-6);
+
   hidden_nodes.select("text")
       .style("fill-opacity", 1e-6);
 
-
-  // Update the links…
+  // Update the links
   var link = svg.selectAll("path.link")
       .data(links, function(d) { return d.target.id; });
-
 
   // Enter any new links at the parent's previous position.
   link.enter().insert("path", "g")
@@ -132,13 +133,31 @@ function update(source) {
       .attr("d", function(d) {
         var o = {x: source.x0, y: source.y0};
         return diagonal({source: o, target: o});
-      })
-      .append("svg:title")
-          .text(function(d, i) { return d.target.edge_name; });
+      });
 
+  // Add edge labels
+  var edgeLabels = svg.selectAll(".edge-label")
+      .data(links, function(d) { return d.target.id; });
 
+  // Enter edge labels
+  edgeLabels.enter().append("text")
+      .attr("class", "edge-label")
+      .attr("text-anchor", "middle")
+      .text(function(d) { return d.target.edge_name; });
 
-  //Transition links to their new position.
+  // Update edge labels position
+  edgeLabels.transition().duration(duration)
+      .attr("transform", function(d) {
+        // Position label at midpoint of the link
+        var midX = (d.source.x + d.target.x) / 2;
+        var midY = (d.source.y + d.target.y) / 2;
+        return "translate(" + midY + "," + midX + ")";
+      });
+
+  // Remove old edge labels
+  edgeLabels.exit().remove();
+
+  // Transition links to their new position.
   link.transition().duration(duration)
       .attr("d", diagonal);
 
@@ -149,7 +168,6 @@ function update(source) {
         return diagonal({source: o, target: o});
       })
       .remove();
-
 
   // Stash the old positions for transition.
   nodes.forEach(function(d) {
@@ -169,5 +187,5 @@ function click(d) {
   }
   update(d);
 }
-
 </script>
+</body>

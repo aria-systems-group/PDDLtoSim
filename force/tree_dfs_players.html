@@ -1,12 +1,17 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <style>
-
 .node {
   cursor: pointer;
 }
 
 .node circle {
+  fill: #fff;
+  stroke: steelblue;
+  stroke-width: 1.5px;
+}
+
+.node rect {
   fill: #fff;
   stroke: steelblue;
   stroke-width: 1.5px;
@@ -22,16 +27,17 @@
   stroke-width: 3px;
 }
 
+.edge-label {
+  font: 8px sans-serif;
+  fill: #666;
+}
 </style>
 <body>
 <script src="https://d3js.org/d3.v3.min.js"></script>
 <script>
-
 var margin = {top: 20, right: 120, bottom: 20, left: 120},
-    // canvas_height = 700,
-    // canvas_width = 960
     canvas_height = 1440,
-    canvas_width = 2560
+    canvas_width = 2560,
     tree_width = canvas_width - margin.right - margin.left,
     tree_height = canvas_height - margin.top - margin.bottom,
     tree_level_depth = 180;
@@ -72,27 +78,38 @@ d3.json("force/tree_dfs.json", function(error, tree_data) {
 d3.select(self.frameElement).style("height", "800px");
 
 function update(source) {
-
-  // Compute the new tree layout.
   var nodes = tree.nodes(root),
       links = tree.links(nodes);
 
-  // Normalize for fixed-depth.
   nodes.forEach(function(d) { d.y = d.depth * tree_level_depth; });
 
-  // Set unique ID for each node
   var node = svg.selectAll("g.node")
       .data(nodes, function(d) { return d.id || (d.id = ++i); });
 
-  // Enter any new nodes at the parent's previous position.
   var new_nodes = node.enter().append("g")
       .attr("class", "node")
       .attr("transform", function(d) { return "translate(" + source.y0 + "," + source.x0 + ")"; })
       .on("click", click);
 
-  new_nodes.append("circle")
-      .attr("r", 1e-6)
-      .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+  // Remove previous shape if it exists (for updates)
+  new_nodes.selectAll("circle, rect").remove();
+
+  // Add appropriate shape based on player attribute
+  new_nodes.each(function(d) {
+    var node = d3.select(this);
+    if (d.player === "eve") {
+      node.append("circle")
+          .attr("r", 1e-6)
+          .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+    } else {
+      node.append("rect")
+          .attr("x", -4.5)  // Center the 9x9 square
+          .attr("y", -4.5)
+          .attr("width", 9)
+          .attr("height", 9)
+          .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+    }
+  });
 
   new_nodes.append("text")
       .attr("x", function(d) { return d.children || d._children ? -10 : 10; })
@@ -101,48 +118,67 @@ function update(source) {
       .text(function(d) { return d.name; })
       .style("fill-opacity", 1e-6);
 
-  // Transition nodes to their new position.
   var moved_node = node.transition().duration(duration)
       .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
-  moved_node.select("circle")
+
+  // Update circles
+  moved_node.selectAll("circle")
       .attr("r", 4.5)
       .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
+  // Update rectangles
+  moved_node.selectAll("rect")
+      .attr("x", -4.5)
+      .attr("y", -4.5)
+      .attr("width", 9)
+      .attr("height", 9)
+      .style("fill", function(d) { return d._children ? "lightsteelblue" : "#fff"; });
+
   moved_node.select("text")
       .style("fill-opacity", 1);
 
-
-  // Transition exiting nodes to the parent's new position.
   var hidden_nodes = node.exit().transition().duration(duration)
       .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
       .remove();
-  hidden_nodes.select("circle")
-      .attr("r", 1e-6);
+
+  hidden_nodes.selectAll("circle, rect")
+      .attr("r", 1e-6)
+      .attr("width", 1e-6)
+      .attr("height", 1e-6);
+
   hidden_nodes.select("text")
       .style("fill-opacity", 1e-6);
 
-
-  // Update the links…
   var link = svg.selectAll("path.link")
       .data(links, function(d) { return d.target.id; });
 
-
-  // Enter any new links at the parent's previous position.
   link.enter().insert("path", "g")
       .attr("class", "link")
       .attr("d", function(d) {
         var o = {x: source.x0, y: source.y0};
         return diagonal({source: o, target: o});
-      })
-      .append("svg:title")
-          .text(function(d, i) { return d.target.edge_name; });
+      });
 
+  var edgeLabels = svg.selectAll(".edge-label")
+      .data(links, function(d) { return d.target.id; });
 
+  edgeLabels.enter().append("text")
+      .attr("class", "edge-label")
+      .attr("text-anchor", "middle")
+      .text(function(d) { return d.target.edge_name; });
 
-  //Transition links to their new position.
+  edgeLabels.transition().duration(duration)
+      .attr("transform", function(d) {
+        var midX = (d.source.x + d.target.x) / 2;
+        var midY = (d.source.y + d.target.y) / 2;
+        return "translate(" + midY + "," + midX + ")";
+      });
+
+  edgeLabels.exit().remove();
+
   link.transition().duration(duration)
       .attr("d", diagonal);
 
-  // Transition exiting nodes to the parent's new position.
   link.exit().transition().duration(duration)
       .attr("d", function(d) {
         var o = {x: source.x, y: source.y};
@@ -150,15 +186,12 @@ function update(source) {
       })
       .remove();
 
-
-  // Stash the old positions for transition.
   nodes.forEach(function(d) {
     d.x0 = d.x;
     d.y0 = d.y;
   });
 }
 
-// Toggle children on click.
 function click(d) {
   if (d.children) {
     d._children = d.children;
@@ -169,5 +202,5 @@ function click(d) {
   }
   update(d);
 }
-
 </script>
+</body>
