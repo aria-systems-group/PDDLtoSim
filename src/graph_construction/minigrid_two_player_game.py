@@ -256,7 +256,7 @@ class NonDeterministicMiniGrid():
                             'MiniGrid-FishAndShipwreckAvoidAgent-v0': [], 'MiniGrid-ChasingAgentIn4Square-v0': [],
                             'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
                             'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-LavaAdm_karan-v0': [],
-                            'MiniGrid-NarrowLavaAdm_karan-v0': []}
+                            'MiniGrid-NarrowLavaAdm_karan-v0': [], 'MiniGrid-IntruderRobotRAL25-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -293,6 +293,7 @@ class NonDeterministicMiniGrid():
                                                graph_name="minigrid_product_graph",
                                                config_yaml="/config/minigrid_product_graph",
                                                trans_sys=self.two_player_trans_sys,
+                                               observe_next_on_trans=True,
                                                automaton=self.dfa,
                                                save_flag=self.save_flag,
                                                prune=False,
@@ -329,7 +330,8 @@ class NonDeterministicMiniGrid():
                             env_snap: bool = False,
                             get_aps: bool = False,
                             get_weights: bool = False,
-                            set_weights: bool = False):
+                            set_weights: bool = False,
+                            augment_obs: bool = False):
         """
          Build OpenAI Minigrid Env with multiple agents, then construct the corresponding graph.
         """
@@ -363,9 +365,14 @@ class NonDeterministicMiniGrid():
         # add labels to the graph and prune multiple edges from same state to successor state
         self.initialize_edge_labels_on_fancy_graph(two_player_graph)
 
+        self._two_player_trans_sys = two_player_graph
+
+        if augment_obs:
+            self._augment_obs()    
+
         # get all the aps, and the player
         if get_aps:
-            self.get_aps(debug=self.debug)
+            self.get_aps(print_flag=True)
         
         # get edge weight sets
         if get_weights:
@@ -373,10 +380,28 @@ class NonDeterministicMiniGrid():
         
         # set edge weight sets
         if set_weights:
-            self.set_edge_weights(debug=self.debug)
-
-        self._two_player_trans_sys = two_player_graph
+            self.set_edge_weights()
+        
+        # sys.exit(-1)
     
+
+    def modify_robot_evasion_game(self):
+        """
+         A heleper fuction to remove Env agent action to move if Sys agent has not observed it yet.
+        """
+        # remove Eve's action if the DFA state is in the init state.
+        dfa_init = self.dfa.get_initial_states()[0][0]  # should q1
+        env_edges_to_rm = set()
+        for _s in self.dfa_game._graph.nodes():
+            # make an exception for Env state to go north (self-loop) so that there exisits a path on the DFA game from q1 to other dfa states.
+            if self.dfa_game._graph.nodes(data='player')[_s] == 'adam' and _s[1] == dfa_init:
+                for _e in self.dfa_game._graph.out_edges(_s):
+                    if isinstance(_e[1], tuple) and _e[0][0][2][0] == (8, 1) and _e[1][0][2][0] == (8, 1): 
+                        continue
+                    env_edges_to_rm.add(_e)
+
+        self.dfa_game._graph.remove_edges_from(env_edges_to_rm)
+        
 
     def simulate_strategy(self,
                           sys_actions: MultiStepMultiAgentAction,
@@ -447,6 +472,22 @@ class NonDeterministicMiniGrid():
                 env_actions.append(act_tuple)
         
         return system_actions, env_actions
+    
+    def _augment_obs(self):
+        """
+         A helper method used to augment the AP at each state and see if the Agent observed the Env player or not.
+        """
+        for state in self._two_player_trans_sys._graph.nodes():
+            # augement ap with agent_observed label
+            agent_pos = state[2][0]
+            sys_pos = state[1][0]
+            if (0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2):
+                if self._two_player_trans_sys._graph.nodes[state].get('ap') == '':
+                    self._two_player_trans_sys._graph.nodes[state]['ap'] = "agent_observed"
+                # the wall are not see thought. So if you are in the human room, you cannot observe the agent. Further, avoid creating labels where you are in collision with the agent
+                elif self._two_player_trans_sys._graph.nodes[state]['ap'] not in ["floor_purple_open", "agent_blue_right"] :
+                    self._two_player_trans_sys._graph.nodes[state]['ap'] = self._two_player_trans_sys._graph.nodes[state].get('ap') + \
+                        "__" + "agent_observed"
 
 
 class CorridorLava(MultiAgentMiniGridEnv):
@@ -673,7 +714,7 @@ class NarrowCorridorLavaRAL25(MultiAgentMiniGridEnv):
             self.put_obj(Floor(color='green'), *goal_pos)
         
         ## Narrow lava corridor
-        wall: bool = False
+        wall: bool = True
         if wall:
         # horizontal lava
             self.put_obj(Wall(), 1, 4)
@@ -757,6 +798,98 @@ class NarrowCorridorLavaRAL25(MultiAgentMiniGridEnv):
                 False)
 
         self.mission = 'get to a green goal square thorught a narrow lava corridor, don"t touch lava'
+
+
+class IntruderRobotRAL25(MultiAgentMiniGridEnv):
+    """
+    Create a minigrid env. 7 by 5 gridworld with Goal on top right. 
+     Sys agent start on thr bottom left and Env agent starts on the top right.  A winning stratgey does not exists. 
+    """
+
+    def __init__(
+        self,
+        width=11,
+        height=9,
+        agent_start_pos=(1, 7),
+        agent_start_dir=0,
+        env_agent_start_pos=[(8, 1)],
+        env_agent_start_dir=[0],
+        goal_pos=[(9, 1)],
+    ):
+        self.agent_start_pos = agent_start_pos
+        self.agent_start_dir = agent_start_dir
+        self.env_agent_start_pos = env_agent_start_pos
+        self.env_agent_start_dir = env_agent_start_dir
+
+        self.goal_pos = goal_pos
+
+        super().__init__(
+            width=width,
+            height=height,
+            max_steps=4 * width * height,
+            # Set this to True for maximum speed
+            see_through_walls=True
+        )
+
+    def _gen_grid(self, width, height):
+
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # Place a goal square in the top-left corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+        
+        # Human region -Env agent (intruder) can not enter.
+        # self.put_obj(Floor(color='purple'), 4, 3)
+        # self.put_obj(Floor(color='purple'), 4, 4)
+        # self.put_obj(Floor(color='purple'), 4, 5)
+        # self.put_obj(Floor(color='purple'), 5, 3)
+        self.put_obj(Wall(color='yellow'), 4, 3)
+        self.put_obj(Wall(color='yellow'), 4, 4)
+        self.put_obj(Wall(color='yellow'), 4, 5)
+        self.put_obj(Wall(color='yellow'), 5, 3)
+        self.put_obj(Floor(color='purple'), 5, 4) # room
+        self.put_obj(Floor(color='purple'), 5, 5) # room door
+        # self.put_obj(Floor(color='purple'), 6, 3)
+        # self.put_obj(Floor(color='purple'), 6, 4)
+        # self.put_obj(Floor(color='purple'), 6, 5)
+        self.put_obj(Wall(color='yellow'), 6, 3)
+        self.put_obj(Wall(color='yellow'), 6, 4)
+        self.put_obj(Wall(color='yellow'), 6, 5)
+
+        # some useful attributes wrt visualization
+        # self.agent_view_size
+        # gen_obs_grid()
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            # restricted_positions = [(i+1, j+1) for i, j in itertools.product(range(8), range(3, 8))]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='blue',
+                    restricted_objs=['floor'],
+                    # restricted_objs=['lava', 'water'],
+                    # restricted_positions=restricted_positions
+                    ),
+                *p,
+                d,
+                False)
+
+        self.mission = 'Robot-intruder game: The task for the robot is to take a photo of the intruder trying \
+        to get into the lock and the report it to the human and eventually visit the lock. The intruder can not enter the human"s room.'
     
 
 
@@ -774,4 +907,9 @@ register(
 register(
     id='MiniGrid-NarrowLavaAdm_karan-v0',
     entry_point='src.graph_construction.minigrid_two_player_game:NarrowCorridorLavaRAL25'
+)
+
+register(
+    id='MiniGrid-IntruderRobotRAL25-v0',
+    entry_point='src.graph_construction.minigrid_two_player_game:IntruderRobotRAL25'
 )

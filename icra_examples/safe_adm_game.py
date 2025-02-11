@@ -47,10 +47,10 @@ def modify_abstraction(game: TwoPlayerGame,
                        human_only_loc: Union[Set[str], str],
                        debug: bool = False):
     """
-     A helper function that construct a game that indicates that will commit to safe game if a safe adm str exists.
+     A helper function that modifies a game that indicates that robot will commit to safe game if a safe adm str exists.
 
      Setup: Give game G, human_only_loc - set of locations where the human can move object to and 
-     hopeless_human_loc - the only set of human locations from which the human can move an object to human_only_loc, we first:
+     hopeless_human_loc - the set of human locations from which the human can move an object to human_only_loc, we first:
      1. Remove all Sys edges to human_only_loc - includes - transit and transfer edges to this loc
      2. Remove all Human edges from locs not in hopeless_human_loc to human_only_loc.
      3. Finally, remove states that are not reachable. - helps in VI

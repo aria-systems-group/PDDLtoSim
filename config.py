@@ -30,6 +30,17 @@ ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
 # Diag Formulas
 DIAG_FORMULA = "F((p22 & p14 & p03) || (p05 & p19 & p26))"
 
+### Testing
+# ((!(floor_purple_open) U agent_observed) & G((agent_observed -> F((floor_purple_open & X(F(floor_green_open)))))))
+# (F((p & X(F((h & X(F(g))))))) & G(!(a)) & G((!(h) U p))) - abstracted version
+# ((F((p & F((h & F(g))))) & G(!(a))) & (!(h) U p)) - second variant
+# here 
+p = "agent_observed"
+h = "floor_purple_open"
+g = "floor_green_open"
+a = "agent_blue_right"
+robot_evasion = f"((F(({p} & F(({h} & F({g}))))) & G(!({a}))) & (!({h}) U {p}))"
+
 
 
 ################################### Minigrid #########################################
