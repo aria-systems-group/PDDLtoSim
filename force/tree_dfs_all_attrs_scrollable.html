@@ -1,19 +1,6 @@
 <!DOCTYPE html>
 <meta charset="utf-8">
 <style>
-html, body {
-  width: 100%;
-  height: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-#tree-container {
-  width: 100%;
-  height: 100%;
-  overflow: auto;
-}
-
 .node {
   cursor: pointer;
 }
@@ -56,103 +43,66 @@ html, body {
   opacity: 0;
   transition: opacity 0.3s;
 }
+
+/* Add scrolling container */
+#tree-container {
+  width: 100%;
+  height: 100vh;
+  overflow: auto;
+}
 </style>
 <body>
 <div id="tree-container"></div>
 <script src="https://d3js.org/d3.v3.min.js"></script>
 <script>
-function getContainerDimensions() {
-  var container = document.getElementById('tree-container');
-  return {
-    width: container.clientWidth,
-    height: container.clientHeight
-  };
-}
+var i = 0,
+    duration = 750,
+    root;
 
-function calculateDimensions(treeData) {
-  var maxDepth = 0;
-  var maxWidth = 0;
-  var nodeCount = 0;
+// Initialize with a very large width to allow for expansion
+var margin = {top: 20, right: 120, bottom: 20, left: 120},
+    tree_width = 20000,  // Very large width
+    tree_height = 1000,  // Fixed height
+    tree_level_depth = 180;
 
-  function traverse(node, depth) {
-    maxDepth = Math.max(maxDepth, depth);
-    nodeCount++;
-    
-    if (node.children) {
-      node.children.forEach(child => traverse(child, depth + 1));
-    }
-    if (node._children) {
-      node._children.forEach(child => traverse(child, depth + 1));
-    }
-  }
-  
-  traverse(treeData, 0);
-  
-  var minWidth = maxDepth * 180 + 240;
-  var minHeight = nodeCount * 30;
+var tree = d3.layout.tree()
+    .size([tree_height, tree_width]);
 
-  var container = getContainerDimensions();
-  
-  return {
-    width: Math.max(minWidth, container.width),
-    height: Math.max(minHeight, container.height)
-  };
-}
-
-var margin = {top: 20, right: 120, bottom: 20, left: 120};
-var i = 0;
-var duration = 750;
-var root;
-var tree;
-var diagonal;
-var svg;
+var diagonal = d3.svg.diagonal()
+    .projection(function(d) { return [d.y, d.x]; });
 
 var tooltip = d3.select("body").append("div")
     .attr("class", "tooltip");
 
-function initializeTree(treeData, preserveState = false) {
-  // Remove existing SVG
-  d3.select("#tree-container svg").remove();
-  
-  var dims = calculateDimensions(treeData);
-  var tree_width = dims.width - margin.right - margin.left;
-  var tree_height = dims.height - margin.top - margin.bottom;
+var svg = d3.select("#tree-container").append("svg")
+    .attr("width", tree_width + margin.right + margin.left)
+    .attr("height", tree_height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
-  tree = d3.layout.tree()
-      .size([tree_height, tree_width]);
+d3.json("force/tree_dfs.json", function(error, tree_data) {
+  root = tree_data;
+  root.x0 = tree_height / 2;
+  root.y0 = 0;
 
-  diagonal = d3.svg.diagonal()
-      .projection(function(d) { return [d.y, d.x]; });
-
-  svg = d3.select("#tree-container").append("svg")
-      .attr("width", dims.width)
-      .attr("height", dims.height)
-      .append("g")
-      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
-
-  if (!preserveState) {
-    root = treeData;
-    root.x0 = tree_height / 2;
-    root.y0 = 0;
-
-    function collapse(d) {
-      if (d.children) {
-        d._children = d.children;
-        d._children.forEach(collapse);
-        d.children = null;
-      }
+  function collapse(d) {
+    if (d.children) {
+      d._children = d.children;
+      d._children.forEach(collapse);
+      d.children = null;
     }
-    root.children.forEach(collapse);
   }
-  
+
+  root.children.forEach(collapse);
   update(root);
-}
+});
 
 function update(source) {
-  var nodes = tree.nodes(root);
-  var links = tree.links(nodes);
+  var nodes = tree.nodes(root).reverse(),
+      links = tree.links(nodes);
 
-  nodes.forEach(function(d) { d.y = d.depth * 180; });
+  // Normalize for fixed-depth
+  nodes.forEach(function(d) { d.y = d.depth * tree_level_depth; });
 
   var node = svg.selectAll("g.node")
       .data(nodes, function(d) { return d.id || (d.id = ++i); });
@@ -187,7 +137,8 @@ function update(source) {
       .text(function(d) { return d.name; })
       .style("fill-opacity", 1e-6);
 
-  var moved_node = node.transition().duration(duration)
+  var moved_node = node.transition()
+      .duration(duration)
       .attr("transform", function(d) { return "translate(" + d.y + "," + d.x + ")"; });
 
   moved_node.selectAll("circle")
@@ -204,7 +155,8 @@ function update(source) {
   moved_node.select("text")
       .style("fill-opacity", 1);
 
-  node.exit().transition().duration(duration)
+  node.exit().transition()
+      .duration(duration)
       .attr("transform", function(d) { return "translate(" + source.y + "," + source.x + ")"; })
       .remove();
 
@@ -235,10 +187,12 @@ function update(source) {
 
   edgeLabels.exit().remove();
 
-  link.transition().duration(duration)
+  link.transition()
+      .duration(duration)
       .attr("d", diagonal);
 
-  link.exit().transition().duration(duration)
+  link.exit().transition()
+      .duration(duration)
       .attr("d", function(d) {
         var o = {x: source.x, y: source.y};
         return diagonal({source: o, target: o});
@@ -249,17 +203,6 @@ function update(source) {
     d.x0 = d.x;
     d.y0 = d.y;
   });
-}
-
-function click(d) {
-  if (d.children) {
-    d._children = d.children;
-    d.children = null;
-  } else {
-    d.children = d._children;
-    d._children = null;
-  }
-  update(d);
 }
 
 function showTooltip(d) {
@@ -280,30 +223,15 @@ function hideTooltip() {
   tooltip.style("opacity", 0);
 }
 
-// Debounce function to prevent too many resize events
-function debounce(func, wait) {
-  let timeout;
-  return function executedFunction(...args) {
-    const later = () => {
-      clearTimeout(timeout);
-      func(...args);
-    };
-    clearTimeout(timeout);
-    timeout = setTimeout(later, wait);
-  };
-}
-
-// Add window resize handler with debouncing
-window.addEventListener('resize', debounce(function() {
-  if (root) {
-    initializeTree(root, true); // Pass true to preserve state
+function click(d) {
+  if (d.children) {
+    d._children = d.children;
+    d.children = null;
+  } else {
+    d.children = d._children;
+    d._children = null;
   }
-}, 250));
-
-// Initial load
-d3.json("force/tree_dfs.json", function(error, treeData) {
-  if (error) throw error;
-  initializeTree(treeData);
-});
+  update(d);
+}
 </script>
 </body>

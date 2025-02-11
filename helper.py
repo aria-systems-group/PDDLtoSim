@@ -1,14 +1,16 @@
-
+import sys
 import time
-from copy import deepcopy
+import warnings
+
 import networkx as nx
 
+from copy import deepcopy
 from typing import Optional, Union, List, Iterable, Dict, Set, Tuple, Generator
 
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 
 
-class DFSPersonal():
+class TreeTraversalMyGame():
     
     def __init__(self, game):
         self._tree =  nx.DiGraph()
@@ -39,11 +41,6 @@ class DFSPersonal():
         -------
         data : dict
         A dictionary with node-link formatted data.
-
-        Raises
-        ------
-        NetworkXError
-            If `children` and `ident` attributes are identical.
 
         Examples
         --------
@@ -76,7 +73,6 @@ class DFSPersonal():
                 return []
             children_ = []
             for child in nbrs:
-                # d = {**G.nodes[child], ident: child}
                 d = {"name": str(child), "edge_name": G[n][child]['actions'], "label": G.nodes[child].get('ap'), "player": G.nodes[child]['player'], ident: child}
                 c = add_children(child, G)
                 if c:
@@ -84,7 +80,6 @@ class DFSPersonal():
                 children_.append(d)
             return children_
 
-        # return {**G.nodes[root], ident: root, children: add_children(root, G)}
         return {"name": str(root), "player": G.nodes[root]['player'], "label": G.nodes[root].get('ap'), ident: root, children: add_children(root, G)}
 
     def add_edges(self, ebunch_to_add, **attr) -> None:
@@ -115,11 +110,9 @@ class DFSPersonal():
                 
                 # add edge attributes too 
                 if not self._tree.has_edge(u_node, v_node):
-                    # self.game._graph
-                    self._tree.add_edge(u_node,v_node, **self.game._graph[u_node][v_node][0])
-                    # self._tree[u_node][v_node][key].update(ddd)
+                    self._tree.add_edge(u_node, v_node, **self.game._graph[u_node][v_node][0])
 
-    def construct_tree(self, depth_limit: int) -> Generator[Tuple, Tuple, Dict]:
+    def construct_tree_dfs(self, depth_limit: Union[int, None]) -> Generator[Tuple, Tuple, Dict]:
         """
         This method constructs a tree in a non-recurisve depth first fashion for all plays in the original graph whose depth < depth_limit.
         """
@@ -142,26 +135,68 @@ class DFSPersonal():
                 for child in children:                
                     if child not in visited:
                         yield ((parent), self.game._graph.nodes[parent]), ((child), self.game._graph.nodes[child]), {'weight': 0}
-
-                    visited.add(child)
-
-                    if depth_now < depth_limit:
-                        stack.append((child, iter(self.game._graph[child])))
-                        depth_now += 1
-                        break
+                        visited.add(child)
+                        if depth_now < depth_limit:
+                            stack.append((child, iter(self.game._graph[child])))
+                            depth_now += 1
+                            break
                 else:
                     stack.pop()
-                    depth_now -= 1 
+                    depth_now -= 1
+    
+
+    def construct_tree_bfs(self, depth_limit: Union[int, None]) -> Generator[Tuple, Tuple, Dict]:
+        """
+        This method constructs a tree in a non-recurisve breadth first fashion for all plays in the original graph whose depth < depth_limit.
+        """
+        source = self.game.get_initial_states()[0][0]
+
+        if depth_limit is None:
+            depth_limit = len(self.game)
+
+        visited = set()
+        visited.add(source)
+        next_parents_children = [(source, iter(self.game._graph[source]))] 
+        depth_now = 0
+        while next_parents_children and depth_now < depth_limit:
+            this_parents_children = next_parents_children
+            next_parents_children = []
+            for parent, children in this_parents_children:                
+                for child in children:
+                    if child not in visited:
+                        yield ((parent), self.game._graph.nodes[parent]), ((child), self.game._graph.nodes[child]), {'weight': 0}
+                        visited.add(child)
+                        # if depth_now < depth_limit:
+                        next_parents_children.append((child, iter(self.game._graph[child])))
+                        # depth_now += 1
+                        # break
+                if len(visited) == depth_limit:
+                    return
+            depth_now += 1 
 
 
-    def tree_dfs(self, depth_limit: None):
+
+    def tree_traversal(self, bfs: bool, dfs: bool = False, depth_limit: Optional[int] = None):
+        """
+         Parent method to call the traversal.
+        """
+
         start = time.time()
+        # if bfs and dfs is False:
+        #     warnings.warn("[Error] Please set either bfs or dfs to true")
+        #     sys.exit(-1)
         
-        self._tree.add_node(self.game.get_initial_states()[0][0])
-        # terminal_state: str = "vT"
-        # self._adm_tree.add_state(terminal_state, **{'init': False, 'accepting': False})
+        # if bfs and dfa
 
-        self.add_edges(self.construct_tree(depth_limit))
+        self._tree.add_node(self.game.get_initial_states()[0][0])
+        if bfs:
+            self.add_edges(self.construct_tree_bfs(depth_limit))
+        elif dfs:
+            self.add_edges(self.construct_tree_dfs(depth_limit))
+        else:
+            warnings.warn("[Error] Please set either bfs or dfs to true")
+            sys.exit(-1)
+        
         stop = time.time()
         print(f"Time to construct the Tree is: {stop - start:.2f}")
        

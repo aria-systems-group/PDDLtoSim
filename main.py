@@ -37,7 +37,7 @@ from src.execute_str import execute_saved_str
 from src.rollout_str.rollout_provider_if import RolloutProvider
 from src.rollout_str.rollout_main import rollout_strategy, VALID_ENV_STRINGS, Strategy
 
-from helper import DFSPersonal
+from helper import TreeTraversalMyGame
 from config import *
 from utls import timer_decorator
 
@@ -355,9 +355,9 @@ def visualize_game(game: Graph, depth_limit: None):
         depth_limit = len(game._graph)
 
     # run dfs
-    dfs_tree = DFSPersonal(game=game)
-    dfs_tree.tree_dfs(depth_limit=5)
-    d = DFSPersonal.tree_data(G=dfs_tree._tree, root=game.get_initial_states()[0][0], ident="parent")
+    dfs_tree = TreeTraversalMyGame(game=game)
+    dfs_tree.tree_traversal(bfs=True, dfs=False, depth_limit=5)
+    d = TreeTraversalMyGame.tree_data(G=dfs_tree._tree, root=game.get_initial_states()[0][0], ident="parent")
     # sys.exit(-1)
     # dfs_tree: nx.DiGraph = nx.dfs_tree(game._graph, source=game.get_initial_states()[0][0], depth_limit=depth_limit)
 
