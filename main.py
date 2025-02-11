@@ -20,6 +20,7 @@ from src.graph_construction.transition_system import FiniteTransitionSystem
 from src.graph_construction.minigrid_two_player_game import NonDeterministicMiniGrid
 
 # call the regret synthesis code
+from regret_synthesis_toolbox.helper import InteractiveGraph
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, Graph
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import\
@@ -33,7 +34,6 @@ from src.execute_str import execute_saved_str
 from src.rollout_str.rollout_provider_if import RolloutProvider
 from src.rollout_str.rollout_main import rollout_strategy, VALID_ENV_STRINGS, Strategy
 
-from helper import InteractiveGraph
 from config import *
 from utls import timer_decorator
 
