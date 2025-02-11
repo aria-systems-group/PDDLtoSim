@@ -5,12 +5,8 @@ import time
 import datetime
 import tracemalloc
 import yaml
-import json
-import flask
-import warnings
 
-import numpy as np
-import networkx as nx
+import warnings
 
 
 from typing import Optional, Dict, Type, Union, Tuple, List
@@ -37,7 +33,7 @@ from src.execute_str import execute_saved_str
 from src.rollout_str.rollout_provider_if import RolloutProvider
 from src.rollout_str.rollout_main import rollout_strategy, VALID_ENV_STRINGS, Strategy
 
-from helper import TreeTraversalMyGame
+from helper import InteractiveGraph
 from config import *
 from utls import timer_decorator
 
@@ -336,51 +332,6 @@ def construct_abstraction(abstraction_instance: str,
         tic_tac_toe_main(rollout_flag=rollout_flag, print_flag=print_flag)
 
 
-class NpEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.integer):
-            return int(obj)
-        if isinstance(obj, np.floating):
-            return float(obj)
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return super(NpEncoder, self).default(obj)
-
-def visualize_game(game: Graph, depth_limit: None):
-    """
-     Updated Method
-    """
-    # call NEtworkX and construct Tree for a given depth limit
-    if depth_limit is None:
-        depth_limit = len(game._graph)
-
-    # run dfs
-    dfs_tree = TreeTraversalMyGame(game=game)
-    dfs_tree.tree_traversal(bfs=True, dfs=False, depth_limit=5)
-    d = TreeTraversalMyGame.tree_data(G=dfs_tree._tree, root=game.get_initial_states()[0][0], ident="parent")
-    # sys.exit(-1)
-    # dfs_tree: nx.DiGraph = nx.dfs_tree(game._graph, source=game.get_initial_states()[0][0], depth_limit=depth_limit)
-
-    # d = nx.json_graph.tree_data(dfs_tree, root=game.get_initial_states()[0][0], ident="parent")  # node-link format to serialize
-    
-    # write json
-    json.dump(d, open("force/tree_dfs.json", "w"), cls=NpEncoder)
-    print("Wrote node-link JSON data to force/force.json")
-     # Serve the file over http to allow for cross origin requests
-    app = flask.Flask(__name__, static_folder="force")
-
-
-    @app.route("/")
-    def static_proxy():
-        # return app.send_static_file("tree_dfs_players.html")
-        # return app.send_static_file("tree_dfs_all_attrs.html")
-        return app.send_static_file("tree_dfs_all_attrs_adaptive.html")
-
-
-    print("\nGo to http://localhost:8000 to see the example\n")
-    app.run(port=8000)
-
-
 def minigrid_main(debug: bool = False,
                   render: bool = False,
                   record: bool = False,
@@ -422,7 +373,7 @@ def minigrid_main(debug: bool = False,
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
         print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
     # sys.exit(-1)
-    visualize_game(minigrid_handle.two_player_trans_sys, depth_limit=20)
+    InteractiveGraph.visualize_game(minigrid_handle.two_player_trans_sys, depth_limit=20)
     minigrid_handle.set_edge_weights(print_flag=True)
     minigrid_handle.build_automaton(ltlf=True)
     minigrid_handle.build_product()

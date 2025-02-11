@@ -1,13 +1,51 @@
 import sys
 import time
+import json
+import flask
 import warnings
 
 import networkx as nx
 
 from copy import deepcopy
-from typing import Optional, Union, List, Iterable, Dict, Set, Tuple, Generator
+from typing import Optional, Union, Dict, Tuple, Generator
 
+from utls import NpEncoder
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
+
+app = flask.Flask(__name__, static_folder="force")
+
+@app.route("/")
+def static_proxy():
+    return app.send_static_file("tree_dfs_all_attrs_scrollable.html")
+
+
+class InteractiveGraph():
+    """
+     A Class that contains all the necesary tools to plot a interactive tree using D3.js package
+    """
+    
+    @staticmethod
+    def visualize_game(game, depth_limit: None):
+        """
+         Main method to visualize the gam. We first run a DFS on the game graph and then construct a tree for the given depth limit. 
+         Then, we dump the tree data to a json file and serve it over http using D3.js package.
+        """
+        # call NEtworkX and construct Tree for a given depth limit
+        if depth_limit is None:
+            depth_limit = len(game._graph)
+
+        # run bfs/dfs upto certian depth
+        dfs_tree = TreeTraversalMyGame(game=game)
+        dfs_tree.tree_traversal(bfs=True, dfs=False, depth_limit=depth_limit)
+        d = TreeTraversalMyGame.tree_data(G=dfs_tree._tree, root=game.get_initial_states()[0][0], ident="parent")
+        
+        # write json file
+        json.dump(d, open("force/tree_dfs.json", "w"), cls=NpEncoder)
+        print("Wrote node-link JSON data to force/force.json")
+        
+        # Serve the file over http to allow for cross origin requests
+        print("\nGo to http://localhost:8000 to see the graph\n")
+        app.run(port=8000)
 
 
 class TreeTraversalMyGame():
@@ -166,14 +204,12 @@ class TreeTraversalMyGame():
                     if child not in visited:
                         yield ((parent), self.game._graph.nodes[parent]), ((child), self.game._graph.nodes[child]), {'weight': 0}
                         visited.add(child)
-                        # if depth_now < depth_limit:
                         next_parents_children.append((child, iter(self.game._graph[child])))
-                        # depth_now += 1
-                        # break
-                if len(visited) == depth_limit:
+                if len(visited) == len(self.game._graph):
                     return
-            depth_now += 1 
+            depth_now += 1
 
+        print(f"Done with BFS: {len(visited)}") 
 
 
     def tree_traversal(self, bfs: bool, dfs: bool = False, depth_limit: Optional[int] = None):
