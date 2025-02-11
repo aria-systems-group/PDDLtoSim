@@ -329,6 +329,47 @@ def construct_abstraction(abstraction_instance: str,
         tic_tac_toe_main(rollout_flag=rollout_flag, print_flag=print_flag)
 
 
+def visualize_game(game):
+        # from networkx.readwrite import d3_js
+        import flask
+        import networkx as nx
+        import json
+        import numpy as np
+
+        class NpEncoder(json.JSONEncoder):
+            def default(self, obj):
+                if isinstance(obj, np.integer):
+                    return int(obj)
+                if isinstance(obj, np.floating):
+                    return float(obj)
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                return super(NpEncoder, self).default(obj)
+
+        for n in game._graph:
+            game._graph.nodes[n]["name"] = str(n)
+            if 'id' in game._graph.nodes[n]:
+                del game._graph.nodes[n]['id']
+        
+        # write json formatted data
+        d = nx.json_graph.node_link_data(game._graph)  # node-link format to serialize
+        # write json
+        json.dump(d, open("force/input_graph_tree.json", "w"), cls=NpEncoder)
+        print("Wrote node-link JSON data to force/force.json")
+
+        # Serve the file over http to allow for cross origin requests
+        app = flask.Flask(__name__, static_folder="force")
+
+
+        @app.route("/")
+        def static_proxy():
+            return app.send_static_file("force.html")
+
+
+        print("\nGo to http://localhost:8000 to see the example\n")
+        app.run(port=8000)
+
+
 def minigrid_main(debug: bool = False,
                   render: bool = False,
                   record: bool = False,
@@ -345,16 +386,16 @@ def minigrid_main(debug: bool = False,
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
     # nd_minigrid_envs = ['MiniGrid-FishAndShipwreckAvoidAgent-v0']
-    # nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
+    nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-CorridorLava-v0']
     # nd_minigrid_envs = ['MiniGrid-NarrowLavaAdm_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
-    nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
-                                                #    formula='!(agent_blue_right) U (floor_green_open)',
-                                                   formula=robot_evasion,
+                                                   formula='!(agent_blue_right) U (floor_green_open)',
+                                                #    formula=robot_evasion,
                                                    player_steps = {'sys': [1], 'env': [1]},
                                                    save_flag=True,
                                                    plot_minigrid=False,
@@ -363,17 +404,19 @@ def minigrid_main(debug: bool = False,
                                                    debug=debug)
         
         # now construct the abstraction, the dfa and take the product
-        minigrid_handle.build_minigrid_game(env_snap=True, augment_obs=True, get_aps=True)
+        minigrid_handle.build_minigrid_game(env_snap=False)
+        # minigrid_handle.build_minigrid_game(env_snap=True, augment_obs=True, get_aps=True)
         minigrid_handle.get_aps(print_flag=True)
         minigrid_handle.get_minigrid_edge_weights(print_flag=True)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
         print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
     # sys.exit(-1)
+    visualize_game(minigrid_handle.two_player_trans_sys)
     minigrid_handle.set_edge_weights(print_flag=True)
     minigrid_handle.build_automaton(ltlf=True)
     minigrid_handle.build_product()
     # modify the product game if its robot_evasion example - testing - the intruder can only move if the agent observes it.
-    minigrid_handle.modify_robot_evasion_game()
+    # minigrid_handle.modify_robot_evasion_game()
     remove_non_reachable_states(game=minigrid_handle.dfa_game, debug=True)
     end = time.time()
     # sys.exit(-1)
