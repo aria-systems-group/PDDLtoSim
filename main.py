@@ -348,16 +348,16 @@ def minigrid_main(debug: bool = False,
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
     # nd_minigrid_envs = ['MiniGrid-FishAndShipwreckAvoidAgent-v0']
-    nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-CorridorLava-v0']
     # nd_minigrid_envs = ['MiniGrid-NarrowLavaAdm_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
-    # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
+    nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
-                                                   formula='!(agent_blue_right) U (floor_green_open)',
-                                                #    formula=robot_evasion,
+                                                #    formula='!(agent_blue_right) U (floor_green_open)',
+                                                   formula=robot_evasion,
                                                    player_steps = {'sys': [1], 'env': [1]},
                                                    save_flag=True,
                                                    plot_minigrid=False,
@@ -366,20 +366,20 @@ def minigrid_main(debug: bool = False,
                                                    debug=debug)
         
         # now construct the abstraction, the dfa and take the product
-        minigrid_handle.build_minigrid_game(env_snap=False)
-        # minigrid_handle.build_minigrid_game(env_snap=True, augment_obs=True, get_aps=True)
-        minigrid_handle.get_aps(print_flag=True)
-        minigrid_handle.get_minigrid_edge_weights(print_flag=True)
+        # minigrid_handle.build_minigrid_game(env_snap=False)
+        minigrid_handle.build_minigrid_game(env_snap=False, augment_obs=True, get_aps=False)
+        # minigrid_handle.get_aps(print_flag=True)
+        # minigrid_handle.get_minigrid_edge_weights(print_flag=False)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
         print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
     # sys.exit(-1)
-    InteractiveGraph.visualize_game(minigrid_handle.two_player_trans_sys, depth_limit=20)
-    minigrid_handle.set_edge_weights(print_flag=True)
+    # InteractiveGraph.visualize_game(minigrid_handle.two_player_trans_sys, depth_limit=5)
+    minigrid_handle.set_edge_weights(print_flag=False)
     minigrid_handle.build_automaton(ltlf=True)
     minigrid_handle.build_product()
     # modify the product game if its robot_evasion example - testing - the intruder can only move if the agent observes it.
     # minigrid_handle.modify_robot_evasion_game()
-    remove_non_reachable_states(game=minigrid_handle.dfa_game, debug=True)
+    # remove_non_reachable_states(game=minigrid_handle.dfa_game, debug=False)
     end = time.time()
     # sys.exit(-1)
     print(f"Done Constrcuting the DFA Game: {end-start:0.2f} seconds")
