@@ -256,7 +256,7 @@ class NonDeterministicMiniGrid():
                             'MiniGrid-FishAndShipwreckAvoidAgent-v0': [], 'MiniGrid-ChasingAgentIn4Square-v0': [],
                             'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
                             'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-LavaAdm_karan-v0': [],
-                            'MiniGrid-NarrowLavaAdm_karan-v0': [], 'MiniGrid-IntruderRobotRAL25-v0': []}
+                            'MiniGrid-NarrowLavaAdm_karan-v0': [], 'MiniGrid-IntruderRobotRAL25-v0': [], 'MiniGrid-TwoNarrowLavaAdm_karan-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -355,6 +355,7 @@ class NonDeterministicMiniGrid():
                                              config_yaml=config_yaml,
                                              from_file=False,
                                              minigrid=self.minigrid_env,
+                                             minigrid_wait=False,
                                              save_flag=self.save_flag,
                                              plot=self.plot_minigrid,
                                              view=False,
@@ -684,7 +685,7 @@ class NarrowCorridorLavaRAL25(MultiAgentMiniGridEnv):
         height=7,
         agent_start_pos=(1, 5),
         agent_start_dir=0,
-        env_agent_start_pos=[(7, 1)],
+        env_agent_start_pos=[(6, 1)],
         env_agent_start_dir=[0],
         goal_pos=[(7, 1)],
     ):
@@ -892,6 +893,61 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
         to get into the lock and the report it to the human and eventually visit the lock. The intruder can not enter the human"s room.'
     
 
+class TwoNarrowCorridorLavaRAL25(NarrowCorridorLavaRAL25):
+    """
+      Inherits the base method overide the _gen_grid() method to create two narrow corridors.
+    """
+
+    def _gen_grid(self, width, height):
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # Place a goal square in the top-left corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+        
+        ## Narrow lava corridor
+        # wall: bool = True
+        for j in range(1, 3):
+            for i in range(2, height - 2):
+                self.put_obj(Wall(), j, i)
+        
+        for j in range(4, 6):
+            for i in range(2, height - 2):
+                self.put_obj(Wall(), j, i)
+
+        # for j in range(4, 6):
+        for i in range(2, height - 2):
+            self.put_obj(Wall(), width-2, i)
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            # self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+            self.put_agent(ConstrainedAgent(name='SysAgent', restricted_objs=['wall'], view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            # restricted_positions = [(i+1, j+1) for i, j in itertools.product(range(8), range(3, 8))]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='blue',
+                    restricted_objs=['lava', 'wall', 'water'],
+                    # restricted_positions=restricted_positions
+                    ),
+                *p,
+                d,
+                False)
+
+        self.mission = 'get to a green goal square thorught a narrow lava corridor, don"t touch lava'
+
 
 register(
     id='MiniGrid-LavaComparison_karan-v0',
@@ -907,6 +963,12 @@ register(
 register(
     id='MiniGrid-NarrowLavaAdm_karan-v0',
     entry_point='src.graph_construction.minigrid_two_player_game:NarrowCorridorLavaRAL25'
+)
+
+
+register(
+    id='MiniGrid-TwoNarrowLavaAdm_karan-v0',
+    entry_point='src.graph_construction.minigrid_two_player_game:TwoNarrowCorridorLavaRAL25'
 )
 
 register(
