@@ -7,6 +7,7 @@ import warnings
 import itertools
 import numpy as np
 
+from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 
@@ -16,6 +17,7 @@ from gym_minigrid.minigrid import (MiniGridEnv, Grid, Lava, Floor,
 from gym_minigrid.register import register
 from gym.envs.registration import registry
 
+from icra_examples.safe_adm_game import remove_non_reachable_states
 from regret_synthesis_toolbox.src.simulation.simulator import Simulator
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, DFAGraph, ProductAutomaton
 from regret_synthesis_toolbox.src.graph import graph_factory
@@ -256,7 +258,8 @@ class NonDeterministicMiniGrid():
                             'MiniGrid-FishAndShipwreckAvoidAgent-v0': [], 'MiniGrid-ChasingAgentIn4Square-v0': [],
                             'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
                             'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-LavaAdm_karan-v0': [],
-                            'MiniGrid-NarrowLavaAdm_karan-v0': [], 'MiniGrid-IntruderRobotRAL25-v0': [], 'MiniGrid-TwoNarrowLavaAdm_karan-v0': []}
+                            'MiniGrid-NarrowLavaAdm_karan-v0': [], 'MiniGrid-IntruderRobotRAL25-v0': [], 'MiniGrid-TwoNarrowLavaAdm_karan-v0': [],
+                            'MiniGrid-FourRoomsRobotRAL25-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -489,6 +492,138 @@ class NonDeterministicMiniGrid():
                 elif self._two_player_trans_sys._graph.nodes[state]['ap'] not in ["floor_purple_open", "agent_blue_right"] :
                     self._two_player_trans_sys._graph.nodes[state]['ap'] = self._two_player_trans_sys._graph.nodes[state].get('ap') + \
                         "__" + "agent_observed"
+
+
+    def modify_four_rooms_game(self,
+                               game: TwoPlayerGraph,
+                               top_left_room: tuple,
+                               room_direction: Optional[dict] = None,
+                               room_size: Optional[int] = None,
+                               corridor_size: Optional[int] = None):
+        """
+         A helper fuction to modify the FourRooms game to make it more interesting.
+        """
+        modify_handle = ModifiedFourRooms2PGame(game, top_left_room)
+        modify_handle.modify_four_rooms_game(debug=True)
+
+class ModifiedFourRooms2PGame:
+
+    class Direction(Enum):
+        CLOCKWISE = 1
+        ANTICLOCKWISE = -1
+
+    class Room:
+        def __init__(self, name: str, x: int, y: int, size: int):
+            self.name = name
+            self.x = x  # top-left corner x coordinate
+            self.y = y  # top-left corner y coordinate
+            self.size = size  # size of the room (assuming square)
+
+            # clockwise from top-left
+            self.corners = [
+                (x, y),
+                (x + self.size - 1, y),
+                (x + self.size - 1, y + (self.size - 1)),
+                (x, y + (self.size - 1))]
+
+        def is_inside(self, pos: tuple):
+            """
+            A helper function to check if the agent is inside the room or not.
+            """
+            x, y = pos[0], pos[1]
+            return (self.corners[0][0] <= x <= self.corners[1][0] and  # within x bounds
+                self.corners[0][1] <= y <= self.corners[3][1])  # within y bounds
+
+    def __init__(self,
+                game: TwoPlayerGraph,
+                room_2: tuple,
+                room_direction: dict= {'r1': Direction.ANTICLOCKWISE , 'r2': Direction.CLOCKWISE, 'r3': Direction.ANTICLOCKWISE, 'r4': Direction.CLOCKWISE},
+                room_size: int = 5,
+                corridor_size: int = 1):
+        self._game = game
+        self._room_2 = self.Room('r2', room_2[0], room_2[1], room_size)
+        self._room_1 = self.Room('r1', room_2[0] + room_size + corridor_size + 2, room_2[1], 5)
+        self._room_3 = self.Room('r3', room_2[0], room_2[1] + (room_size + corridor_size + 2), 5)
+        self._room_4 = self.Room('r4', room_2[0] + room_size + corridor_size + 2, room_2[1] + (room_size + corridor_size + 2), 5)
+        self._rooms = [self._room_1, self._room_2, self._room_3, self._room_4]
+        self.allowed_moves: dict = {'clockwise' : {'top': (1, 0), 'bottom': (-1, 0), 'left': (0, -1), 'right': (0, 1)},
+                                    'counterclockwise' : {'top': (-1, 0), 'bottom': (1, 0), 'left': (0, 1), 'right': (0, -1)}}
+        self.room_direction = room_direction
+            
+    def prune_edge_based_on_direction(self, agent_pos: tuple, agent_fwd_pos: tuple, debug: bool = False, agent_info: str = '') -> bool:
+        """
+         A heleper fuction to implement an ahgent going with clockwise or counter clockwise direction in each of the four rooms.
+        """
+        # determine which room the agent is in
+        for room in self._rooms:
+            if room.is_inside(agent_pos):
+                agent_room = room
+                break
+        else:
+            # if debug:
+            #     print(f"Agent pos {agent_pos} in not in any room ")
+            return False
+
+        # check if the next state is outside a room. If yes, then do not prune the edge.
+        for room in self._rooms:
+            if room.is_inside(agent_fwd_pos):
+                break
+        else:
+            return False
+
+        # get the allowed direction if this room
+        if self.room_direction[agent_room.name].value == 1:
+            local_allowed_moves: dict = self.allowed_moves['clockwise']
+        else:
+            local_allowed_moves: dict = self.allowed_moves['counterclockwise']
+        
+        # check if the agent is on the top 
+        x, y = agent_pos[0], agent_pos[1]
+        if agent_room.corners[0][0] <= x < agent_room.corners[1][0] and y == agent_room.corners[0][1]:
+            relative_pos = 'top'
+        elif agent_room.corners[0][0] < x <= agent_room.corners[1][0] and y == agent_room.corners[2][1]:
+            relative_pos = 'bottom'
+        elif agent_room.corners[1][0] == x and agent_room.corners[1][1] <= y < agent_room.corners[2][1]:
+            relative_pos = 'right'
+        elif agent_room.corners[3][0] == x and agent_room.corners[0][1] < y <= agent_room.corners[3][1]:
+            relative_pos = 'left'
+        else:
+            warnings.warn['[Error] Agent is not in any of the corridors within the room. FIX THIS!!!!']
+        
+        # if debug:
+        #     print(f"Agent Pos {agent_pos} belongs to room {agent_room.name} and relative pos is {relative_pos}")
+        
+        # check the move is legal as per the direction or not
+        dx, dy = agent_fwd_pos[0] - agent_pos[0], agent_fwd_pos[1] - agent_pos[1]
+        edge_direction = (dx, dy)
+
+        if edge_direction != local_allowed_moves[relative_pos]:
+            
+            if debug:
+                print(f"Removing edge {agent_info}: {agent_pos} ---> {agent_fwd_pos}")
+            return True
+        
+        return False
+
+    def modify_four_rooms_game(self, debug: bool = False):
+        """
+         A helper fuction to modify the FourRooms game to make it more interesting.
+        """
+        # get the agent positions
+        edges_to_remove = set()
+        for edge in self._game._graph.edges():
+            i = 1 if edge[0][0] == 'sys' else 2
+            agent_pos = edge[0][i]
+            agent_fwd_pos = edge[1][i]
+            # remove the direction data fromt the state
+            if self.prune_edge_based_on_direction(agent_pos[0], agent_fwd_pos[0], debug=debug, agent_info='sys' if i == 1 else 'env'):
+                edges_to_remove.add(edge)
+        
+        self._game._graph.remove_edges_from(edges_to_remove)
+
+        # might have to call reachability method to remove the unreachable states.
+        remove_non_reachable_states(game=self._game, debug=False)
+
 
 
 class CorridorLava(MultiAgentMiniGridEnv):
@@ -949,6 +1084,153 @@ class TwoNarrowCorridorLavaRAL25(NarrowCorridorLavaRAL25):
         self.mission = 'get to a green goal square thorught a narrow lava corridor, don"t touch lava'
 
 
+class FourRoomsRobotRAL25(MultiAgentMiniGridEnv):
+    """
+     4 Four in each corner in a 7 by 7 gridworld. Each room has an opening either to enter the room. 
+     Each room has a 2x2 lava bock and the agent can navigate either in clockwise or counter-clockwise direction in each room. The goal is avoid the Env agent while reach the goal region.
+    """
+
+    def __init__(
+        self,
+        width=15,
+        height=15,
+        agent_start_pos=(7, 1),
+        agent_start_dir=0,
+        env_agent_start_pos=[(7, 13)],
+        env_agent_start_dir=[0],
+        goal_pos=[(1, 7)],
+    ):
+        self.agent_start_pos = agent_start_pos
+        self.agent_start_dir = agent_start_dir
+        self.env_agent_start_pos = env_agent_start_pos
+        self.env_agent_start_dir = env_agent_start_dir
+
+        self.goal_pos = goal_pos
+
+        super().__init__(
+            width=width,
+            height=height,
+            max_steps=4 * width * height,
+            # Set this to True for maximum speed
+            see_through_walls=True
+        )
+    
+    def _gen_grid(self, width, height):
+
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # Place a goal square in the top-left corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+
+        # Room are number as per quadrants
+
+        # Room 1 - Lava wall
+        for i in range(10, 13):
+            for j in range(2, 5):
+                self.put_obj(Lava(), i, j)  
+        # self.put_obj(Lava(), 9, 2)
+        # self.put_obj(Lava(), 10, 2)
+        # self.put_obj(Lava(), 9, 3)
+        # self.put_obj(Lava(), 10, 3)
+        # self.put_obj(Lava(), 9, 4)
+        # self.put_obj(Lava(), 10, 4)
+
+        # Room 1 - Vertical wall
+        self.put_obj(Wall(), 8, 1)
+        self.put_obj(Wall(), 8, 2)
+        self.put_obj(Wall(), 8, 4)
+        self.put_obj(Wall(), 8, 5)
+        # Room 1 - Horizontal wall
+        self.put_obj(Wall(), 8, 6)
+        self.put_obj(Wall(), 9, 6)
+        self.put_obj(Wall(), 10, 6)
+        self.put_obj(Wall(), 12, 6)
+        self.put_obj(Wall(), 13, 6)
+
+        # Room 2 - Vertical wall
+        self.put_obj(Wall(), 6, 1)
+        self.put_obj(Wall(), 6, 2)
+        self.put_obj(Wall(), 6, 4)
+        self.put_obj(Wall(), 6, 5)
+        # Room 2 - Horizontal wall
+        self.put_obj(Wall(), 6, 6)
+        self.put_obj(Wall(), 5, 6)
+        self.put_obj(Wall(), 4, 6)
+        self.put_obj(Wall(), 2, 6)
+        self.put_obj(Wall(), 1, 6)
+
+        # Room 2 - Lava wall
+        for i in range(2, 5):
+            for j in range(2, 5):
+                self.put_obj(Lava(), i, j)        
+
+        # Room 3 - vertical call
+        self.put_obj(Wall(), 6, 8)
+        self.put_obj(Wall(), 6, 9)
+        self.put_obj(Wall(), 6, 10)
+        self.put_obj(Wall(), 6, 12)
+        self.put_obj(Wall(), 6, 13)
+        # Room 3 - Horizontal wall
+        self.put_obj(Wall(), 5, 8)
+        self.put_obj(Wall(), 4, 8)
+        self.put_obj(Wall(), 2, 8)
+        self.put_obj(Wall(), 1, 8)
+
+        # Room 3 - Lava wall
+        for i in range(2, 5):
+            for j in range(10, 13):
+                self.put_obj(Lava(), i, j)
+        
+        # Room 4 - Vertical wall
+        self.put_obj(Wall(), 8, 8)
+        self.put_obj(Wall(), 8, 9)
+        self.put_obj(Wall(), 8, 10)
+        self.put_obj(Wall(), 8, 12)
+        self.put_obj(Wall(), 8, 13)
+        # Room 4 - Horizontal wall
+        # self.put_obj(Wall(), 8, 7)
+        self.put_obj(Wall(), 9, 8)
+        self.put_obj(Wall(), 10, 8)
+        self.put_obj(Wall(), 12, 8)
+        self.put_obj(Wall(), 13, 8)
+
+        # Room 4 - Lava wall
+        for i in range(10, 13):
+            for j in range(10, 13):
+                self.put_obj(Lava(), i, j)
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            # restricted_positions = [(i+1, j+1) for i, j in itertools.product(range(8), range(3, 8))]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='blue',
+                    restricted_objs=['floor'],
+                    # restricted_objs=['lava', 'water'],
+                    # restricted_positions=restricted_positions
+                    ),
+                *p,
+                d,
+                False)
+
+        self.mission = 'Robot-intruder game: The task for the robot is to take a photo of the intruder trying \
+        to get into the lock and the report it to the human and eventually visit the lock. The intruder can not enter the human"s room.'
+    
+
 register(
     id='MiniGrid-LavaComparison_karan-v0',
     entry_point='src.graph_construction.minigrid_two_player_game:CorridorLava'
@@ -974,4 +1256,10 @@ register(
 register(
     id='MiniGrid-IntruderRobotRAL25-v0',
     entry_point='src.graph_construction.minigrid_two_player_game:IntruderRobotRAL25'
+)
+
+
+register(
+    id='MiniGrid-FourRoomsRobotRAL25-v0',
+    entry_point='src.graph_construction.minigrid_two_player_game:FourRoomsRobotRAL25'
 )

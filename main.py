@@ -353,7 +353,8 @@ def minigrid_main(debug: bool = False,
     # nd_minigrid_envs = ['MiniGrid-NarrowLavaAdm_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-LavaComparison_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
-    nd_minigrid_envs = ['MiniGrid-TwoNarrowLavaAdm_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-TwoNarrowLavaAdm_karan-v0']
+    nd_minigrid_envs = ['MiniGrid-FourRoomsRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
@@ -373,6 +374,7 @@ def minigrid_main(debug: bool = False,
         # minigrid_handle.get_minigrid_edge_weights(print_flag=False)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
         print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
+    minigrid_handle.modify_four_rooms_game(minigrid_handle.two_player_trans_sys, top_left_room=(1, 1))
     # sys.exit(-1)
     # InteractiveGraph.visualize_game(minigrid_handle.two_player_trans_sys, depth_limit=5)
     minigrid_handle.set_edge_weights(print_flag=False)
