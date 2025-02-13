@@ -7,6 +7,7 @@ import warnings
 import itertools
 import numpy as np
 
+from copy import deepcopy
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
@@ -32,6 +33,8 @@ sys.path.append(f"{ROOT_PATH}/regret_synthesis_toolbox")
 
 from wombats.systems.minigrid import DynamicMinigrid2PGameWrapper, GYM_MONITOR_LOG_DIR_NAME, MultiAgentEnvType, MultiStepMultiAgentAction
 from wombats.systems.minigrid import MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water
+
+TS_INIT_STATE_NAME = 'Init'
 
 
 class NonDeterministicMiniGrid():
@@ -551,7 +554,9 @@ class ModifiedFourRooms2PGame:
                                        'r3': Direction.ANTICLOCKWISE,
                                        'r4': Direction.CLOCKWISE},
                 room_size: int = 5,
-                corridor_size: int = 1):
+                corridor_size: int = 1,
+                minigrid_env: Optional[DynamicMinigrid2PGameWrapper] = None,
+                fake_init_state: bool = False):
         self._game = game
         self._room_2 = self.Room('r2', room_2[0], room_2[1], room_size)
         self._room_1 = self.Room('r1', room_2[0] + room_size + corridor_size + 2, room_2[1], room_size)
@@ -561,6 +566,10 @@ class ModifiedFourRooms2PGame:
         self.allowed_moves: dict = {'clockwise' : {'top': (1, 0), 'bottom': (-1, 0), 'left': (0, -1), 'right': (0, 1)},
                                     'counterclockwise' : {'top': (-1, 0), 'bottom': (1, 0), 'left': (0, 1), 'right': (0, -1)}}
         self.room_direction = room_direction
+        if fake_init_state:
+            assert minigrid_env is not None, "[Error] Please provide the minigrid env object to create the fake init state."
+            self.minigrid_env = minigrid_env
+            self._extend_trans_init()
             
     def prune_edge_based_on_direction(self, agent_pos: tuple, agent_fwd_pos: tuple, debug: bool = False, agent_info: str = '') -> bool:
         """
@@ -635,6 +644,62 @@ class ModifiedFourRooms2PGame:
 
         # might have to call reachability method to remove the unreachable states.
         remove_non_reachable_states(game=self._game, debug=False)
+    
+
+    def _extend_trans_init(self):
+        # Get the original initial state
+        init_state: tuple = self._game.get_initial_states()[0][0]
+        # self._game._graph.nodes[init_state]['init'] = False
+        assert init_state[0] == 'sys', "[Error] Initial state is not a system state. Please check the initial state."
+        new_env_state = deepcopy(init_state)
+        tmp = list(new_env_state)
+        tmp[0] = 'env' 
+        new_env_state = tuple(tmp)
+        self._game.add_state(new_env_state, init=False, player='adam', ap='')
+        actions = 'stay'
+        init_sys_pos = init_state[1][0]
+
+        # Add an edge from this state to the original init state
+        self._game.add_edge(init_state, new_env_state,
+                            weight=0,
+                            actions=actions)
+        
+        # get the successor state of the init state; ther are multiple then any one is fine.
+        succ_state = list(self._game._graph.successors(init_state))[0]
+        # get the successor state of the this state
+        for edge in self._game._graph.edges(succ_state):
+            new_succ = tuple(['sys', ((init_sys_pos), 'right'), ((edge[1][2]), 'right')])
+            self._game.add_state(new_succ, init=False, player='eve', ap='')
+            _org_edge_attrs = self._game._graph.edges[succ_state, edge[1], 0]
+            self._game.add_edge(new_env_state, new_succ, **_org_edge_attrs)
+        
+        # remove all the other edges from the init state except for the stay one
+        remove_edges = set()
+        for src_state, dest_state in self._game._graph.edges(init_state):
+            if self._game._graph.edges[src_state, dest_state, 0]['actions'] != 'stay':
+                remove_edges.add((src_state, dest_state))
+        self._game._graph.remove_edges_from(remove_edges)
+
+        
+        # # need to add edges from this state
+        # for multiactions in self.minigrid_env.player_actions['env']:
+            
+            
+        #     (dest_state, _, _) = self.minigrid_env._make_transition(multiactions, new_env_state)
+        #     action_str = self.minigrid_env.ACTION_ENUM_TO_STR[tuple(map(tuple, multiactions))]
+
+        #     possible_edge = (new_env_state, dest_state)
+            
+        #     # if the agent can not stay in the same cell then do not construct those edges
+        #     # if not wait:
+        #     i = 0 if new_env_state[0] == 'env' else 1
+        #     if new_env_state[1][i] == dest_state[1][i]:
+        #         continue
+
+
+            # (nodes, edges, _, _) = self._add_edge(nodes, edges, 
+            #                                      action_str,
+            #                                      _, possible_edge)
 
 
 
