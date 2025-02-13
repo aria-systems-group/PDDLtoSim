@@ -259,7 +259,7 @@ class NonDeterministicMiniGrid():
                             'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
                             'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-LavaAdm_karan-v0': [],
                             'MiniGrid-NarrowLavaAdm_karan-v0': [], 'MiniGrid-IntruderRobotRAL25-v0': [], 'MiniGrid-TwoNarrowLavaAdm_karan-v0': [],
-                            'MiniGrid-FourRoomsRobotRAL25-v0': []}
+                            'MiniGrid-FourRoomsRobotRAL25-v0': [], 'MiniGrid-SmallFourRoomsRobotRAL25-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -503,8 +503,17 @@ class NonDeterministicMiniGrid():
         """
          A helper fuction to modify the FourRooms game to make it more interesting.
         """
-        modify_handle = ModifiedFourRooms2PGame(game, top_left_room)
+        modify_handle = ModifiedFourRooms2PGame(game,
+                                                top_left_room,
+                                                room_size=room_size, 
+                                                room_direction={'r1': ModifiedFourRooms2PGame.Direction.ANTICLOCKWISE, 
+                                                                'r2': ModifiedFourRooms2PGame.Direction.CLOCKWISE,
+                                                                'r3': ModifiedFourRooms2PGame.Direction.CLOCKWISE,
+                                                                'r4': ModifiedFourRooms2PGame.Direction.ANTICLOCKWISE},
+                                                minigrid_env=self.minigrid_env,
+                                                fake_init_state=True)
         modify_handle.modify_four_rooms_game(debug=True)
+    
 
 class ModifiedFourRooms2PGame:
 
@@ -537,14 +546,17 @@ class ModifiedFourRooms2PGame:
     def __init__(self,
                 game: TwoPlayerGraph,
                 room_2: tuple,
-                room_direction: dict= {'r1': Direction.ANTICLOCKWISE , 'r2': Direction.CLOCKWISE, 'r3': Direction.ANTICLOCKWISE, 'r4': Direction.CLOCKWISE},
+                room_direction: dict= {'r1': Direction.ANTICLOCKWISE ,
+                                       'r2': Direction.CLOCKWISE,
+                                       'r3': Direction.ANTICLOCKWISE,
+                                       'r4': Direction.CLOCKWISE},
                 room_size: int = 5,
                 corridor_size: int = 1):
         self._game = game
         self._room_2 = self.Room('r2', room_2[0], room_2[1], room_size)
-        self._room_1 = self.Room('r1', room_2[0] + room_size + corridor_size + 2, room_2[1], 5)
-        self._room_3 = self.Room('r3', room_2[0], room_2[1] + (room_size + corridor_size + 2), 5)
-        self._room_4 = self.Room('r4', room_2[0] + room_size + corridor_size + 2, room_2[1] + (room_size + corridor_size + 2), 5)
+        self._room_1 = self.Room('r1', room_2[0] + room_size + corridor_size + 2, room_2[1], room_size)
+        self._room_3 = self.Room('r3', room_2[0], room_2[1] + (room_size + corridor_size + 2), room_size)
+        self._room_4 = self.Room('r4', room_2[0] + room_size + corridor_size + 2, room_2[1] + (room_size + corridor_size + 2), room_size)
         self._rooms = [self._room_1, self._room_2, self._room_3, self._room_4]
         self.allowed_moves: dict = {'clockwise' : {'top': (1, 0), 'bottom': (-1, 0), 'left': (0, -1), 'right': (0, 1)},
                                     'counterclockwise' : {'top': (-1, 0), 'bottom': (1, 0), 'left': (0, 1), 'right': (0, -1)}}
@@ -1084,10 +1096,130 @@ class TwoNarrowCorridorLavaRAL25(NarrowCorridorLavaRAL25):
         self.mission = 'get to a green goal square thorught a narrow lava corridor, don"t touch lava'
 
 
+class SmallFourRoomsRobotRAL25(MultiAgentMiniGridEnv):
+    """
+     4 Four in each corner in a 9 by 9 gridworld. Each room has an opening either to enter the room. 
+     Each room has a 1x1 lava bock and the agent can navigate either in clockwise or counter-clockwise direction in each room. 
+     The goal is avoid the Env agent while reach the goal region.
+    """
+
+    def __init__(
+        self,
+        width=11,
+        height=11,
+        agent_start_pos=(5, 1),
+        agent_start_dir=0,
+        env_agent_start_pos=[(5, 9)],
+        env_agent_start_dir=[0],
+        goal_pos=[(1, 5)],
+    ):
+        self.agent_start_pos = agent_start_pos
+        self.agent_start_dir = agent_start_dir
+        self.env_agent_start_pos = env_agent_start_pos
+        self.env_agent_start_dir = env_agent_start_dir
+
+        self.goal_pos = goal_pos
+
+        super().__init__(
+            width=width,
+            height=height,
+            max_steps=4 * width * height,
+            # Set this to True for maximum speed
+            see_through_walls=True
+        )
+    
+    def _gen_grid(self, width, height):
+
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # Place a goal square in the top-left corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+
+        # Room are number as per quadrants
+        # Room 1 - Lava Block
+        self.put_obj(Lava(), 8, 2)  
+        
+
+        # Room 1 - Vertical wall
+        self.put_obj(Wall(), 4, 1)
+        self.put_obj(Wall(), 4, 3)
+        self.put_obj(Wall(), 4, 4)
+        # self.put_obj(Wall(), 8, 5)
+        # Room 1 - Horizontal wall
+        self.put_obj(Wall(), 3, 4)
+        self.put_obj(Wall(), 1, 4)
+
+        # Room 2 - Vertical wall
+        self.put_obj(Wall(), 6, 1)
+        self.put_obj(Wall(), 6, 3)
+        self.put_obj(Wall(), 6, 4)
+        # Room 2 - Horizontal wall
+        self.put_obj(Wall(), 7, 4)
+        self.put_obj(Wall(), 9, 4)
+
+        # Room 2 - Lava Block
+        self.put_obj(Lava(), 2, 2)        
+
+        # Room 3 - vertical call
+        self.put_obj(Wall(), 4, 6)
+        self.put_obj(Wall(), 4, 7)
+        self.put_obj(Wall(), 4, 9)
+        # self.put_obj(Wall(), 4, 12)
+        # self.put_obj(Wall(), 6, 13)
+        # Room 3 - Horizontal wall
+        self.put_obj(Wall(), 3, 6)
+        self.put_obj(Wall(), 1, 6)
+        # self.put_obj(Wall(), 2, 8)
+        # self.put_obj(Wall(), 1, 8)
+
+        # Room 3 - Lava Block
+        self.put_obj(Lava(), 2, 8)
+        
+        # Room 4 - Vertical wall
+        self.put_obj(Wall(), 6, 6)
+        self.put_obj(Wall(), 6, 7)
+        self.put_obj(Wall(), 6, 9)
+        # Room 4 - Horizontal wall
+        self.put_obj(Wall(), 7, 6)
+        self.put_obj(Wall(), 9, 6)
+
+        # Room 4 - Lava Block
+        self.put_obj(Lava(), 8, 8)
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='blue',
+                    restricted_objs=['floor'],
+                    ),
+                *p,
+                d,
+                False)
+
+        self.mission = 'Four Room game with specific direction of travel: The goal is avoid the Env agent while reach the goal region.'
+
+
+
 class FourRoomsRobotRAL25(MultiAgentMiniGridEnv):
     """
-     4 Four in each corner in a 7 by 7 gridworld. Each room has an opening either to enter the room. 
-     Each room has a 2x2 lava bock and the agent can navigate either in clockwise or counter-clockwise direction in each room. The goal is avoid the Env agent while reach the goal region.
+     4 Four in each corner in 15 by 15 gridworld. Each room has an opening either to enter the room. 
+     Each room has a 3x3 lava bock and the agent can navigate either in clockwise or counter-clockwise direction in each room. 
+     The goal is avoid the Env agent while reach the goal region.
     """
 
     def __init__(
@@ -1131,12 +1263,6 @@ class FourRoomsRobotRAL25(MultiAgentMiniGridEnv):
         for i in range(10, 13):
             for j in range(2, 5):
                 self.put_obj(Lava(), i, j)  
-        # self.put_obj(Lava(), 9, 2)
-        # self.put_obj(Lava(), 10, 2)
-        # self.put_obj(Lava(), 9, 3)
-        # self.put_obj(Lava(), 10, 3)
-        # self.put_obj(Lava(), 9, 4)
-        # self.put_obj(Lava(), 10, 4)
 
         # Room 1 - Vertical wall
         self.put_obj(Wall(), 8, 1)
@@ -1227,9 +1353,8 @@ class FourRoomsRobotRAL25(MultiAgentMiniGridEnv):
                 d,
                 False)
 
-        self.mission = 'Robot-intruder game: The task for the robot is to take a photo of the intruder trying \
-        to get into the lock and the report it to the human and eventually visit the lock. The intruder can not enter the human"s room.'
-    
+        self.mission = 'Four Room game with specific direction of travel: The goal is avoid the Env agent while reach the goal region.'
+
 
 register(
     id='MiniGrid-LavaComparison_karan-v0',
@@ -1262,4 +1387,10 @@ register(
 register(
     id='MiniGrid-FourRoomsRobotRAL25-v0',
     entry_point='src.graph_construction.minigrid_two_player_game:FourRoomsRobotRAL25'
+)
+
+
+register(
+    id='MiniGrid-SmallFourRoomsRobotRAL25-v0',
+    entry_point='src.graph_construction.minigrid_two_player_game:SmallFourRoomsRobotRAL25'
 )
