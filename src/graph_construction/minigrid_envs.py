@@ -10,7 +10,7 @@ from gym_minigrid.minigrid import (MiniGridEnv, Grid, Lava, Floor,
 from gym_minigrid.register import register
 
 from icra_examples.safe_adm_game import remove_non_reachable_states
-from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
+from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, graph_factory, ProductAutomaton
 
 # set path constants
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -21,6 +21,130 @@ sys.path.append(f"{ROOT_PATH}/regret_synthesis_toolbox")
 
 from wombats.systems.minigrid import MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water
 
+
+class ModifiedIntruderRobotGame:
+
+    def __init__(self, game: TwoPlayerGraph, only_augment_obs: bool = False, modify_game: bool = False, debug: bool = False):
+         self._game = game
+         self._aug_game = None
+         self.debug = debug
+         if only_augment_obs:
+            self._augment_obs()
+         if modify_game:
+            self.modify_intruder_robot_game()
+    
+    @property
+    def aug_game(self):
+        """
+        Getter method for the _aug_game attribute.
+        :return: The augmented game (product automaton).
+        """
+        if self._aug_game is None:
+            raise ValueError("The augmented game has not been constructed yet. Please call the modify_intruder_robot_game method first.") 
+        return self._aug_game
+    
+    def augement_ap(self, state, ap, game = None):
+        if game is None:
+            game = self._game
+        if game._graph.nodes[state].get('ap') == '':
+            game._graph.nodes[state]['ap'] = ap
+        elif game._graph.nodes[state]['ap'] not in ["floor_purple_open", "agent_blue_right"] :
+            game._graph.nodes[state]['ap'] = game._graph.nodes[state].get('ap') + "__" + ap
+    
+    def add_door_ap(self):
+        """
+        A helper function to add the doop label to the AP.
+        """
+        for state in self._game._graph.nodes():
+            # augement ap with label sd/rd
+            agent_pos = state[2][0]
+            sys_pos = state[1][0]
+            if agent_pos == (5, 5):
+                aug_ap = "ed"
+                self.augement_ap(state, aug_ap, self._game)
+            elif sys_pos == (5, 5):
+                aug_ap = "rd"
+                self.augement_ap(state, aug_ap, self._game)
+        
+    def _augment_obs(self, game = None):
+        """
+         A helper method used to augment the AP at each state and see if the Agent observed the Env player or not.
+        """
+        if game is None:
+            game = self._game
+        for state in game._graph.nodes():
+            # augement ap with agent_observed label
+            # the order if elif should chnage as ProductAutomaton is child of TwoPlayerGraph
+            if isinstance(game, ProductAutomaton):
+                agent_pos = state[0][2][0]
+                sys_pos = state[0][1][0]
+            
+            elif isinstance(game, TwoPlayerGraph):
+                agent_pos = state[2][0]
+                sys_pos = state[1][0]
+
+            if (0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2):
+                self.augement_ap(state, "agent_observed", game)
+    
+
+    def modify_intruder_robot_game(self):
+        """
+         A helper function to modify the IntruderRobot game to make it more interesting. In this game the robot/intruder can secure a transition. 
+         Who ever secures the transition can traverse through that block.
+        """
+        self.add_door_ap()
+        # take the product of the two transition systems
+        door_ts = graph_factory.get('DFA',
+                                    graph_name="minigrid_door_trans",
+                                    config_yaml=ROOT_PATH + '/regret_synthesis_toolbox/config/test',
+                                    save_flag=False,
+                                    sc_ltl='',
+                                    use_alias=False,
+                                    plot=False)
+
+        product_automaton = graph_factory.get("ProductGraph",
+                                              graph_name="minigrid_aug_product_graph",
+                                              config_yaml=None,
+                                              trans_sys=self._game,
+                                              observe_next_on_trans=True,
+                                              automaton=door_ts,
+                                              save_flag=False,
+                                              prune=False,
+                                              debug=False,
+                                              absorbing=False,
+                                              finite=False,
+                                              plot=False,
+                                              pdfa_compose=True)
+        
+        # now manually remove transition based on which state in the aug product graph the agent is in.
+        # if sd is true that the Env agent can not transition to the (5, 5)
+        edges_to_be_pruned = set()
+        for state in product_automaton._graph.nodes():
+            if state[1] == 't1':
+                # robot can not transition to the (5, 5)
+                if state[0][0] == 'env' and state[0][1][0] == (5, 5):
+                    for sys_state in product_automaton._graph.predecessors(state):
+                        edges_to_be_pruned.add((sys_state, state))
+            
+            elif state[1] == 't2':
+                # Env can not transition to the (5, 5)
+                if state[0][0] == 'sys' and state[0][2][0] == (5, 5):
+                    for env_state in product_automaton._graph.predecessors(state):
+                        edges_to_be_pruned.add((env_state, state))
+        
+        if self.debug:
+            print(f"# of Edges prunded: {len(edges_to_be_pruned)}")
+
+        product_automaton._graph.remove_edges_from(edges_to_be_pruned)
+
+        print("Removing unreachable states from the augmented game")
+        remove_non_reachable_states(game=product_automaton, debug=True)
+
+        # do this aftwards as the ap are sensitive to state labels. 
+        # For exmaple ed is a label in Door TS but 'ed' also belong to word oberserved in 'agent_observed' label.
+        self._augment_obs(game=product_automaton)
+
+        self._aug_game = product_automaton
 
 class ModifiedFourRooms2PGame:
 
@@ -513,10 +637,6 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
         self.put_obj(Wall(), 6, 3)
         self.put_obj(Wall(), 6, 4)
         self.put_obj(Wall(), 6, 5)
-
-        # some useful attributes wrt visualization
-        # self.agent_view_size
-        # gen_obs_grid()
 
         # Place the agent
         p = self.agent_start_pos

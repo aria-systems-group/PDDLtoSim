@@ -15,7 +15,7 @@ from .minigrid_envs import (
     IntruderRobotRAL25,
     TwoNarrowCorridorLavaRAL25,
     SmallFourRoomsRobotRAL25,
-    FourRoomsRobotRAL25, ModifiedFourRooms2PGame
+    FourRoomsRobotRAL25, ModifiedFourRooms2PGame, ModifiedIntruderRobotGame
 )
 
 from regret_synthesis_toolbox.src.simulation.simulator import Simulator
@@ -264,7 +264,7 @@ class NonDeterministicMiniGrid():
         self._available_envs = nd_minigrid_envs
 
 
-    def build_automaton(self, use_alias: bool = False, ltlf: bool = True):
+    def build_automaton(self, use_alias: bool = False, ltlf: bool = True, from_yaml: str = ''):
         """
         A method to construct automata using the regret_synthesis_tool.
         """
@@ -277,12 +277,12 @@ class NonDeterministicMiniGrid():
                                               plot=self.plot_dfa)
         else:
             ltl_automaton = graph_factory.get('DFA',
-                                                graph_name="minigrid_ltl",
-                                                config_yaml="/config/minigrid_ltl",
-                                                save_flag=self.save_flag,
-                                                sc_ltl=self.formula,
-                                                use_alias=use_alias,
-                                                plot=self.plot_dfa)
+                                               graph_name="minigrid_ltl",
+                                               config_yaml="/config/minigrid_ltl" if from_yaml == '' else from_yaml,
+                                               save_flag=self.save_flag,
+                                               sc_ltl=self.formula,
+                                               use_alias=use_alias,
+                                               plot=self.plot_dfa)
 
         if self.debug:
             print(f"The pddl formula is : {self.formula}")
@@ -334,7 +334,8 @@ class NonDeterministicMiniGrid():
                             get_aps: bool = False,
                             get_weights: bool = False,
                             set_weights: bool = False,
-                            augment_obs: bool = False):
+                            only_augment_obs: bool = False,
+                            modify_intruder_game: bool = False):
         """
          Build OpenAI Minigrid Env with multiple agents, then construct the corresponding graph.
         """
@@ -358,7 +359,7 @@ class NonDeterministicMiniGrid():
                                              config_yaml=config_yaml,
                                              from_file=False,
                                              minigrid=self.minigrid_env,
-                                             minigrid_wait=False,
+                                             minigrid_wait=True,
                                              save_flag=self.save_flag,
                                              plot=self.plot_minigrid,
                                              view=False,
@@ -371,8 +372,9 @@ class NonDeterministicMiniGrid():
 
         self._two_player_trans_sys = two_player_graph
 
-        if augment_obs:
-            self._augment_obs()    
+        if self.env_id == 'MiniGrid-IntruderRobotRAL25-v0' and (modify_intruder_game or only_augment_obs):
+            modify_intruder_handle = ModifiedIntruderRobotGame(game=two_player_graph, only_augment_obs=only_augment_obs, modify_game=modify_intruder_game)
+            self._two_player_trans_sys = modify_intruder_handle.aug_game
 
         # get all the aps, and the player
         if get_aps:
@@ -476,22 +478,6 @@ class NonDeterministicMiniGrid():
                 env_actions.append(act_tuple)
         
         return system_actions, env_actions
-    
-    def _augment_obs(self):
-        """
-         A helper method used to augment the AP at each state and see if the Agent observed the Env player or not.
-        """
-        for state in self._two_player_trans_sys._graph.nodes():
-            # augement ap with agent_observed label
-            agent_pos = state[2][0]
-            sys_pos = state[1][0]
-            if (0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2):
-                if self._two_player_trans_sys._graph.nodes[state].get('ap') == '':
-                    self._two_player_trans_sys._graph.nodes[state]['ap'] = "agent_observed"
-                # the wall are not see thought. So if you are in the human room, you cannot observe the agent. Further, avoid creating labels where you are in collision with the agent
-                elif self._two_player_trans_sys._graph.nodes[state]['ap'] not in ["floor_purple_open", "agent_blue_right"] :
-                    self._two_player_trans_sys._graph.nodes[state]['ap'] = self._two_player_trans_sys._graph.nodes[state].get('ap') + \
-                        "__" + "agent_observed"
 
 
     def modify_four_rooms_game(self,
