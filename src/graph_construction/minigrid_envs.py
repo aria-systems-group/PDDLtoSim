@@ -306,31 +306,11 @@ class CorridorLava(MultiAgentMiniGridEnv):
 
         # Generate the surrounding walls
         self.grid.wall_rect(0, 0, width, height)
-        # self.grid.wall_rect(3, 4, 5, 1)
-        # self.put_obj(Wall(), *(3, 5))
-        # self.put_obj(Wall(), *(7, 5))
-        # self.put_obj(Wall(), *(5, 6))
 
         # Place a goal square in the bottom-right corner
         for goal_pos in self.goal_pos:
             self.put_obj(Floor(color='green'), *goal_pos)
 
-        # self.put_obj(Water(), 3, 6)
-        # self.put_obj(Water(), 4, 6)
-        # self.put_obj(Water(), 4, 5)
-        # self.put_obj(Water(), 5, 5)
-        # self.put_obj(Water(), 6, 5)
-        # self.put_obj(Water(), 6, 6)
-        # self.put_obj(Water(), 7, 6)
-
-        # bottom carpet
-        # self.put_obj(Carpet(), 1, 2)
-        # self.put_obj(Carpet(), 1, 3)
-        # self.put_obj(Carpet(), 1, 4)
-        # self.put_obj(Carpet(), 9, 2)
-        # self.put_obj(Carpet(), 9, 3)
-        # self.put_obj(Carpet(), 9, 4)
-        # self.put_obj(Carpet(), 9, 5)
 
         # put lava around the goal region
         self.put_obj(Lava(), 7, 6)
@@ -621,19 +601,11 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
             self.put_obj(Floor(color='green'), *goal_pos)
         
         # Human region -Env agent (intruder) can not enter.
-        # self.put_obj(Floor(color='purple'), 4, 3)
-        # self.put_obj(Floor(color='purple'), 4, 4)
-        # self.put_obj(Floor(color='purple'), 4, 5)
-        # self.put_obj(Floor(color='purple'), 5, 3)
         self.put_obj(Wall(), 4, 3)
         self.put_obj(Wall(), 4, 4)
         self.put_obj(Wall(), 4, 5)
         self.put_obj(Wall(), 5, 3)
         self.put_obj(Floor(color='purple'), 5, 4) # room
-        # self.put_obj(Floor(color='purple'), 5, 5) # room door
-        # self.put_obj(Floor(color='purple'), 6, 3)
-        # self.put_obj(Floor(color='purple'), 6, 4)
-        # self.put_obj(Floor(color='purple'), 6, 5)
         self.put_obj(Wall(), 6, 3)
         self.put_obj(Wall(), 6, 4)
         self.put_obj(Wall(), 6, 5)
@@ -664,7 +636,93 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
 
         self.mission = 'Robot-intruder game: The task for the robot is to take a photo of the intruder trying \
         to get into the lock and the report it to the human and eventually visit the lock. The intruder can not enter the human"s room.'
-    
+
+
+class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
+    """
+     This env imeplements a smaller version of the IntruderRobotRAL25 env. 
+     The env has Three doors and the robot has to take a photo of the intruder trying to get into the lock while ensure that the intruder does not lock themselve inside.
+    """
+
+    def __init__(
+        self,
+        width=10,
+        height=9,
+        agent_start_pos=(2, 7),
+        agent_start_dir=0,
+        env_agent_start_pos=[(7, 1)],
+        env_agent_start_dir=[0],
+        goal_pos=[(8, 1)],
+    ):
+        self.agent_start_pos = agent_start_pos
+        self.agent_start_dir = agent_start_dir
+        self.env_agent_start_pos = env_agent_start_pos
+        self.env_agent_start_dir = env_agent_start_dir
+
+        self.goal_pos = goal_pos
+
+        super().__init__(
+            width=width,
+            height=height,
+            max_steps=4 * width * height,
+            # Set this to True for maximum speed
+            see_through_walls=True
+        )
+
+    def _gen_grid(self, width, height):
+
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # Place a goal square in the top-left corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+
+        
+        # vertical wall next to human room
+        for i in range(1, 6):
+            self.put_obj(Wall(), 3, i) 
+            self.put_obj(Wall(), 1, i)
+            if i < 3:
+                self.put_obj(Wall(), 2, i) 
+
+        # vertical wall next to intruder room
+        for i in range(1, 7):
+            if i == 3:
+                continue  # opening
+            self.put_obj(Wall(), 5, i)
+        self.put_obj(Wall(), 6, 6)
+        self.put_obj(Wall(), 8, 6) 
+        
+        # Human region -Env agent (intruder) can not enter.
+        self.put_obj(Floor(color='purple'), 2, 3) # room
+        self.put_obj(Floor(color='purple'), 2, 4) # room
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='blue',
+                    restricted_objs=['floor']),
+                *p,
+                d,
+                False)
+
+        self.mission = 'Robot-intruder game: The task for the robot is to take a photo of the intruder trying \
+        to get into the lock and the report it to the human and eventually visit the lock. The intruder can not enter the human"s room.'
+
 
 class TwoNarrowCorridorLavaRAL25(NarrowCorridorLavaRAL25):
     """
@@ -984,39 +1042,45 @@ class FourRoomsRobotRAL25(MultiAgentMiniGridEnv):
 
 register(
     id='MiniGrid-LavaComparison_karan-v0',
-    entry_point='src.graph_construction.minigrid_two_player_game:CorridorLava'
+    entry_point='src.graph_construction.minigrid_envs:CorridorLava'
 )
 
 register(
     id='MiniGrid-LavaAdm_karan-v0',
-    entry_point='src.graph_construction.minigrid_two_player_game:CorridorLavaAAAI25'
+    entry_point='src.graph_construction.minigrid_envs:CorridorLavaAAAI25'
 )
 
 
 register(
     id='MiniGrid-NarrowLavaAdm_karan-v0',
-    entry_point='src.graph_construction.minigrid_two_player_game:NarrowCorridorLavaRAL25'
+    entry_point='src.graph_construction.minigrid_envs:NarrowCorridorLavaRAL25'
 )
 
 
 register(
     id='MiniGrid-TwoNarrowLavaAdm_karan-v0',
-    entry_point='src.graph_construction.minigrid_two_player_game:TwoNarrowCorridorLavaRAL25'
+    entry_point='src.graph_construction.minigrid_envs:TwoNarrowCorridorLavaRAL25'
 )
 
 register(
     id='MiniGrid-IntruderRobotRAL25-v0',
-    entry_point='src.graph_construction.minigrid_two_player_game:IntruderRobotRAL25'
+    entry_point='src.graph_construction.minigrid_envs:IntruderRobotRAL25'
+)
+
+
+register(
+    id='MiniGrid-ThreeDoorIntruderRobotRAL25-v0',
+    entry_point='src.graph_construction.minigrid_envs:ThreeDoorIntruderRobotRAL25'
 )
 
 
 register(
     id='MiniGrid-FourRoomsRobotRAL25-v0',
-    entry_point='src.graph_construction.minigrid_two_player_game:FourRoomsRobotRAL25'
+    entry_point='src.graph_construction.minigrid_envs:FourRoomsRobotRAL25'
 )
 
 
 register(
     id='MiniGrid-SmallFourRoomsRobotRAL25-v0',
-    entry_point='src.graph_construction.minigrid_two_player_game:SmallFourRoomsRobotRAL25'
+    entry_point='src.graph_construction.minigrid_envs:SmallFourRoomsRobotRAL25'
 )

@@ -259,7 +259,7 @@ class NonDeterministicMiniGrid():
                             'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
                             'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-LavaAdm_karan-v0': [],
                             'MiniGrid-NarrowLavaAdm_karan-v0': [], 'MiniGrid-IntruderRobotRAL25-v0': [], 'MiniGrid-TwoNarrowLavaAdm_karan-v0': [],
-                            'MiniGrid-FourRoomsRobotRAL25-v0': [], 'MiniGrid-SmallFourRoomsRobotRAL25-v0': []}
+                            'MiniGrid-FourRoomsRobotRAL25-v0': [], 'MiniGrid-SmallFourRoomsRobotRAL25-v0': [], 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0' : []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -371,9 +371,11 @@ class NonDeterministicMiniGrid():
         self.initialize_edge_labels_on_fancy_graph(two_player_graph)
 
         self._two_player_trans_sys = two_player_graph
+        sys.exit(-1)
 
         if self.env_id == 'MiniGrid-IntruderRobotRAL25-v0' and (modify_intruder_game or only_augment_obs):
             modify_intruder_handle = ModifiedIntruderRobotGame(game=two_player_graph, only_augment_obs=only_augment_obs, modify_game=modify_intruder_game)
+            sys.exit(-1)
             self._two_player_trans_sys = modify_intruder_handle.aug_game
 
         # get all the aps, and the player
@@ -387,8 +389,6 @@ class NonDeterministicMiniGrid():
         # set edge weight sets
         if set_weights:
             self.set_edge_weights()
-        
-        # sys.exit(-1)
     
 
     def modify_robot_evasion_game(self):
