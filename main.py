@@ -8,7 +8,7 @@ import yaml
 
 import warnings
 
-
+from collections import OrderedDict
 from typing import Optional, Dict, Type, Union, Tuple, List
 
 from icra_examples.safe_adm_game import modify_abstraction, remove_non_reachable_states
@@ -348,6 +348,7 @@ def minigrid_main(debug: bool = False,
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
     nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
@@ -362,7 +363,10 @@ def minigrid_main(debug: bool = False,
         
         # now construct the abstraction, the dfa and take the product
         # minigrid_handle.build_minigrid_game(env_snap=True)
-        minigrid_handle.build_minigrid_game(env_snap=False, only_augment_obs=False, modify_intruder_game=True)
+        minigrid_handle.build_minigrid_game(env_snap=False,
+                                            only_augment_obs=False,
+                                            modify_intruder_game=True,
+                                            config_yaml_dict=OrderedDict({'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1'}))
         minigrid_handle.get_aps(print_flag=True)
         # minigrid_handle.get_minigrid_edge_weights(print_flag=False)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")

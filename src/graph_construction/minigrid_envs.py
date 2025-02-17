@@ -2,6 +2,7 @@ import os
 import sys
 import warnings
 
+from typing import Dict, Tuple, Optional
 from enum import Enum
 
 from gym_minigrid.minigrid import (MiniGridEnv, Grid, Lava, Floor,
@@ -9,8 +10,9 @@ from gym_minigrid.minigrid import (MiniGridEnv, Grid, Lava, Floor,
 
 from gym_minigrid.register import register
 
+# from utls import deprecated
 from icra_examples.safe_adm_game import remove_non_reachable_states
-from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, graph_factory, ProductAutomaton
+from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, graph_factory, ProductAutomaton, DFAGraph
 
 # set path constants
 ROOT_PATH = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,15 +24,26 @@ sys.path.append(f"{ROOT_PATH}/regret_synthesis_toolbox")
 from wombats.systems.minigrid import MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water
 
 
-class ModifiedIntruderRobotGame:
+class ModifyIntruderRobotGame:
 
-    def __init__(self, game: TwoPlayerGraph, only_augment_obs: bool = False, modify_game: bool = False, debug: bool = False):
+    def __init__(self,
+                game: TwoPlayerGraph,
+                only_augment_obs: bool = False,
+                modify_game: bool = False,
+                config_yaml: Dict[str, str] = {},
+                door_dict: Dict[str, Tuple[int, int]] = {},
+                debug: bool = False,):
          self._game = game
          self._aug_game = None
          self.debug = debug
+         self.door_dict = door_dict
+         self.config_yaml = config_yaml
+         self.max_doors: int = len(self.door_dict.keys())
          if only_augment_obs:
             self._augment_obs()
          if modify_game:
+            assert set(self.config_yaml.keys()) == set(self.door_dict.keys()), "The config yaml should have the same keys as the door_dict. FIX THIS!!!"
+            assert len(self.door_dict.keys()) != 0 , "Door dictionary is empty. Please provide the door dictionary. FIX THIS!!!"
             self.modify_intruder_robot_game()
     
     @property
@@ -53,20 +66,21 @@ class ModifiedIntruderRobotGame:
     
     def add_door_ap(self):
         """
-        A helper function to add the doop label to the AP.
+        A helper function to add the door label to the AP.
         """
         for state in self._game._graph.nodes():
             # augement ap with label sd/rd
             agent_pos = state[2][0]
             sys_pos = state[1][0]
-            if agent_pos == (5, 5):
-                aug_ap = "ed"
-                self.augement_ap(state, aug_ap, self._game)
-            elif sys_pos == (5, 5):
-                aug_ap = "rd"
-                self.augement_ap(state, aug_ap, self._game)
+            for door, door_pos in self.door_dict.items():
+                if agent_pos == door_pos:
+                    aug_ap = f"e{door}"
+                    self.augement_ap(state, aug_ap, self._game)
+                elif sys_pos == door_pos:
+                    aug_ap = f"r{door}"
+                    self.augement_ap(state, aug_ap, self._game)
         
-    def _augment_obs(self, game = None):
+    def _augment_obs(self, game = None, max_depth: Optional[int] = None):
         """
          A helper method used to augment the AP at each state and see if the Agent observed the Env player or not.
         """
@@ -76,15 +90,47 @@ class ModifiedIntruderRobotGame:
             # augement ap with agent_observed label
             # the order if elif should chnage as ProductAutomaton is child of TwoPlayerGraph
             if isinstance(game, ProductAutomaton):
-                agent_pos = state[0][2][0]
-                sys_pos = state[0][1][0]
+                unwrapped_ts_state = self.unwrap_position(state, max_depth)
+                agent_pos = unwrapped_ts_state[2][0]
+                sys_pos = unwrapped_ts_state[1][0]
             
             elif isinstance(game, TwoPlayerGraph):
                 agent_pos = state[2][0]
                 sys_pos = state[1][0]
 
             if (0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2):
-                self.augement_ap(state, "agent_observed", game)
+                self.augement_ap(state, "agent_obs", game)
+
+
+    def unwrap_position(self, state, depth):
+        """
+        Unwraps the position tuple from the state variable based on the specified depth.
+
+        :param state: The state variable, which is a nested tuple.
+        :param depth: The depth of the tuple to extract the position information.
+        :return: The unwrapped position tuple.
+        """
+        current = state
+        for _ in range(depth):
+            if isinstance(current, tuple) and len(current) > 0:
+                # Get TS state
+                current = current[0]
+            else:
+                raise ValueError("The depth specified is greater than the depth of the nested tuple.")
+        return current
+    
+    def unwrap_door(self, state, depth):
+        """
+        Unwraps the position tuple from the state variable based on the specified depth.
+
+        :param state: The state variable, which is a nested tuple.
+        :param depth: The depth of the tuple to extract the position information.
+        :return: The unwrapped position tuple.
+        """
+        if depth == 0:
+            return state[1]
+        else:
+            return self.unwrap_door(state[0], depth - 1)
     
 
     def modify_intruder_robot_game(self):
@@ -93,60 +139,100 @@ class ModifiedIntruderRobotGame:
          Who ever secures the transition can traverse through that block.
         """
         self.add_door_ap()
-        # take the product of the two transition systems
-        door_ts = graph_factory.get('DFA',
-                                    graph_name="minigrid_door_trans",
-                                    config_yaml=ROOT_PATH + '/regret_synthesis_toolbox/config/test',
-                                    save_flag=False,
-                                    sc_ltl='',
-                                    use_alias=False,
-                                    plot=False)
+        door_ts_dict: Dict[str, DFAGraph] = {}
+        for door, door_yaml in self.config_yaml.items():
+            # door TS
+            door_ts = graph_factory.get('DFA',
+                                        graph_name=f"minigrid_{door}_trans",
+                                        config_yaml=door_yaml,
+                                        save_flag=True,
+                                        sc_ltl='',
+                                        use_alias=False,
+                                        plot=True)
 
-        product_automaton = graph_factory.get("ProductGraph",
-                                              graph_name="minigrid_aug_product_graph",
-                                              config_yaml=None,
-                                              trans_sys=self._game,
-                                              observe_next_on_trans=True,
-                                              automaton=door_ts,
-                                              save_flag=False,
-                                              prune=False,
-                                              debug=False,
-                                              absorbing=False,
-                                              finite=False,
-                                              plot=False,
-                                              pdfa_compose=True)
+            # book keeping - add this to the door_ts dict
+            door_ts_dict[door] = door_ts
+
+        # # door _2
+        # door_ts_2 = graph_factory.get('DFA',
+        #                             graph_name="minigrid_door2_trans",
+        #                             config_yaml=ROOT_PATH + '/regret_synthesis_toolbox/config/door_2',
+        #                             save_flag=True,
+        #                             sc_ltl='',
+        #                             use_alias=False,
+        #                             plot=True)
+        trans_sys = self._game
+        for counter, (door, door_trans) in enumerate(door_ts_dict.items()):
+            # take the product of the two transition systems
+            # if counter == 0:
+            product_automaton = graph_factory.get("ProductGraph",
+                                                graph_name="minigrid_aug_product_graph",
+                                                config_yaml=None,
+                                                trans_sys=trans_sys,
+                                                observe_next_on_trans=True,
+                                                automaton=door_trans,
+                                                save_flag=False,
+                                                prune=False,
+                                                debug=False,
+                                                absorbing=False,
+                                                finite=False,
+                                                plot=False,
+                                                pdfa_compose=True)
+            trans_sys  = product_automaton
+        
+
+        # new_product_automaton = graph_factory.get("ProductGraph",
+        #                                           graph_name="minigrid_aug_product_graph",
+        #                                           config_yaml=None,
+        #                                           trans_sys=product_automaton,
+        #                                           observe_next_on_trans=True,
+        #                                           automaton=door_ts_2,
+        #                                           save_flag=False,
+        #                                           prune=False,
+        #                                           debug=False,
+        #                                           absorbing=False,
+        #                                           finite=False,
+        #                                           plot=False,
+        #                                           pdfa_compose=True)
         
         # now manually remove transition based on which state in the aug product graph the agent is in.
         # if sd is true that the Env agent can not transition to the (5, 5)
+        # depth_map = {'d0': 2, 'd1': 1}
+        depth_map: Dict[str, int] = {}
+        # create a depth map
+        for door_depth, door in enumerate(reversed(self.config_yaml.keys())):
+            depth_map[door] = door_depth + 1
+        
         edges_to_be_pruned = set()
-        for state in product_automaton._graph.nodes():
-            if state[1] == 't1':
-                # robot can not transition to the (5, 5)
-                if state[0][0] == 'env' and state[0][1][0] == (5, 5):
-                    for sys_state in product_automaton._graph.predecessors(state):
-                        edges_to_be_pruned.add((sys_state, state))
-            
-            elif state[1] == 't2':
-                # Env can not transition to the (5, 5)
-                if state[0][0] == 'sys' and state[0][2][0] == (5, 5):
-                    for env_state in product_automaton._graph.predecessors(state):
-                        edges_to_be_pruned.add((env_state, state))
+        for state in trans_sys._graph.nodes():
+            unwrapped_ts_state = self.unwrap_position(state, self.max_doors)
+            for door, door_pos in self.door_dict.items():
+                unwrapped_dfa_state = self.unwrap_door(state, depth=depth_map[door] - 1)
+                if unwrapped_dfa_state == f'{door}1':
+                    if unwrapped_ts_state[0] == 'env' and unwrapped_ts_state[1][0] == door_pos:
+                        for sys_state in trans_sys._graph.predecessors(state):
+                            edges_to_be_pruned.add((sys_state, state))
+                
+                elif unwrapped_dfa_state == f'{door}2':
+                    if unwrapped_ts_state[0] == 'sys' and unwrapped_ts_state[2][0] == door_pos:
+                        for env_state in trans_sys._graph.predecessors(state):
+                            edges_to_be_pruned.add((env_state, state))
         
         if self.debug:
             print(f"# of Edges prunded: {len(edges_to_be_pruned)}")
 
-        product_automaton._graph.remove_edges_from(edges_to_be_pruned)
+        trans_sys._graph.remove_edges_from(edges_to_be_pruned)
 
         print("Removing unreachable states from the augmented game")
-        remove_non_reachable_states(game=product_automaton, debug=True)
+        remove_non_reachable_states(game=trans_sys, debug=True)
 
         # do this aftwards as the ap are sensitive to state labels. 
         # For exmaple ed is a label in Door TS but 'ed' also belong to word oberserved in 'agent_observed' label.
-        self._augment_obs(game=product_automaton)
+        self._augment_obs(game=trans_sys, max_depth= max(depth_map.values()))
 
-        self._aug_game = product_automaton
+        self._aug_game = trans_sys
 
-class ModifiedFourRooms2PGame:
+class ModifyFourRooms2PGame:
 
     class Direction(Enum):
         CLOCKWISE = 1
@@ -581,6 +667,7 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
         self.env_agent_start_dir = env_agent_start_dir
 
         self.goal_pos = goal_pos
+        self.door_dict: Dict[str, Tuple[int, int]] = {} 
 
         super().__init__(
             width=width,
@@ -609,6 +696,9 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
         self.put_obj(Wall(), 6, 3)
         self.put_obj(Wall(), 6, 4)
         self.put_obj(Wall(), 6, 5)
+
+        # update door dict for the Door Game
+        self.door_dict['d0'] = (5, 5)
 
         # Place the agent
         p = self.agent_start_pos
@@ -646,13 +736,13 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
 
     def __init__(
         self,
-        width=10,
+        width=9,
         height=9,
-        agent_start_pos=(2, 7),
+        agent_start_pos=(3, 7),
         agent_start_dir=0,
-        env_agent_start_pos=[(7, 1)],
+        env_agent_start_pos=[(6, 1)],
         env_agent_start_dir=[0],
-        goal_pos=[(8, 1)],
+        goal_pos=[(7, 1)],
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
@@ -660,6 +750,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
         self.env_agent_start_dir = env_agent_start_dir
 
         self.goal_pos = goal_pos
+        self.door_dict: Dict[str, Tuple[int, int]] = {}
 
         super().__init__(
             width=width,
@@ -678,26 +769,24 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
         # Place a goal square in the top-left corner
         for goal_pos in self.goal_pos:
             self.put_obj(Floor(color='green'), *goal_pos)
-
-        
-        # vertical wall next to human room
-        for i in range(1, 6):
-            self.put_obj(Wall(), 3, i) 
-            self.put_obj(Wall(), 1, i)
-            if i < 3:
-                self.put_obj(Wall(), 2, i) 
-
-        # vertical wall next to intruder room
-        for i in range(1, 7):
-            if i == 3:
-                continue  # opening
-            self.put_obj(Wall(), 5, i)
-        self.put_obj(Wall(), 6, 6)
-        self.put_obj(Wall(), 8, 6) 
         
         # Human region -Env agent (intruder) can not enter.
-        self.put_obj(Floor(color='purple'), 2, 3) # room
-        self.put_obj(Floor(color='purple'), 2, 4) # room
+        self.put_obj(Wall(), 2, 3)
+        self.put_obj(Wall(), 2, 4)
+        self.put_obj(Wall(), 2, 5)
+        self.put_obj(Wall(), 3, 3)
+        self.put_obj(Floor(color='purple'), 3, 4) # room
+        self.put_obj(Wall(), 4, 3)
+        self.put_obj(Wall(), 4, 4)
+        self.put_obj(Wall(), 4, 5)
+
+        for i in range(1, 7):
+            # if i != 2:  # Door right next to Env player
+                self.put_obj(Wall(), 5, i)
+        self.put_obj(Wall(), 7, 6)
+
+        self.door_dict['d0'] = (3, 5)
+        self.door_dict['d1'] = (6, 6)
 
         # Place the agent
         p = self.agent_start_pos
@@ -715,7 +804,10 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
                     name=f'EnvAgent{i+1}',
                     view_size=self.view_size,
                     color='blue',
-                    restricted_objs=['floor']),
+                    restricted_objs=['floor'],
+                    # restricted_objs=['lava', 'water'],
+                    # restricted_positions=restricted_positions
+                    ),
                 *p,
                 d,
                 False)

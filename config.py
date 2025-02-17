@@ -35,7 +35,7 @@ DIAG_FORMULA = "F((p22 & p14 & p03) || (p05 & p19 & p26))"
 # (F((p & X(F((h & X(F(g))))))) & G(!(a)) & G((!(h) U p))) - abstracted version
 # ((F((p & F((h & F(g))))) & G(!(a))) & (!(h) U p)) - second variant
 # here 
-p = "agent_observed"
+p = "agent_obs"
 h = "floor_purple_open"
 g = "floor_green_open"
 a = "agent_blue_right"

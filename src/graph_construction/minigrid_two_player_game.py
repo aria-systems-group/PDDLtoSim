@@ -15,7 +15,7 @@ from .minigrid_envs import (
     IntruderRobotRAL25,
     TwoNarrowCorridorLavaRAL25,
     SmallFourRoomsRobotRAL25,
-    FourRoomsRobotRAL25, ModifiedFourRooms2PGame, ModifiedIntruderRobotGame
+    FourRoomsRobotRAL25, ModifyFourRooms2PGame, ModifyIntruderRobotGame
 )
 
 from regret_synthesis_toolbox.src.simulation.simulator import Simulator
@@ -335,13 +335,14 @@ class NonDeterministicMiniGrid():
                             get_weights: bool = False,
                             set_weights: bool = False,
                             only_augment_obs: bool = False,
+                            config_yaml_dict: Dict[str, str] = {},
                             modify_intruder_game: bool = False):
         """
          Build OpenAI Minigrid Env with multiple agents, then construct the corresponding graph.
         """
         self.minigrid_env = DynamicMinigrid2PGameWrapper(self.minigrid_env,
-                                           player_steps=self.player_steps,
-                                           monitor_log_location=os.path.join(DIR, GYM_MONITOR_LOG_DIR_NAME))
+                                                         player_steps=self.player_steps,
+                                                         monitor_log_location=os.path.join(DIR, GYM_MONITOR_LOG_DIR_NAME))
         self.minigrid_env.reset()
         env_filename = os.path.join(DIR, 'plots', f'{self.env_id}_Game.png')
         Path(os.path.split(env_filename)[0]).mkdir(parents=True, exist_ok=True)
@@ -371,11 +372,15 @@ class NonDeterministicMiniGrid():
         self.initialize_edge_labels_on_fancy_graph(two_player_graph)
 
         self._two_player_trans_sys = two_player_graph
-        sys.exit(-1)
+        # sys.exit(-1)
 
-        if self.env_id == 'MiniGrid-IntruderRobotRAL25-v0' and (modify_intruder_game or only_augment_obs):
-            modify_intruder_handle = ModifiedIntruderRobotGame(game=two_player_graph, only_augment_obs=only_augment_obs, modify_game=modify_intruder_game)
-            sys.exit(-1)
+        if (self.env_id in ['MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']) and (modify_intruder_game or only_augment_obs):
+            modify_intruder_handle = ModifyIntruderRobotGame(game=two_player_graph,
+                                                             only_augment_obs=only_augment_obs,
+                                                             modify_game=modify_intruder_game,
+                                                             config_yaml=config_yaml_dict,
+                                                             door_dict=self.minigrid_env.door_dict)
+            # sys.exit(-1)
             self._two_player_trans_sys = modify_intruder_handle.aug_game
 
         # get all the aps, and the player
@@ -489,13 +494,13 @@ class NonDeterministicMiniGrid():
         """
          A helper fuction to modify the FourRooms game to make it more interesting.
         """
-        modify_handle = ModifiedFourRooms2PGame(game,
-                                                top_left_room,
-                                                room_size=room_size, 
-                                                room_direction={'r1': ModifiedFourRooms2PGame.Direction.ANTICLOCKWISE, 
-                                                                'r2': ModifiedFourRooms2PGame.Direction.CLOCKWISE,
-                                                                'r3': ModifiedFourRooms2PGame.Direction.CLOCKWISE,
-                                                                'r4': ModifiedFourRooms2PGame.Direction.ANTICLOCKWISE})
+        modify_handle = ModifyFourRooms2PGame(game,
+                                             top_left_room,
+                                             room_size=room_size, 
+                                             room_direction={'r1': ModifyFourRooms2PGame.Direction.ANTICLOCKWISE, 
+                                                             'r2': ModifyFourRooms2PGame.Direction.CLOCKWISE,
+                                                             'r3': ModifyFourRooms2PGame.Direction.CLOCKWISE,
+                                                             'r4': ModifyFourRooms2PGame.Direction.ANTICLOCKWISE})
         modify_handle.modify_four_rooms_game(debug=True)
     
 
