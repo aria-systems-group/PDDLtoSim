@@ -293,8 +293,8 @@ class NonDeterministicMiniGrid():
 
     def build_product(self):
         product_automaton = graph_factory.get("ProductGraph",
-                                               graph_name="minigrid_product_graph",
-                                               config_yaml="/config/minigrid_product_graph",
+                                               graph_name=self.env_id + 'DFA-game',
+                                               config_yaml="/config/" + self.env_id + 'DFA-game',
                                                trans_sys=self.two_player_trans_sys,
                                                observe_next_on_trans=True,
                                                automaton=self.dfa,
@@ -348,7 +348,7 @@ class NonDeterministicMiniGrid():
         Path(os.path.split(env_filename)[0]).mkdir(parents=True, exist_ok=True)
         if env_snap:
             self.minigrid_env.render_notebook(env_filename, self.env_dpi)
-
+        # sys.exit(-1)
         file_name = self.env_id + 'Game'
         filepath = os.path.join(DIR, 'config', file_name)
         config_yaml = os.path.relpath(filepath, ROOT_PATH)
@@ -356,7 +356,7 @@ class NonDeterministicMiniGrid():
         # Game Construction
         start = time.time()
         two_player_graph = graph_factory.get('TwoPlayerGraph',
-                                             graph_name='TwoPlayerGame',
+                                             graph_name=self.env_id + '-game',
                                              config_yaml=config_yaml,
                                              from_file=False,
                                              minigrid=self.minigrid_env,

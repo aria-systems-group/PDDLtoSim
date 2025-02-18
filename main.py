@@ -169,11 +169,13 @@ def run_synthesis_and_rollout(strategy_type: str,
 def save_str(two_player_game: ProductAutomaton,
              pos_seq: list,
              causal_graph: Optional[CausalGraph] = None,
+             dfa_game: Optional[ProductAutomaton] = None,
              transition_system: Optional[FiniteTransitionSystem] = None,
              regret_graph_of_alternatives: Optional[TwoPlayerGraph] = None,
              game_reg_value: Optional[dict] = None,
              admissible: bool = False,
-             adversarial: bool = False):
+             adversarial: bool = False,
+             minigrid: bool = True) -> None:
     """
     A helper method that dumps the regret value and the corresponding strategy computed for given abstraction and an
     LTL formula. This method creates a yaml file which is then dumped in the saved_strs folder at the root of the
@@ -219,8 +221,12 @@ def save_str(two_player_game: ProductAutomaton,
         _trans_sys_nodes = _trans_sys_edges = None
 
     # product graph nodes and edges
-    _prod_nodes = len(two_player_game.two_player_game._graph.nodes())
-    _prod_edges = len(two_player_game.two_player_game._graph.edges())
+    if dfa_game:
+        _prod_nodes = len(dfa_game._graph.nodes())
+        _prod_edges = len(dfa_game._graph.edges())
+    else:
+        _prod_nodes = len(two_player_game.two_player_game._graph.nodes())
+        _prod_edges = len(two_player_game.two_player_game._graph.edges())
 
     if regret_graph_of_alternatives is not None:
         # graph of alternatives nodes and edges
@@ -231,17 +237,20 @@ def save_str(two_player_game: ProductAutomaton,
         _graph_of_alts_nodes = None
         _graph_of_alts_edges = None
 
-    _ltl_formula = two_player_game.formula
+    try:
+        _ltl_formula = two_player_game.formula
+    except AttributeError:
+        _ltl_formula = two_player_game._auto_graph._formula
 
     # create a data dict to dump it
     data_dict: Dict = dict(
         task_name=_task_name,
         no_of_boxes={
-            'num': len(_boxes),
+            'num': len(_boxes) if _boxes is not None else None,
             'objects': _boxes,
         },
         no_of_loc={
-            'num': len(_locations),
+            'num': len(_locations) if _locations is not None else None,
             'objects': _locations
         },
         init_worl_conf=_init_conf,
@@ -258,14 +267,46 @@ def save_str(two_player_game: ProductAutomaton,
         reg_str=pos_seq
     )
 
+    if admissible and minigrid:
+
+        data_dict: Dict = dict(
+            task_name=_task_name,
+            no_of_boxes={
+                'num': len(_boxes) if _boxes is not None else None,
+                'objects': _boxes,
+            },
+            no_of_loc={
+                'num': len(_locations) if _locations is not None else None,
+                'objects': _locations
+            },
+            init_worl_conf=_init_conf,
+            ltl_formula=_ltl_formula,
+            abstractions={
+                'num_transition_system_nodes': _trans_sys_nodes,
+                'num_transition_system_edges': _trans_sys_edges,
+                'num_two_player_game_nodes': _prod_nodes,
+                'num_two_player_game_edges': _prod_edges,
+                'num_graph_of_alts_nodes': _graph_of_alts_nodes,
+                'num_graph_of_alts_edges': _graph_of_alts_edges,
+            },
+            adv_val=_reg_value,
+            adm_str=pos_seq
+        )
+
     # now dump the data in a file
     if adversarial:
         _file_name: str = \
             f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_h_" \
             f"{_reg_value}_adv_"
-    elif admissible:
+    elif admissible and not minigrid:
         _file_name: str = \
             f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc__adm_"
+    elif admissible and minigrid:
+        _file_name: str = \
+            f"/saved_strs/{_task_name}__adm_"
+    elif minigrid and not minigrid:
+        _file_name: str = \
+            f"/saved_strs/{_task_name}__adv_"
     else:
         _file_name: str =\
         f"/saved_strs/{_task_name}_{len(_boxes)}_box_{len(_locations)}_loc_h_" \
@@ -347,13 +388,13 @@ def minigrid_main(debug: bool = False,
     # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
-    # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
-    nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
+    nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
-                                                #    formula='!(agent_blue_right) U (floor_green_open)',
-                                                   formula=robot_evasion,
+                                                   formula='!(agent_blue_right) U (floor_green_open)',
+                                                #    formula=robot_evasion,
                                                    player_steps = {'sys': [1], 'env': [1]},
                                                    save_flag=True,
                                                    plot_minigrid=False,
@@ -362,14 +403,15 @@ def minigrid_main(debug: bool = False,
                                                    debug=debug)
         
         # now construct the abstraction, the dfa and take the product
-        # minigrid_handle.build_minigrid_game(env_snap=True)
-        minigrid_handle.build_minigrid_game(env_snap=True,
-                                            only_augment_obs=False,
-                                            modify_intruder_game=True,
-                                            config_yaml_dict=OrderedDict({'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1', 
-                                                                          'd1': ROOT_PATH + '/regret_synthesis_toolbox/config/door_2', 
-                                                                          'd2': ROOT_PATH + '/regret_synthesis_toolbox/config/door_3'
-                                                                          }))
+        minigrid_handle.build_minigrid_game(env_snap=True, get_aps=True)
+        if nd_minigrid_envs in ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
+            minigrid_handle.build_minigrid_game(env_snap=True,
+                                                only_augment_obs=False,
+                                                modify_intruder_game=True,
+                                                config_yaml_dict=OrderedDict({'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1', 
+                                                                              'd1': ROOT_PATH + '/regret_synthesis_toolbox/config/door_2', 
+                                                                              'd2': ROOT_PATH + '/regret_synthesis_toolbox/config/door_3'
+                                                                              }))
         minigrid_handle.get_aps(print_flag=True)
         # minigrid_handle.get_minigrid_edge_weights(print_flag=False)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
@@ -407,6 +449,19 @@ def minigrid_main(debug: bool = False,
         system_actions, env_actions = minigrid_handle._action_parser(action_seq=roller.action_seq)
 
         minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
+    
+
+    _dump_strs = input("Do you want to save the rollout of the strategy,Enter: Y/y")
+    # save strs
+    if _dump_strs == "y" or _dump_strs == "Y":
+        save_str(admissible=True,
+                 minigrid=True,
+                 two_player_game=minigrid_handle.dfa_game,
+                 dfa_game=minigrid_handle.dfa_game,
+                 pos_seq=roller.action_seq,
+                 causal_graph=None,
+                 transition_system=None,
+                 adversarial=False)
 
 
 @timer_decorator
@@ -659,7 +714,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 if __name__ == "__main__":
-    record = True
+    record = False
     use_saved_str = False
 
     if use_saved_str:
