@@ -61,7 +61,10 @@ class ModifyIntruderRobotGame:
             game = self._game
         if game._graph.nodes[state].get('ap') == '':
             game._graph.nodes[state]['ap'] = ap
-        elif game._graph.nodes[state]['ap'] not in ["floor_purple_open", "agent_blue_right"] :
+        # elif game._graph.nodes[state]['ap'] not in ["floor_purple_open", "agent_blue_right"] :
+        #     game._graph.nodes[state]['ap'] = game._graph.nodes[state].get('ap') + "__" + ap
+        # elif game._graph.nodes[state]['ap']:
+        else:
             game._graph.nodes[state]['ap'] = game._graph.nodes[state].get('ap') + "__" + ap
     
     def add_door_ap(self):
@@ -79,6 +82,22 @@ class ModifyIntruderRobotGame:
                 elif sys_pos == door_pos:
                     aug_ap = f"r{door}"
                     self.augement_ap(state, aug_ap, self._game)
+    
+
+    def process_vis(self, state, game, agent_pos, sys_pos) -> None:
+        """
+         A helper method to check the Env agent is in Sys view. The size of the vise is 3x3. 
+          Further, currently, the vis is set for "right" direction agent. 
+          To emulate no_see_through_wall, I will check if the agent is in the purpe_floor_open grid or the door grid. 
+          If yes, then, it can not observe even if it is in the view as the wall right next to it block the agent view. 
+        """
+        
+        pos_below_door = (self.door_dict['d0'][0], self.door_dict['d0'][1] + 1)
+        if (0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2) \
+              and ('d0' not in game._graph.nodes[state]['ap']) and ('floor_purple_open' not in game._graph.nodes[state]['ap']) \
+                and (sys_pos != pos_below_door):
+            self.augement_ap(state, "agent_obs", game)
+
         
     def _augment_obs(self, game = None, max_depth: Optional[int] = None):
         """
@@ -97,9 +116,8 @@ class ModifyIntruderRobotGame:
             elif isinstance(game, TwoPlayerGraph):
                 agent_pos = state[2][0]
                 sys_pos = state[1][0]
-
-            if (0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2):
-                self.augement_ap(state, "agent_obs", game)
+            
+            self.process_vis(state=state, game=game, agent_pos=agent_pos, sys_pos=sys_pos)
 
 
     def unwrap_position(self, state, depth):
@@ -153,18 +171,9 @@ class ModifyIntruderRobotGame:
             # book keeping - add this to the door_ts dict
             door_ts_dict[door] = door_ts
 
-        # # door _2
-        # door_ts_2 = graph_factory.get('DFA',
-        #                             graph_name="minigrid_door2_trans",
-        #                             config_yaml=ROOT_PATH + '/regret_synthesis_toolbox/config/door_2',
-        #                             save_flag=True,
-        #                             sc_ltl='',
-        #                             use_alias=False,
-        #                             plot=True)
         trans_sys = self._game
-        for counter, (door, door_trans) in enumerate(door_ts_dict.items()):
+        for door, door_trans in door_ts_dict.items():
             # take the product of the two transition systems
-            # if counter == 0:
             product_automaton = graph_factory.get("ProductGraph",
                                                 graph_name="minigrid_aug_product_graph",
                                                 config_yaml=None,
@@ -180,24 +189,6 @@ class ModifyIntruderRobotGame:
                                                 pdfa_compose=True)
             trans_sys  = product_automaton
         
-
-        # new_product_automaton = graph_factory.get("ProductGraph",
-        #                                           graph_name="minigrid_aug_product_graph",
-        #                                           config_yaml=None,
-        #                                           trans_sys=product_automaton,
-        #                                           observe_next_on_trans=True,
-        #                                           automaton=door_ts_2,
-        #                                           save_flag=False,
-        #                                           prune=False,
-        #                                           debug=False,
-        #                                           absorbing=False,
-        #                                           finite=False,
-        #                                           plot=False,
-        #                                           pdfa_compose=True)
-        
-        # now manually remove transition based on which state in the aug product graph the agent is in.
-        # if sd is true that the Env agent can not transition to the (5, 5)
-        # depth_map = {'d0': 2, 'd1': 1}
         depth_map: Dict[str, int] = {}
         # create a depth map
         for door_depth, door in enumerate(reversed(self.config_yaml.keys())):
@@ -771,22 +762,23 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
             self.put_obj(Floor(color='green'), *goal_pos)
         
         # Human region -Env agent (intruder) can not enter.
-        self.put_obj(Wall(), 2, 3)
-        self.put_obj(Wall(), 2, 4)
-        self.put_obj(Wall(), 2, 5)
         self.put_obj(Wall(), 3, 3)
-        self.put_obj(Floor(color='purple'), 3, 4) # room
+        self.put_obj(Wall(), 3, 4)
+        self.put_obj(Wall(), 3, 5)
         self.put_obj(Wall(), 4, 3)
-        self.put_obj(Wall(), 4, 4)
-        self.put_obj(Wall(), 4, 5)
+        self.put_obj(Floor(color='purple'), 4, 4) # room
+        self.put_obj(Wall(), 5, 3)
+        self.put_obj(Wall(), 5, 4)
+        self.put_obj(Wall(), 5, 5)
 
         for i in range(1, 7):
-            # if i != 2:  # Door right next to Env player
+            if i != 2:  # Door right next to Env player
                 self.put_obj(Wall(), 5, i)
         self.put_obj(Wall(), 7, 6)
 
-        self.door_dict['d0'] = (3, 5)
+        self.door_dict['d0'] = (4, 5)
         self.door_dict['d1'] = (6, 6)
+        self.door_dict['d2'] = (5, 2)
 
         # Place the agent
         p = self.agent_start_pos
