@@ -38,8 +38,13 @@ DIAG_FORMULA = "F((p22 & p14 & p03) || (p05 & p19 & p26))"
 p = "agent_obs"
 h = "floor_purple_open"
 g = "floor_green_open"
-a = "agent_blue_right"
+a = "agent_darkblue_right"
 robot_evasion = f"((F(({p} & F(({h} & F({g}))))) & G(!({a}))) & (!({h}) U {p}))"
+
+### A more complex formula for three door evasion problem where the robot should dry itself before visit the human or the goal region
+w = 'water_blue_open'
+c = 'carpet_yellow_open'
+robot_evasion_complex = f"((F(({p} & F(({h} & F({g}))))) & G(!({a}))) & (!({h}) U {p}) & G(({w} -> ((!({h}) & !({g})) U {c}))))"
 
 
 

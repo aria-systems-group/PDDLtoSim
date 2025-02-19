@@ -21,18 +21,18 @@ DIR = ROOT_PATH
 # add wombats to my sys path
 sys.path.append(f"{ROOT_PATH}/regret_synthesis_toolbox")
 
-from wombats.systems.minigrid import MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water
+from wombats.systems.minigrid import MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water, NoDirectionAgentGrid
 
 
 class ModifyIntruderRobotGame:
 
     def __init__(self,
-                game: TwoPlayerGraph,
-                only_augment_obs: bool = False,
-                modify_game: bool = False,
-                config_yaml: Dict[str, str] = {},
-                door_dict: Dict[str, Tuple[int, int]] = {},
-                debug: bool = False,):
+                 game: TwoPlayerGraph,
+                 only_augment_obs: bool = False,
+                 modify_game: bool = False,
+                 config_yaml: Dict[str, str] = {},
+                 door_dict: Dict[str, Tuple[int, int]] = {},
+                 debug: bool = False,):
          self._game = game
          self._aug_game = None
          self.debug = debug
@@ -175,18 +175,18 @@ class ModifyIntruderRobotGame:
         for door, door_trans in door_ts_dict.items():
             # take the product of the two transition systems
             product_automaton = graph_factory.get("ProductGraph",
-                                                graph_name="minigrid_aug_product_graph",
-                                                config_yaml=None,
-                                                trans_sys=trans_sys,
-                                                observe_next_on_trans=True,
-                                                automaton=door_trans,
-                                                save_flag=False,
-                                                prune=False,
-                                                debug=False,
-                                                absorbing=False,
-                                                finite=False,
-                                                plot=False,
-                                                pdfa_compose=True)
+                                                 graph_name=self._game.graph_name + f"{len(door_ts_dict)}_door",
+                                                 config_yaml=None,
+                                                 trans_sys=trans_sys,
+                                                 observe_next_on_trans=True,
+                                                 automaton=door_trans,
+                                                 save_flag=False,
+                                                 prune=False,
+                                                 debug=False,
+                                                 absorbing=False,
+                                                 finite=False,
+                                                 plot=False,
+                                                 pdfa_compose=True)
             trans_sys  = product_automaton
         
         depth_map: Dict[str, int] = {}
@@ -706,7 +706,7 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
                 ConstrainedAgent(
                     name=f'EnvAgent{i+1}',
                     view_size=self.view_size,
-                    color='blue',
+                    color='darkblue',
                     restricted_objs=['floor'],
                     # restricted_objs=['lava', 'water'],
                     # restricted_positions=restricted_positions
@@ -734,6 +734,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
         env_agent_start_pos=[(6, 1)],
         env_agent_start_dir=[0],
         goal_pos=[(7, 1)],
+        carpet_world: bool = True
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
@@ -742,6 +743,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
 
         self.goal_pos = goal_pos
         self.door_dict: Dict[str, Tuple[int, int]] = {}
+        self.carpet_world = carpet_world
 
         super().__init__(
             width=width,
@@ -770,15 +772,38 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
         self.put_obj(Wall(), 5, 3)
         self.put_obj(Wall(), 5, 4)
         self.put_obj(Wall(), 5, 5)
+        
+        if not self.carpet_world:
+            for i in range(1, 7):
+                if i != 2:  # Door right next to Env player  
+                    self.put_obj(Wall(), 5, i)
+        else:
+            for i in range(3, 7):  
+                    self.put_obj(Wall(), 5, i)
 
-        for i in range(1, 7):
-            if i != 2:  # Door right next to Env player
-                self.put_obj(Wall(), 5, i)
         self.put_obj(Wall(), 7, 6)
 
         self.door_dict['d0'] = (4, 5)
         self.door_dict['d1'] = (6, 6)
-        self.door_dict['d2'] = (5, 2)
+        if not self.carpet_world:
+            self.door_dict['d2'] = (5, 2)
+
+        if self.carpet_world:
+            # place water and carpet 
+            self.put_obj(Water(), 6, 5)
+            self.put_obj(Water(), 7, 5)
+
+            self.put_obj(Carpet(), 1, 7)
+            self.put_obj(Carpet(), 2, 7)
+
+            # add a 4th door - without which a Safe Stratefy does not exists
+            self.put_obj(Wall(), 1, 5)
+            self.door_dict['d3'] = (2, 5)
+            self.put_obj(Wall(), 2, 3)
+            self.door_dict['d2'] = (1, 3)
+
+            # playing around agent's start pos
+            # self.agent_start_pos = (2, 6)
 
         # Place the agent
         p = self.agent_start_pos
@@ -795,7 +820,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
                 ConstrainedAgent(
                     name=f'EnvAgent{i+1}',
                     view_size=self.view_size,
-                    color='blue',
+                    color='darkblue',
                     restricted_objs=['floor'],
                     # restricted_objs=['lava', 'water'],
                     # restricted_positions=restricted_positions

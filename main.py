@@ -388,13 +388,13 @@ def minigrid_main(debug: bool = False,
     # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
-    nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
-    # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
+    nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
-                                                   formula='!(agent_blue_right) U (floor_green_open)',
-                                                #    formula=robot_evasion,
+                                                #    formula='!(agent_blue_right) U (floor_green_open)',
+                                                   formula=robot_evasion_complex,
                                                    player_steps = {'sys': [1], 'env': [1]},
                                                    save_flag=True,
                                                    plot_minigrid=False,
@@ -403,15 +403,19 @@ def minigrid_main(debug: bool = False,
                                                    debug=debug)
         
         # now construct the abstraction, the dfa and take the product
-        minigrid_handle.build_minigrid_game(env_snap=True, get_aps=True)
-        if nd_minigrid_envs in ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
+        
+        if id in ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
             minigrid_handle.build_minigrid_game(env_snap=True,
                                                 only_augment_obs=False,
                                                 modify_intruder_game=True,
                                                 config_yaml_dict=OrderedDict({'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1', 
                                                                               'd1': ROOT_PATH + '/regret_synthesis_toolbox/config/door_2', 
-                                                                              'd2': ROOT_PATH + '/regret_synthesis_toolbox/config/door_3'
+                                                                              'd2': ROOT_PATH + '/regret_synthesis_toolbox/config/door_3',
+                                                                              'd3': ROOT_PATH + '/regret_synthesis_toolbox/config/door_4'
                                                                               }))
+        else:
+            minigrid_handle.build_minigrid_game(env_snap=True, get_aps=True)
+        
         minigrid_handle.get_aps(print_flag=True)
         # minigrid_handle.get_minigrid_edge_weights(print_flag=False)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
@@ -714,7 +718,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 if __name__ == "__main__":
-    record = False
+    record = True
     use_saved_str = False
 
     if use_saved_str:

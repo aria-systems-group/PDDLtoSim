@@ -360,7 +360,7 @@ class NonDeterministicMiniGrid():
                                              config_yaml=config_yaml,
                                              from_file=False,
                                              minigrid=self.minigrid_env,
-                                             minigrid_wait=True,
+                                             minigrid_wait=False,
                                              save_flag=self.save_flag,
                                              plot=self.plot_minigrid,
                                              view=False,
