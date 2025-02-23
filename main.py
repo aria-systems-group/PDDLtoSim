@@ -394,24 +394,26 @@ def minigrid_main(debug: bool = False,
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
                                                 #    formula='!(agent_blue_right) U (floor_green_open)',
-                                                   formula=robot_evasion_complex,
+                                                   formula=robot_evasion,
                                                    player_steps = {'sys': [1], 'env': [1]},
                                                    save_flag=True,
                                                    plot_minigrid=False,
                                                    plot_dfa=False,
                                                    plot_product=False,
+                                                   env_dpi=300,
+                                                   env_snap_format='pdf',
                                                    debug=debug)
         
         # now construct the abstraction, the dfa and take the product
         
         if id in ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
-            minigrid_handle.build_minigrid_game(env_snap=True,
+            minigrid_handle.build_minigrid_game(env_snap=False,
                                                 only_augment_obs=False,
                                                 modify_intruder_game=True,
                                                 config_yaml_dict=OrderedDict({'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1', 
                                                                               'd1': ROOT_PATH + '/regret_synthesis_toolbox/config/door_2', 
                                                                               'd2': ROOT_PATH + '/regret_synthesis_toolbox/config/door_3',
-                                                                              'd3': ROOT_PATH + '/regret_synthesis_toolbox/config/door_4'
+                                                                            #   'd3': ROOT_PATH + '/regret_synthesis_toolbox/config/door_4'
                                                                               }))
         else:
             minigrid_handle.build_minigrid_game(env_snap=True, get_aps=True)

@@ -344,7 +344,7 @@ class NonDeterministicMiniGrid():
                                                          player_steps=self.player_steps,
                                                          monitor_log_location=os.path.join(DIR, GYM_MONITOR_LOG_DIR_NAME))
         self.minigrid_env.reset()
-        env_filename = os.path.join(DIR, 'plots', f'{self.env_id}_Game.png')
+        env_filename = os.path.join(DIR, 'plots', f'{self.env_id}_Game.' + str(self.env_snap_format))
         Path(os.path.split(env_filename)[0]).mkdir(parents=True, exist_ok=True)
         if env_snap:
             self.minigrid_env.render_notebook(env_filename, self.env_dpi)
@@ -376,6 +376,7 @@ class NonDeterministicMiniGrid():
 
         if (self.env_id in ['MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']) and (modify_intruder_game or only_augment_obs):
             modify_intruder_handle = ModifyIntruderRobotGame(game=two_player_graph,
+                                                             minigrid_env=self.minigrid_env,
                                                              only_augment_obs=only_augment_obs,
                                                              modify_game=modify_intruder_game,
                                                              config_yaml=config_yaml_dict,

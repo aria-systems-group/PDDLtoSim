@@ -21,19 +21,22 @@ DIR = ROOT_PATH
 # add wombats to my sys path
 sys.path.append(f"{ROOT_PATH}/regret_synthesis_toolbox")
 
-from wombats.systems.minigrid import MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water, NoDirectionAgentGrid
+from wombats.systems.minigrid import DynamicMinigrid2PGameWrapper, MultiAgentMiniGridEnv, ConstrainedAgent, Agent, \
+      MultiObjGrid, Carpet, Water, NoDirectionAgentGrid, BaseWorldObj
 
 
 class ModifyIntruderRobotGame:
 
     def __init__(self,
                  game: TwoPlayerGraph,
+                 minigrid_env: DynamicMinigrid2PGameWrapper,
                  only_augment_obs: bool = False,
                  modify_game: bool = False,
                  config_yaml: Dict[str, str] = {},
                  door_dict: Dict[str, Tuple[int, int]] = {},
                  debug: bool = False,):
          self._game = game
+         self.minigrid_env = minigrid_env
          self._aug_game = None
          self.debug = debug
          self.door_dict = door_dict
@@ -83,6 +86,76 @@ class ModifyIntruderRobotGame:
                     aug_ap = f"r{door}"
                     self.augement_ap(state, aug_ap, self._game)
     
+    def get_line(self, x0, y0, x1, y1):
+        """
+        Implementation of Bresenham's line algorithm to get all cells
+        that a line passes through between two points.
+        """
+        cells = []
+        dx = abs(x1 - x0)
+        dy = abs(y1 - y0)
+        x, y = x0, y0
+        sx = 1 if x1 > x0 else -1
+        sy = 1 if y1 > y0 else -1  # sy is positive when moving down
+        
+        if dx > dy:
+            err = dx / 2.0
+            while x != x1:
+                cells.append((x, y))
+                err -= dy
+                if err < 0:
+                    y += sy  # Move down when sy is positive
+                    err += dx
+                x += sx
+        else:
+            err = dy / 2.0
+            while y != y1:
+                cells.append((x, y))
+                err -= dx
+                if err < 0:
+                    x += sx
+                    err += dy
+                y += sy  # Move down when sy is positive
+                
+        cells.append((x, y))
+        return cells
+    
+
+    def new_process_vis(self, state, game, agent_pos, sys_pos) -> None:
+        """
+         A helper method to check the Env agent is in Sys view. The size of the vise is 3x3. 
+          Further, currently, the vis is set for "right" direction agent. 
+          1. First checking if the target is within the 3x3 window
+          2. If the target is in an adjacent cell, it's always visible
+          3. Bresenham's line algorithm to check if any walls block the line of sight
+        """
+        
+        # pos_below_door = (self.door_dict['d0'][0], self.door_dict['d0'][1] + 1)
+        # in_view = False
+        if not((0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2)):
+            # it is in 3x3 grid world
+            return 
+        
+        # in_view = True
+        
+        # adjacent to the Sys player
+        dx = abs(agent_pos[0] - sys_pos[0])
+        dy = abs(sys_pos[1] - agent_pos[1])
+        if dx + dy == 1: 
+            self.augement_ap(state, "agent_obs", game)
+        
+        #  Use Bresenham's line algorithm to get cells between agent and target
+        # if in_view:
+        cells = self.get_line(sys_pos[0], agent_pos[0],sys_pos[1], agent_pos[1])
+        # Check if any cell in the line contains a wall
+        for x, y in cells[1::]:  # Exclude start and end points
+            cell = self.minigrid_env.unwrapped.grid.get(x, y)
+            if cell is not None and hasattr(cell, 'objs'):  # Wall present
+                for obj in cell.objs:
+                    if isinstance(obj, Wall):
+                        return
+        self.augement_ap(state, "agent_obs", game)
+        print(f"Agent Can be Observed: Sys State: {sys_pos}; Agent State: {agent_pos}")
 
     def process_vis(self, state, game, agent_pos, sys_pos) -> None:
         """
@@ -117,6 +190,7 @@ class ModifyIntruderRobotGame:
                 agent_pos = state[2][0]
                 sys_pos = state[1][0]
             
+            self.new_process_vis(state=state, game=game, agent_pos=agent_pos, sys_pos=sys_pos)
             self.process_vis(state=state, game=game, agent_pos=agent_pos, sys_pos=sys_pos)
 
 
@@ -186,7 +260,8 @@ class ModifyIntruderRobotGame:
                                                  absorbing=False,
                                                  finite=False,
                                                  plot=False,
-                                                 pdfa_compose=True)
+                                                 pdfa_compose=True,
+                                                 sanity_check=False)
             trans_sys  = product_automaton
         
         depth_map: Dict[str, int] = {}
@@ -734,7 +809,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
         env_agent_start_pos=[(6, 1)],
         env_agent_start_dir=[0],
         goal_pos=[(7, 1)],
-        carpet_world: bool = True
+        carpet_world: bool = False
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
@@ -750,7 +825,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
             height=height,
             max_steps=4 * width * height,
             # Set this to True for maximum speed
-            see_through_walls=True
+            see_through_walls=False
         )
 
     def _gen_grid(self, width, height):
