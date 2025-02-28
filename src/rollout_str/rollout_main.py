@@ -5,13 +5,13 @@ from typing import Union
 
 from utls import timer_decorator
 
-from src.rollout_str.rollout_adm import RefinedAdmStrategyRolloutProvider, AdmWinStrategyRolloutProvider, AdmStrategyRolloutProvider
+from src.rollout_str.rollout_adm import RefinedAdmStrategyRolloutProvider, AdmWinStrategyRolloutProvider, AdmStrategyRolloutProvider, RandomSysStrategyRolloutProvider
 from src.rollout_str.rollout_regret import BestEffortStrategyRolloutProvider, RegretStrategyRolloutProvider, AdvStrategyRolloutProvider
 
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible
-from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import RegretMinimizationStrategySynthesis 
+from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import RegretMinimizationStrategySynthesis
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
 
@@ -25,6 +25,7 @@ def rollout_strategy(strategy: Strategy,
                      game: ProductAutomaton,
                      debug: bool = False,
                      human_type: str = "random-human",
+                     sys_type: str = '',
                      epsilon: float = 0.1,
                      max_iterations: int = 100):
     """
@@ -48,8 +49,14 @@ def rollout_strategy(strategy: Strategy,
                                              debug=debug,
                                              max_steps=max_iterations)
     
-    elif isinstance(strategy, QuantiativeRefinedAdmissible):
+    elif isinstance(strategy, QuantiativeRefinedAdmissible) and sys_type == "":
         rhandle = RefinedAdmStrategyRolloutProvider(game=game,
+                                                    strategy_handle=strategy,
+                                                    debug=debug,
+                                                    max_steps=max_iterations)
+    
+    elif isinstance(strategy, QuantiativeRefinedAdmissible) and sys_type == "random-sys":
+        rhandle = RandomSysStrategyRolloutProvider(game=game,
                                                     strategy_handle=strategy,
                                                     debug=debug,
                                                     max_steps=max_iterations)

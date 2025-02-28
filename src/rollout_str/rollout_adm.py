@@ -509,7 +509,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             states.append(curr_state)
             next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
 
-            if next_state in self.target_states:
+            if next_state in self.target_states or next_state in self.sink_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 # this statement does not hold for minigrid
                 # if self.action_seq[-1] != _edge_act:
@@ -568,7 +568,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         """
          This method returns a rollout for a human intervening randomly at every n steps.
         """
-        print("Rolling out with human interventions")
+        print("Rolling out with Mixed human interventions")
         states = []
         counter: int = 0
         states.append(self.init_state)
@@ -592,7 +592,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             if env_count % n_steps == 0:
                 next_state = random.choice([_state for _state in self.game._graph.successors(curr_state)])
 
-            if next_state in self.target_states:
+            if next_state in self.target_states or next_state in self.sink_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 # this statement does not hold for minigrid
                 self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
@@ -624,3 +624,44 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 print(_action)
         
         print("Done Rolling out")
+
+
+class RandomSysStrategyRolloutProvider(RefinedAdmStrategyRolloutProvider):
+    """
+     This class override the Adm Sys strategy and replace it with a random strategy.
+    """
+    def __init__(self, game, strategy_handle, debug = False, max_steps = 10):
+        super().__init__(game, strategy_handle, debug, max_steps)
+    
+    def get_next_state(self, curr_state, rand_adm: bool = False, coop_env: bool = False) -> Tuple[str, str]:
+        """
+         A helper function that wraps around sys_strategy and env_strategy dictionary. 
+         If Sys strategy is random.
+        """
+        #### Choosing Env action
+        if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
+            if coop_env:
+                if not isinstance(self.env_coop_str.get(curr_state), list):
+                    return self.env_coop_str.get(curr_state), ''
+                return random.choice(self.env_coop_str.get(curr_state)), ''
+            else:
+                if not isinstance(self.env_strategy.get(curr_state), list):
+                    return self.env_strategy.get(curr_state), ''
+                return random.choice(self.env_strategy.get(curr_state)), ''
+
+        #### Choosing Sys action
+        self.strategy[curr_state] = list(self.strategy.get(curr_state))
+        act = random.choice(self.strategy.get(curr_state))
+        return act, ''
+
+
+    def set_strategy(self):
+        _new_str_dict = self.strategy_handle.sys_adm_str
+
+        for _from_state in self.strategy_handle.sys_adm_str.keys():
+            assert self.game.get_state_w_attribute(_from_state, 'player') == "eve", ...
+            f"[Error] Encountered {self.game.get_state_w_attribute(_from_state, 'player')} player state in Sys player dictionary. Fix This!!!"
+            # act random
+            _new_str_dict[_from_state] = [random.choice([_state for _state in self.game._graph.successors(_from_state)])]
+
+        self._strategy = _new_str_dict
