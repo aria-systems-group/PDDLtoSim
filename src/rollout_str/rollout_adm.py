@@ -589,7 +589,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
                 env_count += 1
 
-            if env_count % n_steps == 0:
+            if env_count % n_steps == 0 and self.game.get_state_w_attribute(curr_state, 'player') == "adam":
                 next_state = random.choice([_state for _state in self.game._graph.successors(curr_state)])
 
             if next_state in self.target_states or next_state in self.sink_states:
@@ -665,3 +665,35 @@ class RandomSysStrategyRolloutProvider(RefinedAdmStrategyRolloutProvider):
             _new_str_dict[_from_state] = [random.choice([_state for _state in self.game._graph.successors(_from_state)])]
 
         self._strategy = _new_str_dict
+
+
+class AdmMemeorylessStrRolloutProvider(RefinedAdmStrategyRolloutProvider):
+
+    def __init__(self, game, strategy_handle, debug = False, max_steps = 10):
+        super().__init__(game, strategy_handle, debug, max_steps)
+    
+
+    def _get_successors_based_on_str(self, curr_state) -> str:
+        raise NotImplementedError()
+    
+    
+    def get_next_state(self, curr_state, rand_adm = False, coop_env = False):
+        #### Choosing Env action
+        if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
+            if coop_env:
+                if not isinstance(self.env_coop_str.get(curr_state), list):
+                    return self.env_coop_str.get(curr_state), ''
+                return random.choice(self.env_coop_str.get(curr_state)), ''
+            else:
+                if not isinstance(self.env_strategy.get(curr_state), list):
+                    return self.env_strategy.get(curr_state), ''
+                return random.choice(self.env_strategy.get(curr_state)), ''
+
+        #### Choosing Sys action
+        self.strategy[curr_state] = list(self.strategy.get(curr_state))
+        is_winning: bool = True if curr_state in self.winning_region else False
+        act = random.choice(self.strategy.get(curr_state))
+        if is_winning:
+            return act, 'Win' 
+        else:
+            return act, 'Coop'

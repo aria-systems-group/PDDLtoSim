@@ -28,7 +28,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
-from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible
+from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible, QuantitativeAdmMemorless
 
 from src.execute_str import execute_saved_str
 from src.rollout_str.rollout_provider_if import RolloutProvider
@@ -43,7 +43,7 @@ ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 DfaGame = Union[TwoPlayerGraph, TwoPlayerGame, NonDeterministicMiniGrid]
 
 VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "QuantitativeNaiveAdmissible", \
-                        "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning", "QuantiativeRefinedAdmissible"]
+                        "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning", "QuantiativeRefinedAdmissible", "QuantitativeAdmMemorless"]
 VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid', 'tic-tac-toe']
 
 
@@ -95,6 +95,10 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
     
     elif strategy_type == "QuantiativeRefinedAdmissible":
         strategy_handle = QuantiativeRefinedAdmissible(game=game, debug=debug)
+        strategy_handle.compute_adm_strategies(plot=plot)
+    
+    elif strategy_type == "QuantitativeAdmMemorless":
+        strategy_handle = QuantitativeAdmMemorless(game=game, debug=debug)
         strategy_handle.compute_adm_strategies(plot=plot)
     
     else:
@@ -439,7 +443,11 @@ def minigrid_main(debug: bool = False,
                                        debug=False)
     
     # synthesize a strategy 
-    # valid human types "manual", "no-human", "random-human", "epsilon-human", "coop-human"
+    # valid human types "manual", "no-human", "random-human", "epsilon-human", "coop-human", "mixed-human"
+    # use "random-human" for Adv. Human
+    # use "epsilon-human" with epsilon set to 1 for completely random human
+    # use "coop-human" for cooperative human
+    # use "mixed-human" for Adv. and Random Human
     else:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=minigrid_handle.dfa_game,
@@ -448,7 +456,7 @@ def minigrid_main(debug: bool = False,
                                             #   human_type='random-human',
                                             #   human_type ='coop-human',
                                               human_type ='epsilon-human',
-                                              sys_type = 'random-sys',
+                                            #   sys_type = 'random-sys',
                                               rollout_flag=True,
                                               epsilon=1,
                                               debug=False,
@@ -685,10 +693,6 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
-
-    dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
-    # product_graph = _two_player_instance.build_product(dfa=_dfa,
-    #                                                     trans_sys=_two_player_instance.two_player_game)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
