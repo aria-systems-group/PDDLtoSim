@@ -389,7 +389,8 @@ def minigrid_main(debug: bool = False,
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
     # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
-    nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
+    nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
     # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
@@ -411,7 +412,7 @@ def minigrid_main(debug: bool = False,
                                                 modify_intruder_game=True,
                                                 config_yaml_dict=OrderedDict(door_dict[id]))
         else:
-            minigrid_handle.build_minigrid_game(env_snap=True, get_aps=True)
+            minigrid_handle.build_minigrid_game(env_snap=False, get_aps=False)
         
         minigrid_handle.get_aps(print_flag=True)
         # minigrid_handle.get_minigrid_edge_weights(print_flag=False)
@@ -436,12 +437,16 @@ def minigrid_main(debug: bool = False,
                                        debug=False)
     
     # synthesize a strategy 
+    # valid human types "manual", "no-human", "random-human", "epsilon-human", "coop-human"
     else:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
                                               game=minigrid_handle.dfa_game,
-                                              human_type='manual',
+                                            #   human_type='manual',
+                                            #   human_type='random-human',
+                                            #   human_type ='coop-human',
+                                              human_type = 'mixed-human',
                                               rollout_flag=True,
-                                              epsilon=0,
+                                              epsilon=1,
                                               debug=False,
                                               max_iterations=max_iterations)
 
@@ -715,7 +720,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 if __name__ == "__main__":
-    record = True
+    record = False
     use_saved_str = False
 
     if use_saved_str:

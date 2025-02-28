@@ -81,5 +81,7 @@ minigrid_env_formulas = {'MiniGrid-FloodingLava-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgentInSquare3by3-v0': ['F(floor_green_open)'],
                         'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0': robot_evasion_complex,
                         'MiniGrid-ThreeDoorIntruderRobotRAL25-v0': robot_evasion,
-                        'MiniGrid-IntruderRobotRAL25-v0': robot_evasion
+                        'MiniGrid-IntruderRobotRAL25-v0': robot_evasion,
+                        'MiniGrid-NarrowLavaAdm_karan-v0': '!(agent_blue_right) U (floor_green_open)',
+                        'MiniGrid-LavaAdm_karan-v0': '!(agent_blue_right) U (floor_green_open)'
                         }

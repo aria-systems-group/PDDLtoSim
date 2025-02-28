@@ -1,5 +1,6 @@
 import math
 import random
+import numpy as np
 
 from typing import List, Tuple, Set, Optional, Dict, Iterable
 
@@ -164,6 +165,27 @@ class AdmStrategyRolloutProvider(RolloutProvider):
             for _action in self.action_seq:
                 print(_action)
     
+    def _compute_epsilon_str_dict(self, epsilon: float) -> dict:
+        """
+        A helper method that return the human action as per the Epsilon greedy algorithm.
+
+        Using this policy we either select a random human action with epsilon probability and the human can select the
+        optimal action (as given in the str dict if any) with 1-epsilon probability.
+        """
+        _new_str_dict = self.env_strategy
+
+        for _from_state in _new_str_dict.keys():
+            assert self.game.get_state_w_attribute(_from_state, 'player') == "adam", ...
+            f"[Error] Encountered {self.game.get_state_w_attribute(_from_state, 'player')} player state in Env player dictionary. Fix This!!!"
+            _succ_states: List[tuple] = [_state for _state in self.game._graph.successors(_from_state)]
+
+            # act random
+            if np.random.rand() < epsilon:
+                _next_state = random.choice(_succ_states)
+                _new_str_dict[_from_state] = _next_state
+
+        return _new_str_dict
+    
     def rollout_with_human_intervention(self):
         pass
 
@@ -239,7 +261,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
     def __init__(self, game: ProductAutomaton, strategy_handle: QuantiativeRefinedAdmissible, debug: bool = False, max_steps: int = 10) -> 'RefinedAdmStrategyRolloutProvider':
         super().__init__(game, strategy_handle, debug, max_steps)
         self.sys_opt_coop_str: Optional[dict] =  self.strategy_handle.coop_optimal_sys_str
-        self.env_coop_str: Optional[dict] = self.strategy_handle.env_winning_str
+        self.env_coop_str: Optional[dict] = self.strategy_handle.env_coop_winning_str
         self.coop_state_values:  Dict[str, float] = self.strategy_handle.coop_winning_state_values
         self.winning_region: set = self.strategy_handle.winning_region
         self.losing_region: set = self.strategy_handle.losing_region
@@ -361,7 +383,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         return succ_list[int(idx_num)]
 
 
-    def get_next_state(self, curr_state, rand_adm: bool = False) -> Tuple[str, str]:
+    def get_next_state(self, curr_state, rand_adm: bool = False, coop_env: bool = False) -> Tuple[str, str]:
         """
          A helper function that wrap around sys_strategy dictionary. 
          If Sys strategy is deterministic, i.e., there is only one action to take then we return that action. 
@@ -370,6 +392,18 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             If safe-adm strategy exists, then we randomly choose one
             If Hope-adm strategy exists then we 
         """
+        #### Choosing Env action
+        if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
+            if coop_env:
+                if not isinstance(self.env_coop_str.get(curr_state), list):
+                    return self.env_coop_str.get(curr_state), ''
+                return random.choice(self.env_coop_str.get(curr_state)), ''
+            else:
+                if not isinstance(self.env_strategy.get(curr_state), list):
+                    return self.env_strategy.get(curr_state), ''
+                return random.choice(self.env_strategy.get(curr_state)), ''
+
+        #### Choosing Sys action
         self.strategy[curr_state] = list(self.strategy.get(curr_state))
         
         is_winning: bool = True if curr_state in self.winning_region else False
@@ -377,23 +411,23 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         if is_winning:
             return act, 'Win' 
         elif act in self.strategy_handle.safe_adm_str.get(curr_state, []):
-            if rand_adm:
-                return act, 'Safe-Adm'
-            else:
-                # TODO: Need to update this as sys_opt_coop_str[s] returns a list and strategy[s] is a list too
-                assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperative Optimal str is not part of set of all \
-                    Cooperative Strategies. This is a buf in Permissive VI. Fix this!!!!"
-                return self.sys_opt_coop_str[curr_state], 'Safe-Adm'
+            # if rand_adm:
+            return act, 'Safe-Adm'
+            # else:
+            #     # TODO: Need to update this as sys_opt_coop_str[s] returns a list and strategy[s] is a list too
+            #     assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperative Optimal str is not part of set of all \
+            #         Cooperative Strategies. This is a buf in Permissive VI. Fix this!!!!"
+            #     return self.sys_opt_coop_str[curr_state], 'Safe-Adm'
         else:
             assert act in self.strategy_handle.hopeful_adm_str[curr_state], f"[Error] {act} is neither Wcoop, safe-adm, or hope-adm. Fix this bug!!!"
-            if rand_adm:
-                return act, 'Hope-Adm'
-            else:
-                # choose coop optimal strategy
-                # TODO: Need to verify if this assert is always truue or not. Not it is!!!!
-                assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperative Optimal str is not part of set of all \
-                    Hopeful Strategies. This is a bug in Permissive VI. Fix this!!!!"
-                return self.sys_opt_coop_str[curr_state], 'Hope-Adm'
+            # if rand_adm:
+            return act, 'Hope-Adm'
+            # else:
+            #     # choose coop optimal strategy
+            #     # TODO: Need to verify if this assert is always truue or not. Not it is!!!!
+            #     assert self.sys_opt_coop_str[curr_state] in self.strategy.get(curr_state), "[Error] Cooperative Optimal str is not part of set of all \
+            #         Hopeful Strategies. This is a bug in Permissive VI. Fix this!!!!"
+            #     return self.sys_opt_coop_str[curr_state], 'Hope-Adm'
     
 
     def manual_rollout(self):
@@ -451,7 +485,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         print(self._board[6] + ' | ' + self._board[7] + ' | ' + self._board[8])
     
 
-    def rollout_with_human_intervention(self):
+    def rollout_with_human_intervention(self, coop_env: bool = False):
         """
          This method returns a rollout for the given strategy with human intervention.
         """
@@ -460,29 +494,30 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         counter: int = 0
         states.append(self.init_state)
         curr_state = self.init_state
-        next_state, str_type = self.get_next_state(curr_state)
+        next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
         print(f"Init State: {curr_state}")
 
         self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
         print(f"Step {counter}: Conf: {curr_state} - Robot Act [{str_type}]: {self.action_seq[-1]}")
         if 'tic' in self.game_name and self.debug:
             self.print_board(next_state)
+        
+        # steps = 0
 
-        while True:
+        while True and counter < self.max_steps:
             curr_state = next_state
             states.append(curr_state)
-            
-            # ask usr for human move
-            if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
-                next_state = self._get_successors_based_on_str(curr_state)
-            # get sys move from adm strategy dict.
-            else:
-                next_state, str_type = self.get_next_state(curr_state)
+            next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
 
             if next_state in self.target_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
-                if self.action_seq[-1] != _edge_act:
-                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                # this statement does not hold for minigrid
+                # if self.action_seq[-1] != _edge_act:
+                self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                counter += 1
+                print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
+                    f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
+                print("*****************************************************************************************************")
                 if 'tic' in self.game_name and self.debug:
                     self.print_board(next_state)
                 break
@@ -498,7 +533,90 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
                   f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
             print("*****************************************************************************************************")
+
+            # steps += 1
             
+        
+        if self.debug:
+            print("Action Seq:")
+            for _action in self.action_seq:
+                print(_action)
+        
+        print("Done Rolling out")
+
+    def rollout_with_epsilon_human_intervention(self, epsilon: float) -> None:
+        """
+        This method returns a rollout for the given strategy by asuming a cooperative human.
+
+        @param epsilon: Set this value to be 0 for purely adversarial behavior or with epsilon probability human picks random actions.
+
+        Epsilon = 0: Env is completely adversarial - Maximizing Sys player's pyaoff
+        Epsilon = 1: Env is completely random
+        """
+        assert epsilon >= 0 and epsilon <= 1, "Epsilon value should be between 0 and 1"
+        if epsilon == 0:
+            self.rollout_with_human_intervention()
+            return None
+        
+        new_strategy_dictionary = self._compute_epsilon_str_dict(epsilon=epsilon)
+        
+        self._env_strategy = new_strategy_dictionary
+        self.rollout_with_human_intervention()
+
+
+    def rollout_with_mixed_human_intervention(self, coop_env: bool = False, n_steps: int = 2):
+        """
+         This method returns a rollout for a human intervening randomly at every n steps.
+        """
+        print("Rolling out with human interventions")
+        states = []
+        counter: int = 0
+        states.append(self.init_state)
+        curr_state = self.init_state
+        next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
+        print(f"Init State: {curr_state}")
+
+        self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
+        print(f"Step {counter}: Conf: {curr_state} - Robot Act [{str_type}]: {self.action_seq[-1]}")
+        if 'tic' in self.game_name and self.debug:
+            self.print_board(next_state)
+        env_count = 0
+        while True and counter < self.max_steps:
+            curr_state = next_state
+            states.append(curr_state)
+            next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
+
+            if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
+                env_count += 1
+
+            if env_count % n_steps == 0:
+                next_state = random.choice([_state for _state in self.game._graph.successors(curr_state)])
+
+            if next_state in self.target_states:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                # this statement does not hold for minigrid
+                self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+                counter += 1
+                print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
+                    f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
+                print("*****************************************************************************************************")
+                if 'tic' in self.game_name and self.debug:
+                    self.print_board(next_state)
+                break
+
+            if next_state is not None:
+                _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
+                if self.action_seq[-1] != _edge_act:
+                    self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
+            
+            if 'tic' in self.game_name and self.debug:
+                self.print_board(next_state)
+            
+            counter += 1
+            print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
+                  f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
+            print("*****************************************************************************************************")
+   
         
         if self.debug:
             print("Action Seq:")

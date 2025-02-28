@@ -18,7 +18,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import Quantita
 BestEffortClass = Union[QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn]
 Strategy = Union[ValueIteration, RegretMinimizationStrategySynthesis, BestEffortClass]
 
-VALID_ENV_STRINGS = ["manual", "no-human", "random-human", "epsilon-human"]
+VALID_ENV_STRINGS = ["manual", "no-human", "random-human", "epsilon-human", "coop-human", "mixed-human"]
 
 @timer_decorator
 def rollout_strategy(strategy: Strategy,
@@ -77,12 +77,19 @@ def rollout_strategy(strategy: Strategy,
         warnings.warn(f"[Error] We do not have rollout provder for strategy of type: {type(strategy)}")
         sys.exit(-1)
     
+    if human_type in ["coop-human", "mixed-human"]:
+        assert isinstance(rhandle, RefinedAdmStrategyRolloutProvider), "[Error] Currently, the Coop Env/ mixed-human agent is only implementated for QuantiativeRefinedAdmissible."
+    
     if human_type == "manual":
         rhandle.manual_rollout()
     elif human_type == "no-human":
         rhandle.rollout_no_human_intervention()
     elif human_type == "random-human":
         rhandle.rollout_with_human_intervention()
+    elif human_type == "coop-human":
+        rhandle.rollout_with_human_intervention(coop_env=True)
+    elif human_type == "mixed-human":
+        rhandle.rollout_with_mixed_human_intervention(coop_env=False, n_steps=2)
     elif human_type == "epsilon-human":
         rhandle.rollout_with_epsilon_human_intervention(epsilon=epsilon)
     else:
