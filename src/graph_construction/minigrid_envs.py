@@ -21,13 +21,14 @@ DIR = ROOT_PATH
 # add wombats to my sys path
 sys.path.append(f"{ROOT_PATH}/regret_synthesis_toolbox")
 
-from wombats.systems.minigrid import MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water, NoDirectionAgentGrid
+from wombats.systems.minigrid import DynamicMinigrid2PGameWrapper, MultiAgentMiniGridEnv, ConstrainedAgent, Agent, MultiObjGrid, Carpet, Water, NoDirectionAgentGrid, Cell
 
 
 class ModifyIntruderRobotGame:
 
     def __init__(self,
                  game: TwoPlayerGraph,
+                 minigrid_env: DynamicMinigrid2PGameWrapper,
                  only_augment_obs: bool = False,
                  modify_game: bool = False,
                  config_yaml: Dict[str, str] = {},
@@ -35,6 +36,7 @@ class ModifyIntruderRobotGame:
                  debug: bool = False,):
          self._game = game
          self._aug_game = None
+         self.minigrid_env = minigrid_env
          self.debug = debug
          self.door_dict = door_dict
          self.config_yaml = config_yaml
@@ -82,7 +84,81 @@ class ModifyIntruderRobotGame:
                 elif sys_pos == door_pos:
                     aug_ap = f"r{door}"
                     self.augement_ap(state, aug_ap, self._game)
+
+
+    def __get_view_ext(self, sys_pos: Tuple[int, int]):
+        topx: int = sys_pos[0]
+        topy: int = sys_pos[1] - 1
+
+        center: Tuple[int, int] = (topx + 1, topy + 1)
+        topCenter: Tuple[int, int] = (topx + 1, topy)
+        botCenter: Tuple[int, int] = (topx + 1, topy + 2) 
+        return topx, topy, center, topCenter, botCenter
+
+
+    def __check_if_wall(self, pos: Tuple[int, int]) -> bool:
+        """
+         A helper method to check if there is a wall at the given cell or not. grid.get(i, j) can return None,
+           Cell (Group of WorldObjs) instance or WorldObj instance (like Wall)
+        """ 
+        if self.minigrid_env.env.grid.get(*pos) is None:
+            return False
+        elif not hasattr(self.minigrid_env.env.grid.get(*pos), 'objs'):
+            cell = Cell([self.minigrid_env.env.grid.get(*pos)])
+        else:
+            cell = self.minigrid_env.env.grid.get(*pos)
+        
+        for obj in cell.objs:
+            if isinstance(obj, Wall):
+                return True
+
+        return False
     
+
+    def masked_obs(self, state, game, agent_pos, sys_pos):
+        """
+         A helper method to check the Env agent is in Sys view. The default view is top right with the Sys agent in the center of the left 
+        """
+        dx = abs(agent_pos[0] - sys_pos[0])
+        dy = abs(agent_pos[1] - sys_pos[1])
+        _, _, center, topCenter, botCenter = self.__get_view_ext(sys_pos=sys_pos)
+
+        # check the agent is in the view or not.
+        if not ((0 <= agent_pos[0] - sys_pos[0] <= 2) and (sys_pos[1] - 1 <= agent_pos[1] <= sys_pos[1] + 1)):
+            return 
+
+        # the agents are in adjacent cell (not diagonally opposite)
+        if dx + dy == 1:
+            self.augement_ap(state, "agent_obs", game)
+            return
+        # diagonally opposite cell
+        elif dx == 1 and dy == 1:
+            self.augement_ap(state, "agent_obs", game)
+            return
+
+        # if Env is top right (relative of Sys)
+        if agent_pos[1] < sys_pos[1]:
+            # check wall in the middle pr top center
+            if self.__check_if_wall(center) or self.__check_if_wall(topCenter):
+                return
+            self.augement_ap(state, "agent_obs", game)
+        
+        # if Env is bottom right (relative of Sys)
+        elif agent_pos[1] > sys_pos[1]:
+            # check wall in the middle or bottom center
+            if self.__check_if_wall(center) or self.__check_if_wall(botCenter):
+                return
+            self.augement_ap(state, "agent_obs", game)
+        
+        # if Env is same level (relative of Sys)
+        elif agent_pos[1] == sys_pos[1]:
+            if self.__check_if_wall(center):
+                return
+            self.augement_ap(state, "agent_obs", game)
+        else:
+            warnings.warn("[Error] Error while  checking for agent's relative position. Fix this!!!")
+            sys.exit(-1)
+
 
     def process_vis(self, state, game, agent_pos, sys_pos) -> None:
         """
@@ -91,12 +167,13 @@ class ModifyIntruderRobotGame:
           To emulate no_see_through_wall, I will check if the agent is in the purpe_floor_open grid or the door grid. 
           If yes, then, it can not observe even if it is in the view as the wall right next to it block the agent view. 
         """
-        
-        pos_below_door = (self.door_dict['d0'][0], self.door_dict['d0'][1] + 1)
-        if (0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2) \
-              and ('d0' not in game._graph.nodes[state]['ap']) and ('floor_purple_open' not in game._graph.nodes[state]['ap']) \
-                and (sys_pos != pos_below_door):
-            self.augement_ap(state, "agent_obs", game)
+        self.masked_obs(state=state, game=game, agent_pos=agent_pos, sys_pos=sys_pos)
+
+        # pos_below_door = (self.door_dict['d0'][0], self.door_dict['d0'][1] + 1)
+        # if (0 <= agent_pos[0] - sys_pos[0] <= 2) and (0 <= sys_pos[1] - agent_pos[1] <= 2) \
+        #       and ('d0' not in game._graph.nodes[state]['ap']) and ('floor_purple_open' not in game._graph.nodes[state]['ap']) \
+        #         and (sys_pos != pos_below_door):
+        #     self.augement_ap(state, "agent_obs", game)
 
         
     def _augment_obs(self, game = None, max_depth: Optional[int] = None):
@@ -215,7 +292,7 @@ class ModifyIntruderRobotGame:
         trans_sys._graph.remove_edges_from(edges_to_be_pruned)
 
         print("Removing unreachable states from the augmented game")
-        remove_non_reachable_states(game=trans_sys, debug=True)
+        remove_non_reachable_states(game=trans_sys, debug=False)
 
         # do this aftwards as the ap are sensitive to state labels. 
         # For exmaple ed is a label in Door TS but 'ed' also belong to word oberserved in 'agent_observed' label.
@@ -665,7 +742,7 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
             height=height,
             max_steps=4 * width * height,
             # Set this to True for maximum speed
-            see_through_walls=True
+            see_through_walls=False
         )
 
     def _gen_grid(self, width, height):
@@ -734,7 +811,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
         env_agent_start_pos=[(6, 1)],
         env_agent_start_dir=[0],
         goal_pos=[(7, 1)],
-        carpet_world: bool = True
+        # carpet_world: bool = True
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
@@ -743,7 +820,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
 
         self.goal_pos = goal_pos
         self.door_dict: Dict[str, Tuple[int, int]] = {}
-        self.carpet_world = carpet_world
+        # self.carpet_world = carpet_world
 
         super().__init__(
             width=width,
@@ -773,37 +850,120 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
         self.put_obj(Wall(), 5, 4)
         self.put_obj(Wall(), 5, 5)
         
-        if not self.carpet_world:
-            for i in range(1, 7):
-                if i != 2:  # Door right next to Env player  
-                    self.put_obj(Wall(), 5, i)
-        else:
-            for i in range(3, 7):  
-                    self.put_obj(Wall(), 5, i)
+        # if not self.carpet_world:
+        for i in range(1, 7):
+            if i != 2:  # Door right next to Env player  
+                self.put_obj(Wall(), 5, i)
+        # else:
+        # for i in range(3, 7):  
+        #         self.put_obj(Wall(), 5, i)
 
         self.put_obj(Wall(), 7, 6)
 
         self.door_dict['d0'] = (4, 5)
         self.door_dict['d1'] = (6, 6)
-        if not self.carpet_world:
-            self.door_dict['d2'] = (5, 2)
+        # if not self.carpet_world:
+        self.door_dict['d2'] = (5, 2)
 
-        if self.carpet_world:
-            # place water and carpet 
-            self.put_obj(Water(), 6, 5)
-            self.put_obj(Water(), 7, 5)
+        # if self.carpet_world:
+        #     # place water and carpet 
+        #     self.put_obj(Water(), 6, 5)
+        #     self.put_obj(Water(), 7, 5)
 
-            self.put_obj(Carpet(), 1, 7)
-            self.put_obj(Carpet(), 2, 7)
+        #     self.put_obj(Carpet(), 1, 7)
+        #     self.put_obj(Carpet(), 2, 7)
 
-            # add a 4th door - without which a Safe Stratefy does not exists
-            self.put_obj(Wall(), 1, 5)
-            self.door_dict['d3'] = (2, 5)
-            self.put_obj(Wall(), 2, 3)
-            self.door_dict['d2'] = (1, 3)
+        #     # add a 4th door - without which a Safe Stratefy does not exists
+        #     self.put_obj(Wall(), 1, 5)
+        #     self.door_dict['d3'] = (2, 5)
+        #     self.put_obj(Wall(), 2, 3)
+        #     self.door_dict['d2'] = (1, 3)
 
             # playing around agent's start pos
             # self.agent_start_pos = (2, 6)
+
+        # Place the agent
+        p = self.agent_start_pos
+        d = self.agent_start_dir
+        if p is not None:
+            self.put_agent(Agent(name='SysAgent', view_size=self.view_size), *p, d, True)
+        else:
+            self.place_agent()
+
+        for i in range(len(self.env_agent_start_pos)):
+            p = self.env_agent_start_pos[i]
+            d = self.env_agent_start_dir[i]
+            self.put_agent(
+                ConstrainedAgent(
+                    name=f'EnvAgent{i+1}',
+                    view_size=self.view_size,
+                    color='darkblue',
+                    restricted_objs=['floor'],
+                    # restricted_objs=['lava', 'water'],
+                    # restricted_positions=restricted_positions
+                    ),
+                *p,
+                d,
+                False)
+
+        self.mission = 'Robot-intruder game: The task for the robot is to take a photo of the intruder trying \
+        to get into the lock and the report it to the human and eventually visit the lock. The intruder can not enter the human"s room.'
+
+
+class FourDoorIntruderRobotCarpetRAL25(ThreeDoorIntruderRobotRAL25):
+    """
+     This env imeplements a smaller version of the IntruderRobotRAL25 env. 
+     The env has Three doors and the robot has to take a photo of the intruder trying to get into the lock while ensure that the intruder does not lock themselve inside.
+    """
+
+    def _gen_grid(self, width, height):
+
+        self.grid = MultiObjGrid(Grid(width, height))
+
+        # Generate the surrounding walls
+        self.grid.wall_rect(0, 0, width, height)
+        # Place a goal square in the top-left corner
+        for goal_pos in self.goal_pos:
+            self.put_obj(Floor(color='green'), *goal_pos)
+        
+        # Human region -Env agent (intruder) can not enter.
+        self.put_obj(Wall(), 3, 3)
+        self.put_obj(Wall(), 3, 4)
+        self.put_obj(Wall(), 3, 5)
+        self.put_obj(Wall(), 4, 3)
+        self.put_obj(Floor(color='purple'), 4, 4) # room
+        self.put_obj(Wall(), 5, 3)
+        self.put_obj(Wall(), 5, 4)
+        self.put_obj(Wall(), 5, 5)
+        
+        # if not self.carpet_world:
+        #     for i in range(1, 7):
+        #         if i != 2:  # Door right next to Env player  
+        #             self.put_obj(Wall(), 5, i)
+        # else:
+        for i in range(3, 7):  
+                self.put_obj(Wall(), 5, i)
+
+        self.put_obj(Wall(), 7, 6)
+
+        self.door_dict['d0'] = (4, 5)
+        self.door_dict['d1'] = (6, 6)
+        # if not self.carpet_world:
+        #     self.door_dict['d2'] = (5, 2)
+
+        # if self.carpet_world:
+        # place water and carpet 
+        self.put_obj(Water(), 6, 5)
+        self.put_obj(Water(), 7, 5)
+
+        self.put_obj(Carpet(), 1, 7)
+        self.put_obj(Carpet(), 2, 7)
+
+        # add a 4th door - without which a Safe Stratefy does not exists
+        self.put_obj(Wall(), 1, 5)
+        self.door_dict['d3'] = (2, 5)
+        self.put_obj(Wall(), 2, 3)
+        self.door_dict['d2'] = (1, 3)
 
         # Place the agent
         p = self.agent_start_pos
@@ -1182,6 +1342,10 @@ register(
     entry_point='src.graph_construction.minigrid_envs:ThreeDoorIntruderRobotRAL25'
 )
 
+register(
+    id='MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0',
+    entry_point='src.graph_construction.minigrid_envs:FourDoorIntruderRobotCarpetRAL25'
+)
 
 register(
     id='MiniGrid-FourRoomsRobotRAL25-v0',

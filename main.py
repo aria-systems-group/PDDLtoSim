@@ -389,12 +389,13 @@ def minigrid_main(debug: bool = False,
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
     # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
-    nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
+    nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
         minigrid_handle = NonDeterministicMiniGrid(env_id=id,
                                                 #    formula='!(agent_blue_right) U (floor_green_open)',
-                                                   formula=robot_evasion_complex,
+                                                   formula=minigrid_env_formulas[id],
                                                    player_steps = {'sys': [1], 'env': [1]},
                                                    save_flag=True,
                                                    plot_minigrid=False,
@@ -404,15 +405,11 @@ def minigrid_main(debug: bool = False,
         
         # now construct the abstraction, the dfa and take the product
         
-        if id in ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
-            minigrid_handle.build_minigrid_game(env_snap=True,
+        if id in ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
+            minigrid_handle.build_minigrid_game(env_snap=False,
                                                 only_augment_obs=False,
                                                 modify_intruder_game=True,
-                                                config_yaml_dict=OrderedDict({'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1', 
-                                                                              'd1': ROOT_PATH + '/regret_synthesis_toolbox/config/door_2', 
-                                                                              'd2': ROOT_PATH + '/regret_synthesis_toolbox/config/door_3',
-                                                                              'd3': ROOT_PATH + '/regret_synthesis_toolbox/config/door_4'
-                                                                              }))
+                                                config_yaml_dict=OrderedDict(door_dict[id]))
         else:
             minigrid_handle.build_minigrid_game(env_snap=True, get_aps=True)
         

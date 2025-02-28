@@ -1,3 +1,7 @@
+import os 
+
+ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
+
 ################################### Formulas #########################################
 # Formulas follow Spot's syntax. Please see https://spot.lre.epita.fr/app/ Help section for more info.
 
@@ -46,6 +50,18 @@ w = 'water_blue_open'
 c = 'carpet_yellow_open'
 robot_evasion_complex = f"((F(({p} & F(({h} & F({g}))))) & G(!({a}))) & (!({h}) U {p}) & G(({w} -> ((!({h}) & !({g})) U {c}))))"
 
+### Door TS Dictioanry - RAL25
+door_dict = {
+    'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0': {'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1', 
+                                                     'd1': ROOT_PATH + '/regret_synthesis_toolbox/config/door_2', 
+                                                     'd2': ROOT_PATH + '/regret_synthesis_toolbox/config/door_3',
+                                                     'd3': ROOT_PATH + '/regret_synthesis_toolbox/config/door_4'},
+    'MiniGrid-ThreeDoorIntruderRobotRAL25-v0': {'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1', 
+                                                'd1': ROOT_PATH + '/regret_synthesis_toolbox/config/door_2', 
+                                                'd2': ROOT_PATH + '/regret_synthesis_toolbox/config/door_3'},
+    'MiniGrid-IntruderRobotRAL25-v0': {'d0': ROOT_PATH + '/regret_synthesis_toolbox/config/door_1'}
+}
+
 
 
 ################################### Minigrid #########################################
@@ -62,6 +78,8 @@ minigrid_env_formulas = {'MiniGrid-FloodingLava-v0': ['F(floor_green_open)'],
                         'MiniGrid-FourGrids-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgent-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgentInSquare4by4-v0': ['F(floor_green_open)'],
-                        'MiniGrid-ChasingAgentInSquare3by3-v0': ['F(floor_green_open)']
-
+                        'MiniGrid-ChasingAgentInSquare3by3-v0': ['F(floor_green_open)'],
+                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0': robot_evasion_complex,
+                        'MiniGrid-ThreeDoorIntruderRobotRAL25-v0': robot_evasion,
+                        'MiniGrid-IntruderRobotRAL25-v0': robot_evasion
                         }

@@ -259,7 +259,8 @@ class NonDeterministicMiniGrid():
                             'MiniGrid-FourGrids-v0': [], 'MiniGrid-ChasingAgent-v0': [], 'MiniGrid-ChasingAgentInSquare4by4-v0': [],
                             'MiniGrid-ChasingAgentInSquare3by3-v0': [], 'MiniGrid-LavaComparison_karan-v0': [], 'MiniGrid-LavaAdm_karan-v0': [],
                             'MiniGrid-NarrowLavaAdm_karan-v0': [], 'MiniGrid-IntruderRobotRAL25-v0': [], 'MiniGrid-TwoNarrowLavaAdm_karan-v0': [],
-                            'MiniGrid-FourRoomsRobotRAL25-v0': [], 'MiniGrid-SmallFourRoomsRobotRAL25-v0': [], 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0' : []}
+                            'MiniGrid-FourRoomsRobotRAL25-v0': [], 'MiniGrid-SmallFourRoomsRobotRAL25-v0': [], 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0' : [],
+                            'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0': []}
 
         self._available_envs = nd_minigrid_envs
 
@@ -374,8 +375,10 @@ class NonDeterministicMiniGrid():
         self._two_player_trans_sys = two_player_graph
         # sys.exit(-1)
 
-        if (self.env_id in ['MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']) and (modify_intruder_game or only_augment_obs):
+        if (self.env_id in ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']) \
+              and (modify_intruder_game or only_augment_obs):
             modify_intruder_handle = ModifyIntruderRobotGame(game=two_player_graph,
+                                                             minigrid_env=self.minigrid_env,
                                                              only_augment_obs=only_augment_obs,
                                                              modify_game=modify_intruder_game,
                                                              config_yaml=config_yaml_dict,
