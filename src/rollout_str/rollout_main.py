@@ -9,6 +9,8 @@ from src.rollout_str.rollout_regret import BestEffortStrategyRolloutProvider, Re
 from src.rollout_str.rollout_adm import RefinedAdmStrategyRolloutProvider, AdmWinStrategyRolloutProvider, \
       AdmStrategyRolloutProvider, RandomSysStrategyRolloutProvider, AdmMemeorylessStrRolloutProvider
 
+# for logging purposes
+from regret_synthesis_toolbox.src.simulation.simulator import Simulator
 
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
@@ -27,6 +29,7 @@ def rollout_strategy(strategy: Strategy,
                      game: ProductAutomaton,
                      debug: bool = False,
                      human_type: str = "random-human",
+                     logger: Simulator = None,
                      sys_type: str = '',
                      epsilon: float = 0.1,
                      max_iterations: int = 100):
@@ -44,48 +47,56 @@ def rollout_strategy(strategy: Strategy,
         rhandle = RegretStrategyRolloutProvider(game=game,
                                                 strategy_handle=strategy,
                                                 debug=debug,
-                                                max_steps=max_iterations)
+                                                max_steps=max_iterations,
+                                                logger=logger)
     elif isinstance(strategy, ValueIteration):
         rhandle = AdvStrategyRolloutProvider(game=game,
                                              strategy_handle=strategy,
                                              debug=debug,
-                                             max_steps=max_iterations)
+                                             max_steps=max_iterations,
+                                             logger=logger)
     
     elif isinstance(strategy, QuantitativeAdmMemorless):
         rhandle = AdmMemeorylessStrRolloutProvider(game=game,
                                                    strategy_handle=strategy,
                                                    debug=debug,
-                                                   max_steps=max_iterations)
+                                                   max_steps=max_iterations,
+                                                   logger=logger)
     
     elif isinstance(strategy, QuantiativeRefinedAdmissible) and sys_type == "":
         rhandle = RefinedAdmStrategyRolloutProvider(game=game,
                                                     strategy_handle=strategy,
                                                     debug=debug,
-                                                    max_steps=max_iterations)
+                                                    max_steps=max_iterations,
+                                                    logger=logger)
     
     elif isinstance(strategy, QuantiativeRefinedAdmissible) and sys_type == "random-sys":
         rhandle = RandomSysStrategyRolloutProvider(game=game,
                                                     strategy_handle=strategy,
                                                     debug=debug,
-                                                    max_steps=max_iterations)
+                                                    max_steps=max_iterations,
+                                                    logger=logger)
 
     elif isinstance(strategy, QuantitativeGoUAdmissibleWinning):
         rhandle = AdmWinStrategyRolloutProvider(game=strategy.game,
                                                 strategy_handle=strategy,
                                                 debug=debug,
-                                                max_steps=max_iterations)
+                                                max_steps=max_iterations,
+                                                logger=logger)
     
     elif isinstance(strategy, (QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible)):
         rhandle = AdmStrategyRolloutProvider(game=strategy.game,
                                              strategy_handle=strategy,
                                              debug=debug,
-                                             max_steps=max_iterations)
+                                             max_steps=max_iterations,
+                                             logger=logger)
 
     elif isinstance(strategy, (QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn)):
         rhandle = BestEffortStrategyRolloutProvider(game=game,
                                                     strategy_handle=strategy,
                                                     debug=debug,
-                                                    max_steps=max_iterations)
+                                                    max_steps=max_iterations,
+                                                    logger=logger)
     
     
     else:

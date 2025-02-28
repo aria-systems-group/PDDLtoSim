@@ -3,10 +3,12 @@ This script contains all Rollout povider classes for different types of Games an
 '''
 import re
 
-from typing import List, Union
+from typing import List, Union, Optional
 from abc import ABC, abstractmethod
 
 from src.graph_construction.two_player_game import TwoPlayerGame
+
+from regret_synthesis_toolbox.src.simulation.simulator import Simulator
 
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
@@ -17,7 +19,7 @@ class RolloutProvider(ABC):
      An abstract class which needs to implemented for various strategy rollouts
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10) -> 'RolloutProvider':
+    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10, logger: Optional[Simulator] = None) -> 'RolloutProvider':
         self._game: Union[ProductAutomaton, TwoPlayerGame] = game
         self._game_name: str = game.graph_name
         self._strategy_handle = strategy_handle
@@ -31,6 +33,7 @@ class RolloutProvider(ABC):
         self._action_seq: List[str] = []
         self.debug = debug
         self.max_steps: int = max_steps
+        self.logger = logger
         self.set_strategy()
         self.set_env_strategy()
         self.set_state_values()

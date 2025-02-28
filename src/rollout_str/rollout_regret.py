@@ -3,9 +3,11 @@ import sys
 import random
 import numpy as np
 
-from typing import List, Union
+from typing import List, Union, Optional
 
 from src.rollout_str.rollout_provider_if import RolloutProvider
+
+from regret_synthesis_toolbox.src.simulation.simulator import Simulator
 
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
@@ -22,8 +24,8 @@ class RegretStrategyRolloutProvider(RolloutProvider):
     In Regret synthesis, Given the product graph, we construct the Graph of utility and then Graph of Best-Response.
     Then we compute the regret minimizing strategy on Graph of Best-Response. Regret Minimizing strategy is memoryless on this graph. Thus, when rolling out, we rollout on this graph.
     """
-    def __init__(self, game: ProductAutomaton, strategy_handle: RegretMinimizationStrategySynthesis, debug: bool = False,  max_steps: int = 10) -> 'RegretStrategyRolloutProvider':
-        super().__init__(game, strategy_handle, debug, max_steps)
+    def __init__(self, game: ProductAutomaton, strategy_handle: RegretMinimizationStrategySynthesis, debug: bool = False,  max_steps: int = 10, logger: Optional[Simulator] = None) -> 'RegretStrategyRolloutProvider':
+        super().__init__(game, strategy_handle, debug, max_steps, logger)
         self.twa_game: TwoPlayerGraph = strategy_handle.graph_of_alternatives
     
 
@@ -204,8 +206,8 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
      This class implements rollout provide for Best Effort strategy synthesis 
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10) -> 'BestEffortStrategyRolloutProvider':
-        super().__init__(game, strategy_handle, debug, max_steps)
+    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10, logger: Optional[Simulator] = None) -> 'BestEffortStrategyRolloutProvider':
+        super().__init__(game, strategy_handle, debug, max_steps, logger)
 
     def set_strategy(self):
         self._strategy = self.strategy_handle.sys_best_effort_str
@@ -523,8 +525,8 @@ class AdvStrategyRolloutProvider(BestEffortStrategyRolloutProvider):
     """
      This class implements inherits the Best Effort rollout provider
     """
-    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10) -> None:
-        super().__init__(game, strategy_handle, debug, max_steps)
+    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10, logger: Optional[Simulator] = None) -> None:
+        super().__init__(game, strategy_handle, debug, max_steps, logger)
     
 
     def set_strategy(self):

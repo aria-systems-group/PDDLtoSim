@@ -19,6 +19,9 @@ from src.graph_construction.two_player_game import TwoPlayerGame
 from src.graph_construction.transition_system import FiniteTransitionSystem
 from src.graph_construction.minigrid_two_player_game import NonDeterministicMiniGrid
 
+# for logging purposes
+from regret_synthesis_toolbox.src.simulation.simulator import Simulator
+
 # call the regret synthesis code
 from regret_synthesis_toolbox.helper import InteractiveGraph
 from regret_synthesis_toolbox.src.graph import TwoPlayerGraph, Graph
@@ -158,15 +161,21 @@ def run_synthesis_and_rollout(strategy_type: str,
 
     assert human_type in VALID_ENV_STRINGS, f"[Error] Please enter a valid human type from:[ {', '.join(VALID_ENV_STRINGS)} ]"
 
+    simulator = Simulator(env=None, game=game)
+
     # rollout the stratgey
     if rollout_flag:
-        roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
-                                                         game=game,
-                                                         debug=True,
-                                                         human_type=human_type,
-                                                         sys_type=sys_type,
-                                                         epsilon=epsilon,
-                                                         max_iterations=max_iterations)
+        for _ in range(100):
+            roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
+                                                            game=game,
+                                                            debug=False,
+                                                            human_type=human_type,
+                                                            logger=simulator,
+                                                            sys_type=sys_type,
+                                                            epsilon=epsilon,
+                                                            max_iterations=max_iterations)
+            simulator._episode += 1
+        simulator.get_stats()
         return str_handle, roller
     
     return str_handle, None
@@ -453,10 +462,10 @@ def minigrid_main(debug: bool = False,
                                               game=minigrid_handle.dfa_game,
                                             #   human_type='manual',
                                             #   human_type='mixed-human',
-                                            #   human_type='random-human',
-                                              human_type ='coop-human',
+                                              human_type='random-human',
+                                            #   human_type ='coop-human',
                                             #   human_type ='epsilon-human',
-                                            #   sys_type = 'random-sys',
+                                              sys_type = 'random-sys',
                                               rollout_flag=True,
                                               epsilon=1,
                                               debug=False,
@@ -469,17 +478,17 @@ def minigrid_main(debug: bool = False,
         minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
     
 
-    _dump_strs = input("Do you want to save the rollout of the strategy,Enter: Y/y")
-    # save strs
-    if _dump_strs == "y" or _dump_strs == "Y":
-        save_str(admissible=True,
-                 minigrid=True,
-                 two_player_game=minigrid_handle.dfa_game,
-                 dfa_game=minigrid_handle.dfa_game,
-                 pos_seq=roller.action_seq,
-                 causal_graph=None,
-                 transition_system=None,
-                 adversarial=False)
+    # _dump_strs = input("Do you want to save the rollout of the strategy,Enter: Y/y")
+    # # save strs
+    # if _dump_strs == "y" or _dump_strs == "Y":
+    #     save_str(admissible=True,
+    #              minigrid=True,
+    #              two_player_game=minigrid_handle.dfa_game,
+    #              dfa_game=minigrid_handle.dfa_game,
+    #              pos_seq=roller.action_seq,
+    #              causal_graph=None,
+    #              transition_system=None,
+    #              adversarial=False)
 
 
 @timer_decorator
