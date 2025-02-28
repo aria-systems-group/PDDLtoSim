@@ -1,5 +1,8 @@
+import sys
 import math
 import random
+import warnings
+
 import numpy as np
 
 from typing import List, Tuple, Set, Optional, Dict, Iterable
@@ -10,6 +13,8 @@ from src.rollout_str.rollout_provider_if import RolloutProvider
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
+
+from regret_synthesis_toolbox.src.simulation.simulator import Simulator
 
 
 class AdmStrategyRolloutProvider(RolloutProvider):
@@ -185,6 +190,7 @@ class AdmStrategyRolloutProvider(RolloutProvider):
                 _new_str_dict[_from_state] = _next_state
 
         return _new_str_dict
+        
     
     def rollout_with_human_intervention(self):
         pass
@@ -267,6 +273,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         self.losing_region: set = self.strategy_handle.losing_region
         self.pending_region: set = self.strategy_handle.pending_region
         self._board = ['-','-','-', '-','-','-', '-','-','-']
+        self.simulator = Simulator(env=None, game=game)
 
     
     @property
@@ -336,6 +343,35 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             return [self.game._graph[curr_state][succ_state][0].get("actions")]
         else:
             return [self.game._graph[curr_state][succ_state][i].get("actions") for i in range(num_of_edges)]
+    
+
+    def get_state_type(self, curr_state):
+        """
+            A helper function that returns the type of state.
+        """
+        if curr_state in self.winning_region:
+            return 'Win'
+        elif curr_state in self.pending_region:
+            return 'pen'
+        elif curr_state in self.losing_region:
+            return 'los'
+        else:
+            warnings.warn(f"[Error] Encourted state {curr_state} that does not belong to any valid region. Fix this!!!")
+            sys.exit(-1)
+    
+
+    def log_data(self, counter: int, curr_state, next_state) -> None:
+        """
+         A helper method that takes as input the current state and next state and extract the relevant information to be logged.
+        """
+        curr_player: str = 'sys' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'env'
+        weight: int = self.game._graph[curr_state][next_state][0]["weight"]
+        obs = self.game._graph[curr_state][next_state][0].get('ap', '')
+        action = self.game._graph[curr_state][next_state][0].get("actions")
+        state_type: str = self.get_state_type(curr_state)
+
+        # log data
+        self.simulator.log(steps=counter, cost=[weight], obs=obs, action=action, state=curr_state, curr_player=curr_player, state_type=state_type)
     
 
     def _get_successors_based_on_str(self, curr_state) -> str:
@@ -492,6 +528,8 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         print("Rolling out with human interventions")
         states = []
         counter: int = 0
+        self.simulator.reset_episode()
+
         states.append(self.init_state)
         curr_state = self.init_state
         next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
@@ -502,14 +540,16 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         if 'tic' in self.game_name and self.debug:
             self.print_board(next_state)
         
-        # steps = 0
+        self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
+        # self.simulator.log(counter, [self.game._graph[curr_state][next_state][0]["weight"]], self.game._graph[curr_state][next_state][0].get('ap', ''), self.game._graph[curr_state][next_state][0].get("actions"), next_state, 'sys')
 
         while True and counter < self.max_steps:
             curr_state = next_state
             states.append(curr_state)
             next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
 
-            if next_state in self.target_states or next_state in self.sink_states:
+            # if next_state in self.target_states or next_state in self.sink_states:
+            if curr_state in self.target_states or curr_state in self.sink_states:
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 # this statement does not hold for minigrid
                 # if self.action_seq[-1] != _edge_act:
@@ -518,6 +558,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
                     f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
                 print("*****************************************************************************************************")
+                self.log_data(counter=counter,curr_state=curr_state, next_state=next_state)
                 if 'tic' in self.game_name and self.debug:
                     self.print_board(next_state)
                 break
@@ -534,9 +575,15 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                   f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
             print("*****************************************************************************************************")
 
-            # steps += 1
-            
+            self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
+            # if self.game.get_state_w_attribute(curr_state, 'player') == 'eve':
+            #     self.simulator.log(counter, [self.game._graph[curr_state][next_state][0]["weight"]], self.game._graph[curr_state][next_state][0].get('ap', ''), self.game._graph[curr_state][next_state][0].get("actions"), next_state, 'sys')
+            # else:
+            #     self.simulator.log(counter, [self.game._graph[curr_state][next_state][0]["weight"]], self.game._graph[curr_state][next_state][0].get('ap', ''), self.game._graph[curr_state][next_state][0].get("actions"), next_state, 'env')
         
+        self.simulator._results.append(self.simulator.get_episodic_data())
+        self.simulator.get_stats()
+
         if self.debug:
             print("Action Seq:")
             for _action in self.action_seq:

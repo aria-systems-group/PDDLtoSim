@@ -449,13 +449,13 @@ def minigrid_main(debug: bool = False,
     # use "coop-human" for cooperative human
     # use "mixed-human" for Adv. and Random Human
     else:
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
                                               game=minigrid_handle.dfa_game,
                                             #   human_type='manual',
                                             #   human_type='mixed-human',
                                             #   human_type='random-human',
-                                            #   human_type ='coop-human',
-                                              human_type ='epsilon-human',
+                                              human_type ='coop-human',
+                                            #   human_type ='epsilon-human',
                                             #   sys_type = 'random-sys',
                                               rollout_flag=True,
                                               epsilon=1,

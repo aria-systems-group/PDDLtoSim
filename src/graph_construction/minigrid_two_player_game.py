@@ -390,10 +390,6 @@ class NonDeterministicMiniGrid():
         if get_aps:
             self.get_aps(print_flag=True)
         
-        # get edge weight sets
-        if get_weights:
-            self.get_org_edge_weights(debug=self.debug)
-        
         # set edge weight sets
         if set_weights:
             self.set_edge_weights()
