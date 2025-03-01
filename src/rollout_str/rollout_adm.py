@@ -395,6 +395,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         weight: int = self.game._graph[curr_state][next_state][0]["weight"]
         obs = self.game._graph[curr_state][next_state][0].get('ap', '')
         action = self.game._graph[curr_state][next_state][0].get("actions")
+        assert action is not None, "[Error] Action is None. Fix this bug!!!"
         state_type: str = self.get_state_type(curr_state)
 
         # log data
@@ -540,7 +541,6 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
          This method returns a rollout for the given strategy with human intervention.
         """
         print("Rolling out with human interventions")
-        # states = [self.init_state]
         counter: int = 0
         self.logger.reset_episode()
 
@@ -549,61 +549,26 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         if self.debug:
             print(f"Init State: {curr_state}")
 
-        # self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
-        # print(f"Step {counter}: Conf: {curr_state} - Robot Act [{str_type}]: {self.action_seq[-1]}")
-        # if 'tic' in self.game_name and self.debug:
-        #     self.print_board(next_state)
         self._log_action(curr_state, next_state, counter, str_type)
         self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
 
         while True and counter < self.max_steps:
             curr_state = next_state
-            # states.append(curr_state)
             next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
 
             # if next_state in self.target_states or next_state in self.sink_states:
             if curr_state in self.target_states or curr_state in self.sink_states:
-                # _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
-                # # this statement does not hold for minigrid
-                # # if self.action_seq[-1] != _edge_act:
-                # self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
-                # counter += 1
-                # print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
-                #     f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
-                # print("*****************************************************************************************************")
                 counter += 1
                 self._log_action(curr_state, next_state, counter, str_type)
                 self.log_data(counter=counter,curr_state=curr_state, next_state=next_state)
                 break
-                # if 'tic' in self.game_name and self.debug:
-                #     self.print_board(next_state)
-                # break
 
             if next_state is not None:
-                # _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
-                # if self.action_seq[-1] != _edge_act:
-                #     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
                 counter += 1
                 self._log_action(curr_state, next_state, counter, str_type)
                 self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
-            
-            # if 'tic' in self.game_name and self.debug:
-            #     self.print_board(next_state)
-            # counter += 1
-            # print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
-            #       f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
-            # print("*****************************************************************************************************")
-
-            # self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
         
         self.logger._results.append(self.logger.get_episodic_data())
-
-        # if self.debug:
-        #     print("Action Seq:")
-        #     for _action in self.action_seq:
-        #         print(_action)
-        
-        # print("Done Rolling out")
         self._finalize_rollout()
 
     def rollout_with_epsilon_human_intervention(self, epsilon: float) -> None:
@@ -631,7 +596,6 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
          This method returns a rollout for a human intervening randomly at every n steps.
         """
         print("Rolling out with Mixed human interventions")
-        states = [self.init_state]
         counter: int = 0
         curr_state = self.init_state
         next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
@@ -639,62 +603,32 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         if self.debug:
             print(f"Init State: {curr_state}")
 
-        # self.action_seq.append(self.game._graph[self.init_state][next_state][0].get("actions"))
-        # if self.debug:
-        #     print(f"Step {counter}: Conf: {curr_state} - Robot Act [{str_type}]: {self.action_seq[-1]}")
-        # if 'tic' in self.game_name and self.debug:
-        #     self.print_board(next_state)
         self._log_action(curr_state, next_state, counter, str_type)
+        self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
+        
         env_count = 0
+        
         while True and counter < self.max_steps:
             curr_state = next_state
-            states.append(curr_state)
             next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
 
             if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
                 env_count += 1
-
-            if env_count % n_steps == 0 and self.game.get_state_w_attribute(curr_state, 'player') == "adam":
-                next_state = random.choice([_state for _state in self.game._graph.successors(curr_state)])
+                if env_count % n_steps == 0:
+                    next_state = random.choice([_state for _state in self.game._graph.successors(curr_state)])
 
             if next_state in self.target_states or next_state in self.sink_states:
-                # _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
-                # # this statement does not hold for minigrid
-                # self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
-                # counter += 1
-                # if self.debug:
-                #     print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
-                #         f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
-                #     print("*****************************************************************************************************")
-                # if 'tic' in self.game_name and self.debug:
-                #     self.print_board(next_state)
                 counter += 1
                 self._log_action(curr_state, next_state, counter, str_type)
+                self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
                 break
 
             if next_state is not None:
-            #     _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
-            #     if self.action_seq[-1] != _edge_act:
-            #         self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
-            
-            # if 'tic' in self.game_name and self.debug:
-            #     self.print_board(next_state)
                 counter += 1
                 self._log_action(curr_state, next_state, counter, str_type)
-            
-            # counter += 1
-            # if self.debug:
-            #     print(f"Step {counter}: Conf: {curr_state} - {'Robot Act' if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else 'Env Act'}", 
-            #         f"[{str_type if self.game.get_state_w_attribute(curr_state, 'player') == 'eve' else ''}] : {self.action_seq[-1]}")
-            #     print("*****************************************************************************************************")
-   
+                self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
         
-        # if self.debug:
-        #     print("Action Seq:")
-        #     for _action in self.action_seq:
-        #         print(_action)
-        
-        # print("Done Rolling out")
+        self.logger._results.append(self.logger.get_episodic_data())
         self._finalize_rollout()
 
 

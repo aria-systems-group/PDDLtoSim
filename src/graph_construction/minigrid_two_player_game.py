@@ -294,8 +294,8 @@ class NonDeterministicMiniGrid():
 
     def build_product(self):
         product_automaton = graph_factory.get("ProductGraph",
-                                               graph_name=self.env_id + 'DFA-game',
-                                               config_yaml="/config/" + self.env_id + 'DFA-game',
+                                               graph_name=self.env_id + '_DFA_game',
+                                               config_yaml="/config/" + self.env_id + '_DFA_game',
                                                trans_sys=self.two_player_trans_sys,
                                                observe_next_on_trans=True,
                                                automaton=self.dfa,

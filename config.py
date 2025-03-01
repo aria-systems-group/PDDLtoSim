@@ -2,6 +2,8 @@ import os
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
+BENCHMARK_DIR = "/ral25_benchmark_data" 
+
 ################################### Formulas #########################################
 # Formulas follow Spot's syntax. Please see https://spot.lre.epita.fr/app/ Help section for more info.
 

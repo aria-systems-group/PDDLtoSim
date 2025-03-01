@@ -176,6 +176,12 @@ def run_synthesis_and_rollout(strategy_type: str,
                                                             max_iterations=max_iterations)
             simulator._episode += 1
         simulator.get_stats()
+
+        #dump the data for bookkeeping
+        now = datetime.datetime.now()
+        timestamp: str = now.strftime("%Y%m%d_%H%M%S")
+        filename = "/" + game._graph.name + "_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml" 
+        simulator.dump_results_to_yaml(ROOT_PATH + BENCHMARK_DIR + filename)
         return str_handle, roller
     
     return str_handle, None
@@ -403,8 +409,8 @@ def minigrid_main(debug: bool = False,
     # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
-    # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
-    nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
+    nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
     # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     start = time.time()
