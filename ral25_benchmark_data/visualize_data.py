@@ -1,21 +1,73 @@
-import re
+import os
+import difflib
+import warnings
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 import yaml
-import io
+
+VALID_MINIGRID_ENVS = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']#, 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
+VALID_SYS_STR_TYP = ["QuantiativeRefinedAdmissible", "QuantitativeAdmMemorless"]
+VALID_HUMAN_TYPE = ['epsilon-human', 'random-human', 'coop-human', 'mixed-human']
+VALID_SYS_TYPE = ['random-sys']
+EPSILON = 1 
+
+ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
+CWD_DIRECTORY  = os.path.dirname(os.path.abspath(__file__)) # get current working directory
+FILES = os.listdir(CWD_DIRECTORY) # List all files in the directory
+
+SYS_ALIAS_DICT = {'random-sys': 'rnd',
+                  'QuantiativeRefinedAdmissible': 'Ours',
+                  'QuantitativeAdmMemorless': 'Adm-Mem'}
+
+
+ENV_ALIAS_DICT = {VALID_HUMAN_TYPE[0]: 'Hrnd',
+                  VALID_HUMAN_TYPE[1]: 'HAdv',
+                  VALID_HUMAN_TYPE[2]: 'HCoop',
+                  VALID_HUMAN_TYPE[3]: 'HAdv_Rnd'}
+
+USE_ALIAS: bool = True
+
+
+
+def find_closest_file(minigrid_env, sys_type, valid_human_type, sys_str_type):
+    """
+    Find the closest file name in the given directory based on the provided sys_type, valid_human_type, and sys_str_type.
+
+    :param minigrid_env: Minigrid Env name.
+    :param sys_type: The system type to match.
+    :param valid_human_type: The valid human type to match.
+    :param sys_str_type: The system strategy type to match.
+    :return: The closest file name.
+    """
+    # target file_name patter - game._graph.name + "_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml"
+    # Construct the target file name pattern
+    if sys_type != '':
+        target_pattern = f"{minigrid_env}_DFA_game_{valid_human_type}_{sys_type}_{EPSILON}"
+    else:    
+        target_pattern = f"{minigrid_env}_DFA_game_{sys_str_type}_{valid_human_type}__{EPSILON}"
+
+    # Find the closest match using difflib
+    closest_match = difflib.get_close_matches(target_pattern, FILES, n=1)
+
+    if not closest_match or len(closest_match) > 1:
+        warnings.warn("[Error] Could not locate the closest file or return mroe than one yaml file names.")
+        
+    return closest_match[0]
 
 def extract_costs_from_yaml(file_path):
     """
     Extract cost values from the YAML file.
     """
-    with open(file_path, 'r') as f:
-        yaml_content = f.read()
+    # modify path to abs path
+    file_path = ROOT_PATH + f"/{file_path}"
+    with open(file_path, 'r') as stream:
+        episdic_data: dict = yaml.load(stream, Loader=yaml.Loader)
     
     # Extract all Cost values using regex
-    cost_regex = r'Cost: (\d+)'
-    costs = [int(match) for match in re.findall(cost_regex, yaml_content)]
+    # cost_regex = r'Cost: (\d+)'
+    costs = [int(data['Cost']) for runs, data in episdic_data.items()]
     return costs
 
 def plot_cost_boxplot(costs):
@@ -102,6 +154,7 @@ def plot_cost_boxplot(costs):
     
     return plt.gcf()
 
+
 def create_alternative_visualizations(costs):
     """
     Create alternative visualizations that might be useful
@@ -147,39 +200,133 @@ def create_alternative_visualizations(costs):
     
     return plt.gcf()
 
+
+
+def plot_box_plot(costs, file_name: str, labels: str = [], fig_title: str = '') -> None:
+    fig, ax = plt.subplots()
+    ax.set_ylabel('Cost')
+
+    # data = np.array(costs)
+
+    ax.boxplot(costs.T, labels=labels)
+    ax.set_title('Default', fontsize=10)
+
+    # plt.show(block=True)
+    if fig_title != '':
+        plt.title(fig_title)
+    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt.close(fig)
+
+
 # Main execution
 if __name__ == "__main__":
-    # Replace with your file path
-    import os
-    ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
-    file_path = ROOT_PATH + "/MiniGrid-LavaAdm_karan-v0DFA-game_QuantiativeRefinedAdmissible_random-human_random-sys_1.yaml"
+    # minigrid_env = 'MiniGrid-LavaAdm_karan-v0'
+    # sys_type = "random-sys"
+    sys_type = ""
+    valid_human_type = "coop-human"
+    # sys_str_type = "QuantiativeRefinedAdmissible"
+    sys_str_type = "QuantitativeAdmMemorless"
     
-    # Extract costs
-    costs = extract_costs_from_yaml(file_path)
+
+    # valid human types "manual", "no-human", "random-human", "epsilon-human", "coop-human", "mixed-human"
+    # use "random-human" for Adv. Human
+    # use "epsilon-human" with epsilon set to 1 for completely random human
+    # use "coop-human" for cooperative human
+    # use "mixed-human" for Adv. and Random Human
+
+    # test extarcting file name
+    # costs = []
+    # yaml_files =[]
+    # for env in VALID_MINIGRID_ENVS:
+    #     yaml_files.append(find_closest_file(minigrid_env=env, sys_type=sys_type, valid_human_type=valid_human_type, sys_str_type=sys_str_type))
+
+    #     # Extract costs
+    #     one_env_cost = extract_costs_from_yaml(yaml_files[-1])
+    #     costs.append(one_env_cost)
+    #     # stack the array
+    #     # costs = np.vstack((costs, one_env_cost))
+
+    #     # Create alternative visualizations
+    #     fig2 = create_alternative_visualizations(one_env_cost)
+        
+    #     # Save the alternative visualizations
+    #     if sys_type == "":
+    #         fig_name = f"cost_{valid_human_type}_{sys_str_type}_{env}.png"
+    #     else:
+    #         fig_name = f"cost_{valid_human_type}_{sys_type}_{env}.png"
+        
+    #     plt.savefig(fig_name, dpi=300, bbox_inches='tight')
     
-    # Create visualization
-    fig = plot_cost_boxplot(costs)
+    # plot_box_plot(np.array(costs))
+
+
+    # Try plotting the box plot for fixed Minigrid Env and Human type
     
-    # Save the first visualization
-    plt.savefig("cost_boxplot_analysis.png", dpi=300, bbox_inches='tight')
-    plt.close(fig)
     
-    # Create alternative visualizations
-    fig2 = create_alternative_visualizations(costs)
+    # for env in VALID_MINIGRID_ENVS:
+    env = 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0'
+    # valid_human_type = "epsilon-human"
+    for human in VALID_HUMAN_TYPE:
+        yaml_files =[]
+        costs = []
+        for st in VALID_SYS_TYPE + VALID_SYS_STR_TYP:
+            yaml_files.append(find_closest_file(minigrid_env=env, sys_type=st, valid_human_type=human, sys_str_type=st))
+
+            # Extract costs
+            one_env_cost = extract_costs_from_yaml(yaml_files[-1])
+            costs.append(one_env_cost)
+            # stack the array
+            # costs = np.vstack((costs, one_env_cost))
+
+            # # Create alternative visualizations
+            # fig2 = create_alternative_visualizations(one_env_cost)
+            
+            # # Save the alternative visualizations
+            # if sys_type == "":
+            #     fig_name = f"cost_{valid_human_type}_{sys_str_type}_{env}.png"
+            # else:
+            #     fig_name = f"cost_{valid_human_type}_{sys_type}_{env}.png"
+            
+            # plt.savefig(fig_name, dpi=300, bbox_inches='tight')
+            # if sys_type == "":
+                # fig_name = f"cost_{valid_human_type}_{sys_str_type}_{env}.png"
+            # else:
+        if USE_ALIAS:
+            human = ENV_ALIAS_DICT.get(human)
+        fig_name = f"cost_{human}_{env}.png"
+            
+        if USE_ALIAS:
+            labels = [SYS_ALIAS_DICT.get(sys_type) for sys_type in SYS_ALIAS_DICT]
+            plot_box_plot(np.array(costs), file_name=fig_name, labels=labels, fig_title=env)
+        else:
+            plot_box_plot(np.array(costs), file_name=fig_name, labels=VALID_SYS_TYPE + VALID_SYS_STR_TYP,  fig_title=env)
+
+
+    # plot_box_plot(costs)
     
-    # Save the alternative visualizations
-    plt.savefig("cost_alternative_visualizations.png", dpi=300, bbox_inches='tight')
+    # # Create visualization
+    # fig = plot_cost_boxplot(costs)
+    
+    # # Save the first visualization
+    # plt.savefig("cost_boxplot_analysis.png", dpi=300, bbox_inches='tight')
+    # plt.close(fig)
+    
+    # # Create alternative visualizations
+    # fig2 = create_alternative_visualizations(costs)
+    
+    # # Save the alternative visualizations
+    # plt.savefig("cost_alternative_visualizations.png", dpi=300, bbox_inches='tight')
     
     # Display statistics in the console
-    cost_array = np.array(costs)
-    print(f"Number of runs: {len(costs)}")
-    print(f"Mean cost: {np.mean(cost_array):.2f}")
-    print(f"Median cost: {np.median(cost_array)}")
-    print(f"Min cost: {min(costs)}")
-    print(f"Max cost: {max(costs)}")
-    print(f"Q1: {np.percentile(cost_array, 25)}")
-    print(f"Q3: {np.percentile(cost_array, 75)}")
-    print(f"Frequency of Cost = 51: {list(costs).count(51)}")
-    print(f"Percentage of Costs = 51: {list(costs).count(51)/len(costs)*100:.2f}%")
+    # cost_array = np.array(costs)
+    # print(f"Number of runs: {len(costs)}")
+    # print(f"Mean cost: {np.mean(cost_array):.2f}")
+    # print(f"Median cost: {np.median(cost_array)}")
+    # print(f"Min cost: {min(costs)}")
+    # print(f"Max cost: {max(costs)}")
+    # print(f"Q1: {np.percentile(cost_array, 25)}")
+    # print(f"Q3: {np.percentile(cost_array, 75)}")
+    # print(f"Frequency of Cost = 51: {list(costs).count(51)}")
+    # print(f"Percentage of Costs = 51: {list(costs).count(51)/len(costs)*100:.2f}%")
     
-    print("\nVisualization saved as 'cost_boxplot_analysis.png' and 'cost_alternative_visualizations.png'")
+    # print("\nVisualization saved as 'cost_boxplot_analysis.png' and 'cost_alternative_visualizations.png'")
