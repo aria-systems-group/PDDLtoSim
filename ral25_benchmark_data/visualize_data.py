@@ -1,19 +1,26 @@
 import os
+import copy
 import difflib
 import warnings
+
+import yaml
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
 import seaborn as sns
-import yaml
+import matplotlib.pyplot as plt
 
-VALID_MINIGRID_ENVS = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']#, 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
+from typing import List, Dict
+
+
+VALID_MINIGRID_ENVS = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', \
+                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0-NOT_CPLX']
 VALID_SYS_STR_TYP = ["QuantiativeRefinedAdmissible", "QuantitativeAdmMemorless"]
 VALID_HUMAN_TYPE = ['epsilon-human', 'random-human', 'coop-human', 'mixed-human']
 VALID_SYS_TYPE = ['random-sys']
 EPSILON = 1 
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
+PLOTS_DIR = ROOT_PATH + "/plots/"
 CWD_DIRECTORY  = os.path.dirname(os.path.abspath(__file__)) # get current working directory
 FILES = os.listdir(CWD_DIRECTORY) # List all files in the directory
 
@@ -27,7 +34,16 @@ ENV_ALIAS_DICT = {VALID_HUMAN_TYPE[0]: 'Hrnd',
                   VALID_HUMAN_TYPE[2]: 'HCoop',
                   VALID_HUMAN_TYPE[3]: 'HAdv_Rnd'}
 
+MINIGRID_NAME_ALIAS_DICT = {VALID_MINIGRID_ENVS[0]: 'IJCAI25-Lava',
+                            VALID_MINIGRID_ENVS[1]: '1-Door',
+                            VALID_MINIGRID_ENVS[2]: '3-Door',
+                            VALID_MINIGRID_ENVS[3]: '4-Door - CPLX',
+                            VALID_MINIGRID_ENVS[4]: '4-Door - NOT CPLX', 
+                            }
+
 USE_ALIAS: bool = True
+
+DEBUG: bool = True
 
 
 
@@ -42,11 +58,17 @@ def find_closest_file(minigrid_env, sys_type, valid_human_type, sys_str_type):
     :return: The closest file name.
     """
     # target file_name patter - game._graph.name + "_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml"
-    # Construct the target file name pattern
-    if sys_type != '':
-        target_pattern = f"{minigrid_env}_DFA_game_{valid_human_type}_{sys_type}_{EPSILON}"
+    name: str = copy.copy(minigrid_env)
+    if 'NOT_CPLX' in name:
+        name = name.replace('-NOT_CPLX', '')
+        minigrid_game = f"{name}_DFA_GAME_NOT_CPLX"
+    else:
+        minigrid_game = f"{name}_DFA_GAME"
+
+    if sys_type == 'random-sys':
+        target_pattern = f"{minigrid_game}_{valid_human_type}_{sys_type}_{EPSILON}"
     else:    
-        target_pattern = f"{minigrid_env}_DFA_game_{sys_str_type}_{valid_human_type}__{EPSILON}"
+        target_pattern = f"{minigrid_game}_{sys_str_type}_{valid_human_type}__{EPSILON}"
 
     # Find the closest match using difflib
     closest_match = difflib.get_close_matches(target_pattern, FILES, n=1)
@@ -56,7 +78,8 @@ def find_closest_file(minigrid_env, sys_type, valid_human_type, sys_str_type):
         
     return closest_match[0]
 
-def extract_costs_from_yaml(file_path):
+
+def extract_costs_from_yaml(file_path, get_game_stats: bool = False):
     """
     Extract cost values from the YAML file.
     """
@@ -65,9 +88,28 @@ def extract_costs_from_yaml(file_path):
     with open(file_path, 'r') as stream:
         episdic_data: dict = yaml.load(stream, Loader=yaml.Loader)
     
+    #print extracted data
+    if get_game_stats:
+        cwin = cpen = clos = 0
+        for runs, data in episdic_data.items():
+            if data['status'] == "Win":
+                cwin += 1
+            elif data['status'] == "pen":
+                cpen += 1
+            elif data['status'] == "los":
+                clos += 1
+        assert cwin + cpen + clos == len(episdic_data.keys()), \
+        "[Error] Sum of win, pen, and los is not equal to total number of runs. There is an issue with either rolling out or dumping."
+        print(f"Win: {cwin} | Pen: {cpen} | Los: {clos}")
+
     # Extract all Cost values using regex
     # cost_regex = r'Cost: (\d+)'
-    costs = [int(data['Cost']) for runs, data in episdic_data.items()]
+    costs: List[int] = []
+    for runs, data in episdic_data.items():
+        if data['status'] in ['Win', 'pen']:
+            costs.append(int(data['Cost']))
+        else:
+            costs.append(51)
     return costs
 
 def plot_cost_boxplot(costs):
@@ -201,6 +243,22 @@ def create_alternative_visualizations(costs):
     return plt.gcf()
 
 
+def print_stats(costs: List[int]) -> None:
+    # Display statistics in the console
+    cost_array = np.array(costs)
+    print(f"Number of runs: {len(costs)}")
+    print(f"Mean cost: {np.mean(cost_array):.2f}")
+    print(f"Median cost: {np.median(cost_array)}")
+    print(f"Min cost: {min(costs)}")
+    print(f"Max cost: {max(costs)}")
+    print(f"Q1: {np.percentile(cost_array, 25)}")
+    print(f"Q3: {np.percentile(cost_array, 75)}")
+    print(f"Frequency of Cost = 51: {list(costs).count(51)}")
+    print(f"Percentage of Costs = 51: {list(costs).count(51)/len(costs)*100:.2f}%")
+    
+    # print("\nVisualization saved as 'cost_boxplot_analysis.png' and 'cost_alternative_visualizations.png'")
+
+
 
 def plot_box_plot(costs, file_name: str, labels: str = [], fig_title: str = '') -> None:
     fig, ax = plt.subplots()
@@ -208,125 +266,74 @@ def plot_box_plot(costs, file_name: str, labels: str = [], fig_title: str = '') 
 
     # data = np.array(costs)
 
-    ax.boxplot(costs.T, labels=labels)
+    bplot: Dict = ax.boxplot(costs.T, labels=labels, showmeans=True, patch_artist=True)
+    # colors = sorted(mcolors.CSS4_COLORS.keys()) for full color palette.
+    COLORS = ['lightblue', 'lightgreen', 'mistyrose']
+    # fill with colors
+    for patch, color in zip(bplot['boxes'], COLORS):
+        patch.set_facecolor(color)
+
+    # color the boxplots
     ax.set_title('Default', fontsize=10)
 
     # plt.show(block=True)
     if fig_title != '':
         plt.title(fig_title)
-    plt.savefig(file_name, dpi=300, bbox_inches='tight')
+    plt.savefig(PLOTS_DIR + file_name, dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 
 # Main execution
 if __name__ == "__main__":
-    # minigrid_env = 'MiniGrid-LavaAdm_karan-v0'
-    # sys_type = "random-sys"
-    sys_type = ""
-    valid_human_type = "coop-human"
-    # sys_str_type = "QuantiativeRefinedAdmissible"
-    sys_str_type = "QuantitativeAdmMemorless"
-    
-
-    # valid human types "manual", "no-human", "random-human", "epsilon-human", "coop-human", "mixed-human"
-    # use "random-human" for Adv. Human
-    # use "epsilon-human" with epsilon set to 1 for completely random human
-    # use "coop-human" for cooperative human
-    # use "mixed-human" for Adv. and Random Human
-
-    # test extarcting file name
-    # costs = []
-    # yaml_files =[]
-    # for env in VALID_MINIGRID_ENVS:
-    #     yaml_files.append(find_closest_file(minigrid_env=env, sys_type=sys_type, valid_human_type=valid_human_type, sys_str_type=sys_str_type))
-
-    #     # Extract costs
-    #     one_env_cost = extract_costs_from_yaml(yaml_files[-1])
-    #     costs.append(one_env_cost)
-    #     # stack the array
-    #     # costs = np.vstack((costs, one_env_cost))
-
-    #     # Create alternative visualizations
-    #     fig2 = create_alternative_visualizations(one_env_cost)
-        
-    #     # Save the alternative visualizations
-    #     if sys_type == "":
-    #         fig_name = f"cost_{valid_human_type}_{sys_str_type}_{env}.png"
-    #     else:
-    #         fig_name = f"cost_{valid_human_type}_{sys_type}_{env}.png"
-        
-    #     plt.savefig(fig_name, dpi=300, bbox_inches='tight')
-    
-    # plot_box_plot(np.array(costs))
-
-
     # Try plotting the box plot for fixed Minigrid Env and Human type
-    
-    
-    # for env in VALID_MINIGRID_ENVS:
-    env = 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0'
+    # env = 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0'
     # valid_human_type = "epsilon-human"
-    for human in VALID_HUMAN_TYPE:
-        yaml_files =[]
-        costs = []
-        for st in VALID_SYS_TYPE + VALID_SYS_STR_TYP:
-            yaml_files.append(find_closest_file(minigrid_env=env, sys_type=st, valid_human_type=human, sys_str_type=st))
+    for env in VALID_MINIGRID_ENVS:
+        # if env != 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0':
+        #     continue
+        for human in VALID_HUMAN_TYPE:
+            yaml_files =[]
+            costs = []
+            for st in VALID_SYS_TYPE + VALID_SYS_STR_TYP:
+                yaml_files.append(find_closest_file(minigrid_env=env, sys_type=st, valid_human_type=human, sys_str_type=st))
 
-            # Extract costs
-            one_env_cost = extract_costs_from_yaml(yaml_files[-1])
-            costs.append(one_env_cost)
-            # stack the array
-            # costs = np.vstack((costs, one_env_cost))
+                # Extract costs
+                one_env_cost = extract_costs_from_yaml(yaml_files[-1])
+                costs.append(one_env_cost)
 
-            # # Create alternative visualizations
-            # fig2 = create_alternative_visualizations(one_env_cost)
-            
-            # # Save the alternative visualizations
-            # if sys_type == "":
-            #     fig_name = f"cost_{valid_human_type}_{sys_str_type}_{env}.png"
-            # else:
-            #     fig_name = f"cost_{valid_human_type}_{sys_type}_{env}.png"
-            
-            # plt.savefig(fig_name, dpi=300, bbox_inches='tight')
-            # if sys_type == "":
-                # fig_name = f"cost_{valid_human_type}_{sys_str_type}_{env}.png"
-            # else:
-        if USE_ALIAS:
-            human = ENV_ALIAS_DICT.get(human)
-        fig_name = f"cost_{human}_{env}.png"
-            
-        if USE_ALIAS:
-            labels = [SYS_ALIAS_DICT.get(sys_type) for sys_type in SYS_ALIAS_DICT]
-            plot_box_plot(np.array(costs), file_name=fig_name, labels=labels, fig_title=env)
-        else:
-            plot_box_plot(np.array(costs), file_name=fig_name, labels=VALID_SYS_TYPE + VALID_SYS_STR_TYP,  fig_title=env)
+                if DEBUG:
+                    print("***************************************************************************************************")
+                    print(f"{env} - {human} - {st}")
+                    print_stats(one_env_cost)
+                    print("***************************************************************************************************")
 
+            if USE_ALIAS:
+                human = ENV_ALIAS_DICT.get(human)
+            fig_name = f"cost_{human}_{env}.png"
+                
+            if USE_ALIAS:
+                labels = [SYS_ALIAS_DICT.get(sys_type) for sys_type in SYS_ALIAS_DICT]
+                env_alias = MINIGRID_NAME_ALIAS_DICT.get(env)
+                plot_box_plot(np.array(costs), file_name=fig_name, labels=labels, fig_title=env_alias + "-" + human)
+            else:
+                plot_box_plot(np.array(costs), file_name=fig_name, labels=VALID_SYS_TYPE + VALID_SYS_STR_TYP,  fig_title=env)
 
-    # plot_box_plot(costs)
+    #### TESTING plotting for single file
+    # file_name = "MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0_DFA_game_NOT_CPLX_QuantitativeAdmMemorless_epsilon-human__120250302_032641.yaml"
+    # costs = extract_costs_from_yaml(file_name, get_game_stats=True)
+    # plot_box_plot(np.array(costs), file_name='testing', labels=['Adm-Mem'], fig_title='4-Door')
     
-    # # Create visualization
+    # Create visualization
     # fig = plot_cost_boxplot(costs)
     
-    # # Save the first visualization
+    # Save the first visualization
     # plt.savefig("cost_boxplot_analysis.png", dpi=300, bbox_inches='tight')
     # plt.close(fig)
     
-    # # Create alternative visualizations
+    # Create alternative visualizations
     # fig2 = create_alternative_visualizations(costs)
     
-    # # Save the alternative visualizations
+    # Save the alternative visualizations
     # plt.savefig("cost_alternative_visualizations.png", dpi=300, bbox_inches='tight')
     
-    # Display statistics in the console
-    # cost_array = np.array(costs)
-    # print(f"Number of runs: {len(costs)}")
-    # print(f"Mean cost: {np.mean(cost_array):.2f}")
-    # print(f"Median cost: {np.median(cost_array)}")
-    # print(f"Min cost: {min(costs)}")
-    # print(f"Max cost: {max(costs)}")
-    # print(f"Q1: {np.percentile(cost_array, 25)}")
-    # print(f"Q3: {np.percentile(cost_array, 75)}")
-    # print(f"Frequency of Cost = 51: {list(costs).count(51)}")
-    # print(f"Percentage of Costs = 51: {list(costs).count(51)/len(costs)*100:.2f}%")
     
-    # print("\nVisualization saved as 'cost_boxplot_analysis.png' and 'cost_alternative_visualizations.png'")
