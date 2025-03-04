@@ -728,6 +728,7 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
         env_agent_start_pos=[(8, 1)],
         env_agent_start_dir=[0],
         goal_pos=[(9, 1)],
+        plot_doors: bool = False,
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
@@ -735,7 +736,8 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
         self.env_agent_start_dir = env_agent_start_dir
 
         self.goal_pos = goal_pos
-        self.door_dict: Dict[str, Tuple[int, int]] = {} 
+        self.door_dict: Dict[str, Tuple[int, int]] = {}
+        self.plot_doors = plot_doors
 
         super().__init__(
             width=width,
@@ -767,6 +769,11 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
 
         # update door dict for the Door Game
         self.door_dict['d0'] = (5, 5)
+
+        # plot door - experimental
+        if self.plot_doors:
+            for door, door_pos in self.door_dict.items():
+                self.put_obj(Door(color='green'), *door_pos)
 
         # Place the agent
         p = self.agent_start_pos
@@ -811,7 +818,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
         env_agent_start_pos=[(6, 1)],
         env_agent_start_dir=[0],
         goal_pos=[(7, 1)],
-        # carpet_world: bool = True
+        plot_doors: bool = False
     ):
         self.agent_start_pos = agent_start_pos
         self.agent_start_dir = agent_start_dir
@@ -820,7 +827,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
 
         self.goal_pos = goal_pos
         self.door_dict: Dict[str, Tuple[int, int]] = {}
-        # self.carpet_world = carpet_world
+        self.plot_doors = plot_doors
 
         super().__init__(
             width=width,
@@ -881,6 +888,11 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
 
             # playing around agent's start pos
             # self.agent_start_pos = (2, 6)
+        
+        # plot door - experimental
+        if self.plot_doors:
+            for door, door_pos in self.door_dict.items():
+                self.put_obj(Door(color='green'), *door_pos)
 
         # Place the agent
         p = self.agent_start_pos
@@ -964,6 +976,11 @@ class FourDoorIntruderRobotCarpetRAL25(ThreeDoorIntruderRobotRAL25):
         self.door_dict['d3'] = (2, 5)
         self.put_obj(Wall(), 2, 3)
         self.door_dict['d2'] = (1, 3)
+
+        # plot door - experimental
+        if self.plot_doors:
+            for door, door_pos in self.door_dict.items():
+                self.put_obj(Door(color='green'), *door_pos)
 
         # Place the agent
         p = self.agent_start_pos
