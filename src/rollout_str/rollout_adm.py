@@ -599,7 +599,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         counter: int = 0
         curr_state = self.init_state
         next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
-        
+        self.logger.reset_episode()
         if self.debug:
             print(f"Init State: {curr_state}")
 
@@ -701,10 +701,13 @@ class AdmMemeorylessStrRolloutProvider(RefinedAdmStrategyRolloutProvider):
                 return random.choice(self.env_strategy.get(curr_state)), ''
 
         #### Choosing Sys action
-        self.strategy[curr_state] = list(self.strategy.get(curr_state))
-        is_winning: bool = True if curr_state in self.winning_region else False
-        act = random.choice(self.strategy.get(curr_state))
-        if is_winning:
-            return act, 'Win' 
-        else:
-            return act, 'Coop'
+        try:
+            self.strategy[curr_state] = list(self.strategy.get(curr_state))
+            is_winning: bool = True if curr_state in self.winning_region else False
+            act = random.choice(self.strategy.get(curr_state))
+            if is_winning:
+                return act, 'Win' 
+            else:
+                return act, 'Coop'
+        except TypeError:
+            return random.choice(list(self.game._graph.successors(curr_state))), ''
