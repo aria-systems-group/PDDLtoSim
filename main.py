@@ -189,11 +189,11 @@ def run_synthesis_and_rollout(strategy_type: str,
         simulator.get_stats()
 
         #dump the data for bookkeeping
-        # now = datetime.datetime.now()
-        # timestamp: str = now.strftime("%Y%m%d_%H%M%S")
-        # # filename = "/" + game._graph.name + "_" + "NOT_CPLX_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml" 
+        now = datetime.datetime.now()
+        timestamp: str = now.strftime("%Y%m%d_%H%M%S")
+        filename = "/" + game._graph.name + "_" + "NOT_CPLX_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml" 
         # filename = "/" + game._graph.name + "_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml" 
-        # simulator.dump_results_to_yaml(ROOT_PATH + BENCHMARK_DIR_WAIT + filename)
+        simulator.dump_results_to_yaml(ROOT_PATH + BENCHMARK_DIR_WAIT + filename)
         return str_handle, roller
     
     return str_handle, None
@@ -448,7 +448,7 @@ def minigrid_main(debug: bool = False,
         # now construct the abstraction, the dfa and take the product
         
         if id in ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
-            minigrid_handle.build_minigrid_game(env_snap=True,
+            minigrid_handle.build_minigrid_game(env_snap=False,
                                                 only_augment_obs=False,
                                                 modify_intruder_game=True,
                                                 config_yaml_dict=OrderedDict(door_dict[id]))
@@ -765,7 +765,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 if __name__ == "__main__":
-    record = True
+    record = False
     use_saved_str = False
 
     if use_saved_str:

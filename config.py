@@ -3,6 +3,9 @@ import os
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 BENCHMARK_DIR = "/ral25_benchmark_data" 
+BENCHMARK_DIR_WAIT = "/ral25_benchmark_data/wait_gw" 
+NUM_OF_TRAILS  = 1000
+MAX_ITERATIONS = 100
 
 ################################### Formulas #########################################
 # Formulas follow Spot's syntax. Please see https://spot.lre.epita.fr/app/ Help section for more info.
@@ -81,7 +84,8 @@ minigrid_env_formulas = {'MiniGrid-FloodingLava-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgent-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgentInSquare4by4-v0': ['F(floor_green_open)'],
                         'MiniGrid-ChasingAgentInSquare3by3-v0': ['F(floor_green_open)'],
-                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0': robot_evasion_complex,
+                        # 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0': robot_evasion_complex,
+                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0': robot_evasion,
                         'MiniGrid-ThreeDoorIntruderRobotRAL25-v0': robot_evasion,
                         'MiniGrid-IntruderRobotRAL25-v0': robot_evasion,
                         'MiniGrid-NarrowLavaAdm_karan-v0': '!(agent_blue_right) U (floor_green_open)',
