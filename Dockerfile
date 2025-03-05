@@ -15,10 +15,8 @@ RUN wget -q -O - https://www.lrde.epita.fr/repo/debian.gpg | apt-key add -
 
 SHELL ["/bin/bash", "-c"] 
 
-RUN pip3 install pyyaml numpy<2.0 bidict networkx graphviz ply pybullet \
-    pyperplan==1.3 IPython svgwrite matplotlib==3.5 imageio lark-parser==0.9.0 sympy==1.6.1 \
-    cloudpickle cycler future mpmath pandas pydot pyglet pytz scipy \
-    gym==0.21.0 gym_minigrid==1.0.2 joblib tqdm shapely paramiko
+COPY requirements.txt /tmp/
+RUN pip3 install -r /tmp/requirements.txt
 
 # TODO do I need pydot3?
 
