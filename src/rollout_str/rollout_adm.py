@@ -489,9 +489,12 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
 
         self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
         steps: int = 0
+        self.logger.reset_episode()
+
 
         if 'tic' in self.game_name and self.debug:
             self.print_board(next_state)
+        self.log_data(counter=steps, curr_state=curr_state, next_state=next_state)
 
         while True and steps < self.max_steps:
             curr_state = next_state
@@ -502,12 +505,14 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 self.print_board(next_state)
             
 
-            if next_state in self.absorbing_states:
+            if curr_state in self.target_states or curr_state in self.sink_states:
+                steps += 1
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
                 if 'tic' in self.game_name and self.debug:
                     self.print_board(next_state)
+                self.log_data(counter=steps, curr_state=curr_state, next_state=next_state)
                 break
                 
             if next_state is not None:
@@ -517,7 +522,9 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                     print(self.action_seq[-1])
             
             steps += 1
+            self.log_data(counter=steps, curr_state=curr_state, next_state=next_state)
         
+        self.logger._results.append(self.logger.get_episodic_data())
         if self.debug:
             print("Action Seq:")
             for _action in self.action_seq:
