@@ -2,6 +2,7 @@ import os
 import sys
 import copy
 import time
+import argparse
 import datetime
 import tracemalloc
 import yaml
@@ -48,6 +49,16 @@ DfaGame = Union[TwoPlayerGraph, TwoPlayerGame, NonDeterministicMiniGrid]
 VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "QuantitativeNaiveAdmissible", \
                         "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning", "QuantiativeRefinedAdmissible", "QuantitativeAdmMemorless"]
 VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid', 'tic-tac-toe']
+
+
+def parse_arguments():
+    parser = argparse.ArgumentParser(description='Run minigrid_main with different parameters.')
+    parser.add_argument('--human_type', type=str, required=True, help='The type of human: epsilon-human, random-human, coop-human, mixed-human')
+    parser.add_argument('--strategy_type', type=str, required=True, help=f'The type of strategy: {VALID_STR_SYN_ALGOS[-2:]}')
+    parser.add_argument('--env_type', type=str, required=False, default='', help='The type of Minigrid Env: MiniGrid-LavaAdm_karan-v0, MiniGrid-IntruderRobotRAL25-v0, MiniGrid-ThreeDoorIntruderRobotRAL25-v0, MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0')
+    return parser.parse_args()
+
+args = parse_arguments()
 
 
 @timer_decorator
@@ -165,7 +176,7 @@ def run_synthesis_and_rollout(strategy_type: str,
 
     # rollout the stratgey
     if rollout_flag:
-        for _ in range(100):
+        for _ in range(NUM_OF_TRAILS):
             roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
                                                             game=game,
                                                             debug=False,
@@ -178,10 +189,11 @@ def run_synthesis_and_rollout(strategy_type: str,
         simulator.get_stats()
 
         #dump the data for bookkeeping
-        now = datetime.datetime.now()
-        timestamp: str = now.strftime("%Y%m%d_%H%M%S")
-        filename = "/" + game._graph.name + "_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml" 
-        simulator.dump_results_to_yaml(ROOT_PATH + BENCHMARK_DIR + filename)
+        # now = datetime.datetime.now()
+        # timestamp: str = now.strftime("%Y%m%d_%H%M%S")
+        # # filename = "/" + game._graph.name + "_" + "NOT_CPLX_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml" 
+        # filename = "/" + game._graph.name + "_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml" 
+        # simulator.dump_results_to_yaml(ROOT_PATH + BENCHMARK_DIR_WAIT + filename)
         return str_handle, roller
     
     return str_handle, None
@@ -373,7 +385,10 @@ def construct_abstraction(abstraction_instance: str,
                           render_minigrid: bool = False,
                           test_all_str: bool = False,
                           rollout_flag: bool = False,
-                          max_iterations: int = 100):
+                          max_iterations: int = 100,
+                          human_type: str = '',
+                          strategy_type: str = '',
+                          env_type: str = '') -> None:
     """
     A function that will construct call the correct. Currently, we support Non-deterministic Manipulator and Minigrid instances . 
 
@@ -389,7 +404,7 @@ def construct_abstraction(abstraction_instance: str,
     elif abstraction_instance == 'arch-main':
         arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
     elif abstraction_instance == 'minigrid':
-        minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str, max_iterations=max_iterations)
+        minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str, max_iterations=max_iterations, human_type=human_type, strategy_type=strategy_type, env_type=env_type)
     elif abstraction_instance == 'tic-tac-toe':
         tic_tac_toe_main(rollout_flag=rollout_flag, print_flag=print_flag)
 
@@ -398,7 +413,10 @@ def minigrid_main(debug: bool = False,
                   render: bool = False,
                   record: bool = False,
                   test_all_str: bool = False,
-                  max_iterations: int = 100):
+                  max_iterations: int = 100,
+                  human_type: str = '',
+                  strategy_type: str = '',
+                  env_type: str = '') -> None:
     """
     Function that constructs the minigrid instances, constructs a product graph and rolls out a strategy.
 
@@ -409,9 +427,9 @@ def minigrid_main(debug: bool = False,
     # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
-    nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
-    # nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
-    # nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
+    nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
     # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     start = time.time()
     for id in nd_minigrid_envs:
@@ -420,6 +438,8 @@ def minigrid_main(debug: bool = False,
                                                    formula=minigrid_env_formulas[id],
                                                    player_steps = {'sys': [1], 'env': [1]},
                                                    save_flag=True,
+                                                   env_snap_format='pdf',
+                                                   env_dpi =500,
                                                    plot_minigrid=False,
                                                    plot_dfa=False,
                                                    plot_product=False,
@@ -428,61 +448,63 @@ def minigrid_main(debug: bool = False,
         # now construct the abstraction, the dfa and take the product
         
         if id in ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
-            minigrid_handle.build_minigrid_game(env_snap=False,
+            minigrid_handle.build_minigrid_game(env_snap=True,
                                                 only_augment_obs=False,
                                                 modify_intruder_game=True,
                                                 config_yaml_dict=OrderedDict(door_dict[id]))
         else:
             minigrid_handle.build_minigrid_game(env_snap=False, get_aps=False)
-        
+        # sys.exit(-1)
         minigrid_handle.get_aps(print_flag=True)
         # minigrid_handle.get_minigrid_edge_weights(print_flag=False)
         print(f"Sys Actions: {minigrid_handle.minigrid_sys_action_set}")
         print(f"Env Actions: {minigrid_handle.minigrid_env_action_set}")
-    # minigrid_handle.modify_four_rooms_game(minigrid_handle.two_player_trans_sys, top_left_room=(1, 1), room_size=3)
-    # InteractiveGraph.visualize_game(minigrid_handle.two_player_trans_sys, depth_limit=5)
-    minigrid_handle.set_edge_weights(print_flag=False)
-    minigrid_handle.build_automaton(ltlf=True)
-    minigrid_handle.build_product()
-    # modify the product game if its robot_evasion example - testing - the intruder can only move if the agent observes it.
-    # minigrid_handle.modify_robot_evasion_game()
-    # remove_non_reachable_states(game=minigrid_handle.dfa_game, debug=False)
-    end = time.time()
-    print(f"Done Constrcuting the DFA Game: {end-start:0.2f} seconds")
-    print(f"No. of nodes in the product graph is :{len(minigrid_handle.dfa_game._graph.nodes())}")
-    print(f"No. of edges in the product graph is :{len(minigrid_handle.dfa_game._graph.edges())}")
-    
-    # run all synthesins and rollout algorithms0
-    if test_all_str:
-        run_all_synthesis_and_rollouts(game=minigrid_handle.dfa_game,
-                                       debug=False)
-    
-    # synthesize a strategy 
-    # valid human types "manual", "no-human", "random-human", "epsilon-human", "coop-human", "mixed-human"
-    # use "random-human" for Adv. Human
-    # use "epsilon-human" with epsilon set to 1 for completely random human
-    # use "coop-human" for cooperative human
-    # use "mixed-human" for Adv. and Random Human
-    else:
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
-                                              game=minigrid_handle.dfa_game,
-                                            #   human_type='manual',
-                                            #   human_type='mixed-human',
-                                              human_type='random-human',
-                                            #   human_type ='coop-human',
-                                            #   human_type ='epsilon-human',
-                                              sys_type = 'random-sys',
-                                              rollout_flag=True,
-                                              epsilon=1,
-                                              debug=False,
-                                              max_iterations=max_iterations)
+        # minigrid_handle.modify_four_rooms_game(minigrid_handle.two_player_trans_sys, top_left_room=(1, 1), room_size=3)
+        # InteractiveGraph.visualize_game(minigrid_handle.two_player_trans_sys, depth_limit=5)
+        minigrid_handle.set_edge_weights(print_flag=False)
+        minigrid_handle.build_automaton(ltlf=True)
+        minigrid_handle.build_product()
+        # modify the product game if its robot_evasion example - testing - the intruder can only move if the agent observes it.
+        # minigrid_handle.modify_robot_evasion_game()
+        # remove_non_reachable_states(game=minigrid_handle.dfa_game, debug=False)
+        end = time.time()
+        print(f"Done Constrcuting the DFA Game: {end-start:0.2f} seconds")
+        print(f"No. of nodes in the product graph is :{len(minigrid_handle.dfa_game._graph.nodes())}")
+        print(f"No. of edges in the product graph is :{len(minigrid_handle.dfa_game._graph.edges())}")
+        
+        # run all synthesins and rollout algorithms0
+        if test_all_str:
+            run_all_synthesis_and_rollouts(game=minigrid_handle.dfa_game,
+                                        debug=False)
+        
+        # synthesize a strategy 
+        # valid human types "manual", "no-human", "random-human", "epsilon-human", "coop-human", "mixed-human"
+        # use "random-human" for Adv. Human
+        # use "epsilon-human" with epsilon set to 1 for completely random human
+        # use "coop-human" for cooperative human
+        # use "mixed-human" for Adv. and Random Human
+        else:
+            _, roller = run_synthesis_and_rollout(strategy_type=strategy_type,
+                                                #   strategy_type=VALID_STR_SYN_ALGOS[-2],
+                                                game=minigrid_handle.dfa_game,
+                                                #   human_type='manual',
+                                                human_type=human_type,
+                                                #   human_type ='epsilon-human',
+                                                #   human_type='random-human',
+                                                #    human_type ='coop-human',
+                                                #  human_type='mixed-human',
+                                                #  sys_type = 'random-sys',
+                                                rollout_flag=True,
+                                                epsilon=1,
+                                                debug=True,
+                                                max_iterations=max_iterations)
 
-    # run the simulation if the render or record flag is true
-    if render or record:
-        system_actions, env_actions = minigrid_handle._action_parser(action_seq=roller.action_seq)
+        # run the simulation if the render or record flag is true
+        if render or record:
+            system_actions, env_actions = minigrid_handle._action_parser(action_seq=roller.action_seq)
 
-        minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
-    
+            minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
+        
 
     # _dump_strs = input("Do you want to save the rollout of the strategy,Enter: Y/y")
     # # save strs
@@ -743,7 +765,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 if __name__ == "__main__":
-    record = False
+    record = True
     use_saved_str = False
 
     if use_saved_str:
@@ -767,7 +789,10 @@ if __name__ == "__main__":
                               render_minigrid=False,
                               test_all_str=False,
                               rollout_flag= True,
-                              max_iterations=100)
+                              max_iterations=MAX_ITERATIONS,
+                              human_type=args.human_type,
+                              strategy_type=args.strategy_type,
+                              env_type=args.env_type)
 
         # displaying the memory - output current memory usage and peak memory usage
         _,  peak_mem = tracemalloc.get_traced_memory()
