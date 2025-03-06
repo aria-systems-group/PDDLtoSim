@@ -18,8 +18,6 @@ SHELL ["/bin/bash", "-c"]
 COPY requirements.txt /tmp/
 RUN pip3 install -r /tmp/requirements.txt
 
-# TODO do I need pydot3?
-
 # doing this on a separate line as pydot3 uses a command in setup.py compatable with setuptools<=58
 RUN pip3 install setuptools==65.5.0
 
