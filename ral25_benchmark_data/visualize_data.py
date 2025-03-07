@@ -13,20 +13,24 @@ from typing import List, Dict
 
 
 VALID_MINIGRID_ENVS = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', \
-                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0-NOT_CPLX']
+                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
+                        # 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0-NOT_CPLX']
 VALID_SYS_STR_TYP = ["QuantiativeRefinedAdmissible", "QuantitativeAdmMemorless"]
 VALID_HUMAN_TYPE = ['epsilon-human', 'random-human', 'coop-human', 'mixed-human']
 VALID_SYS_TYPE = ['random-sys']
 EPSILON = 1 
 
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
+ROOT_PATH_WAIT = os.path.dirname(os.path.abspath(__file__)) + "/wait_gw_fixed/"
 PLOTS_DIR = ROOT_PATH + "/plots/"
+PLOTS_DIR_WAIT = ROOT_PATH + "/plots/with_waiting/"
 CWD_DIRECTORY  = os.path.dirname(os.path.abspath(__file__)) # get current working directory
 FILES = os.listdir(CWD_DIRECTORY) # List all files in the directory
+FILES_WAIT = os.listdir(ROOT_PATH + "/wait_gw_fixed") # List all files in the WAIT directory
 
 SYS_ALIAS_DICT = {'random-sys': 'rnd',
                   'QuantiativeRefinedAdmissible': 'Ours',
-                  'QuantitativeAdmMemorless': 'Adm-Mem'}
+                  'QuantitativeAdmMemorless': 'Adm-Memless'}
 
 
 ENV_ALIAS_DICT = {VALID_HUMAN_TYPE[0]: 'Hrnd',
@@ -38,7 +42,7 @@ MINIGRID_NAME_ALIAS_DICT = {VALID_MINIGRID_ENVS[0]: 'IJCAI25-Lava',
                             VALID_MINIGRID_ENVS[1]: '1-Door',
                             VALID_MINIGRID_ENVS[2]: '3-Door',
                             VALID_MINIGRID_ENVS[3]: '4-Door - CPLX',
-                            VALID_MINIGRID_ENVS[4]: '4-Door - NOT CPLX', 
+                            # VALID_MINIGRID_ENVS[4]: '4-Door - NOT CPLX', 
                             }
 
 USE_ALIAS: bool = True
@@ -71,7 +75,7 @@ def find_closest_file(minigrid_env, sys_type, valid_human_type, sys_str_type):
         target_pattern = f"{minigrid_game}_{sys_str_type}_{valid_human_type}__{EPSILON}"
 
     # Find the closest match using difflib
-    closest_match = difflib.get_close_matches(target_pattern, FILES, n=1)
+    closest_match = difflib.get_close_matches(target_pattern, FILES_WAIT, n=1)
 
     if not closest_match or len(closest_match) > 1:
         warnings.warn("[Error] Could not locate the closest file or return mroe than one yaml file names.")
@@ -79,12 +83,15 @@ def find_closest_file(minigrid_env, sys_type, valid_human_type, sys_str_type):
     return closest_match[0]
 
 
-def extract_costs_from_yaml(file_path, get_game_stats: bool = False):
+def extract_costs_from_yaml(file_path, get_game_stats: bool = False, wait_gw: bool = False):
     """
     Extract cost values from the YAML file.
     """
     # modify path to abs path
-    file_path = ROOT_PATH + f"/{file_path}"
+    if wait_gw:
+        file_path = ROOT_PATH_WAIT + f"/{file_path}"
+    else :
+        file_path = ROOT_PATH + f"/{file_path}"
     with open(file_path, 'r') as stream:
         episdic_data: dict = yaml.load(stream, Loader=yaml.Loader)
     
@@ -105,11 +112,15 @@ def extract_costs_from_yaml(file_path, get_game_stats: bool = False):
     # Extract all Cost values using regex
     # cost_regex = r'Cost: (\d+)'
     costs: List[int] = []
+    # Append all costs
+    # for runs, data in episdic_data.items():
+    #     if data['status'] in ['Win', 'pen']:
+    #         costs.append(int(data['Cost']))
+    #     else:
+    #         costs.append(51)
     for runs, data in episdic_data.items():
-        if data['status'] in ['Win', 'pen']:
+        if data['status'] == 'Win':
             costs.append(int(data['Cost']))
-        else:
-            costs.append(51)
     return costs
 
 def plot_cost_boxplot(costs):
@@ -259,14 +270,34 @@ def print_stats(costs: List[int]) -> None:
     # print("\nVisualization saved as 'cost_boxplot_analysis.png' and 'cost_alternative_visualizations.png'")
 
 
-
 def plot_box_plot(costs, file_name: str, labels: str = [], fig_title: str = '') -> None:
+    """
+     Parent box plot method creates the figure handles and calls the draw_box_plot() method to plot the box plot on the same figure. 
+     This modular approach allows or box plot to have differet sample and yet plot it on the same canvas.
+    """
     fig, ax = plt.subplots()
     ax.set_ylabel('Cost')
+    num_boxes: int = len(costs)
 
-    # data = np.array(costs)
+    # for idx, ax, cost in enumerate(zip(axs, costs)):
+    #     bplot = draw_box_plot(ax=ax, samples=np.array(cost), label=labels[idx])
+    bplot = plt.boxplot(positions=list(range(num_boxes)),
+                        labels=labels,
+                        x=[np.array(cost) for cost in costs],
+                        showmeans=True,
+                        patch_artist=True)
+    
+    # add # of samples on top of each box plot
+    range(len(costs))
+    upper_labels = [len(data) for data in costs]
+    pos = np.arange(num_boxes)
+    for tick, label in zip(range(num_boxes), ax.get_xticklabels()):
+        # k = tick % 2
+        ax.text(pos[tick], 1, upper_labels[tick],
+                transform=ax.get_xaxis_transform(),
+                horizontalalignment='center', size='x-small')
+                # weight=weights[k], color=box_colors[k])
 
-    bplot: Dict = ax.boxplot(costs.T, labels=labels, showmeans=True, patch_artist=True)
     # colors = sorted(mcolors.CSS4_COLORS.keys()) for full color palette.
     COLORS = ['lightblue', 'lightgreen', 'mistyrose']
     # fill with colors
@@ -279,7 +310,8 @@ def plot_box_plot(costs, file_name: str, labels: str = [], fig_title: str = '') 
     # plt.show(block=True)
     if fig_title != '':
         plt.title(fig_title)
-    plt.savefig(PLOTS_DIR + file_name, dpi=300, bbox_inches='tight')
+    plt.savefig(PLOTS_DIR_WAIT + file_name, dpi=300, bbox_inches='tight')
+    # plt.savefig(PLOTS_DIR + file_name, dpi=300, bbox_inches='tight')
     plt.close(fig)
 
 
@@ -294,33 +326,36 @@ if __name__ == "__main__":
         for human in VALID_HUMAN_TYPE:
             yaml_files =[]
             costs = []
-            for st in VALID_SYS_TYPE + VALID_SYS_STR_TYP:
+            # for st in VALID_SYS_TYPE + VALID_SYS_STR_TYP:
+            for st in VALID_SYS_STR_TYP:
                 yaml_files.append(find_closest_file(minigrid_env=env, sys_type=st, valid_human_type=human, sys_str_type=st))
 
                 # Extract costs
-                one_env_cost = extract_costs_from_yaml(yaml_files[-1])
-                costs.append(one_env_cost)
+                one_env_cost = extract_costs_from_yaml(yaml_files[-1], wait_gw=True)
+                if len(one_env_cost) > 0:
+                    costs.append(one_env_cost)
 
-                if DEBUG:
-                    print("***************************************************************************************************")
-                    print(f"{env} - {human} - {st}")
-                    print_stats(one_env_cost)
-                    print("***************************************************************************************************")
+                    if DEBUG:
+                        print("***************************************************************************************************")
+                        print(f"{env} - {human} - {st}")
+                        print_stats(one_env_cost)
+                        print("***************************************************************************************************")
 
             if USE_ALIAS:
                 human = ENV_ALIAS_DICT.get(human)
             fig_name = f"cost_{human}_{env}.png"
-                
-            if USE_ALIAS:
-                labels = [SYS_ALIAS_DICT.get(sys_type) for sys_type in SYS_ALIAS_DICT]
-                env_alias = MINIGRID_NAME_ALIAS_DICT.get(env)
-                plot_box_plot(np.array(costs), file_name=fig_name, labels=labels, fig_title=env_alias + "-" + human)
-            else:
-                plot_box_plot(np.array(costs), file_name=fig_name, labels=VALID_SYS_TYPE + VALID_SYS_STR_TYP,  fig_title=env)
+
+            if len(costs) > 0:    
+                if USE_ALIAS:
+                    labels = [SYS_ALIAS_DICT.get(sys_type) for sys_type in VALID_SYS_STR_TYP]
+                    env_alias = MINIGRID_NAME_ALIAS_DICT.get(env)
+                    plot_box_plot(costs, file_name=fig_name, labels=labels, fig_title=env_alias + "-" + human)
+                else:
+                    plot_box_plot(costs, file_name=fig_name, labels=VALID_SYS_TYPE + VALID_SYS_STR_TYP,  fig_title=env)
 
     #### TESTING plotting for single file
-    # file_name = "MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0_DFA_game_NOT_CPLX_QuantitativeAdmMemorless_epsilon-human__120250302_032641.yaml"
-    # costs = extract_costs_from_yaml(file_name, get_game_stats=True)
+    # file_name = "MiniGrid-IntruderRobotRAL25-v0_DFA_game_random-human_random-sys_120250307_155551.yaml"
+    # costs = extract_costs_from_yaml(file_name, get_game_stats=True, wait_gw=True)
     # plot_box_plot(np.array(costs), file_name='testing', labels=['Adm-Mem'], fig_title='4-Door')
     
     # Create visualization
