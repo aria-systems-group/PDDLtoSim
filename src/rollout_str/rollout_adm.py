@@ -11,6 +11,7 @@ from utls import deprecated
 from src.rollout_str.rollout_provider_if import RolloutProvider
 
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
+from regret_synthesis_toolbox.src.strategy_synthesis.safety_game import SafetyGame
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
 
@@ -268,6 +269,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         super().__init__(game, strategy_handle, debug, max_steps, logger)
         self.sys_opt_coop_str: Optional[dict] =  self.strategy_handle.coop_optimal_sys_str
         self.env_coop_str: Optional[dict] = self.strategy_handle.env_coop_winning_str
+        self.env_safeadm_coop_str: Optional[dict] = self.strategy_handle.safety_game
         self.coop_state_values:  Dict[str, float] = self.strategy_handle.coop_winning_state_values
         self.winning_region: set = self.strategy_handle.winning_region
         self.losing_region: set = self.strategy_handle.losing_region
@@ -282,6 +284,10 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
     @property
     def env_coop_str(self):
         return self._env_coop_str
+    
+    @property
+    def env_safeadm_coop_str(self):
+        return self._env_safeadm_coop_str
     
     @property
     def coop_state_values(self):
@@ -306,6 +312,13 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
     @env_coop_str.setter
     def env_coop_str(self, str_dict: dict):
         self._env_coop_str = str_dict
+    
+    @env_safeadm_coop_str.setter
+    def env_safeadm_coop_str(self, safety_game: Optional[SafetyGame]):
+        if safety_game is not None:
+            self._env_safeadm_coop_str = safety_game.env_str_dict
+        else:
+            self._env_safeadm_coop_str = {}
     
     @coop_state_values.setter
     def coop_state_values(self, coop_vals: Dict[str, float]):
@@ -332,6 +345,27 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
     def set_state_values(self):
         self._state_values =  self.strategy_handle.winning_state_values
     
+
+    def get_env_coop_strategy(self, prev_state, curr_state):
+        """
+         If the initial state is winning then we use Coop strategy from the original game. 
+         If the initial state is safeadm then we use Coop strategy synthesized over the safe admissible game.
+         If the initial state belong to the hopeless adm then we use the Coop strategy from the original game
+        """
+        assert self.game.get_state_w_attribute(prev_state, 'player') == "eve", \
+        "[Error] While fetching Env Coop strategy I did not get prebious state as Sys state. FIX THIS!!!"
+        if self._init_state in self.winning_region:
+            return self._env_coop_str.get(curr_state)
+        elif self._init_state in self.pending_region and self.strategy_handle._play_hopeful_game is False:
+            return self.env_safeadm_coop_str.get(curr_state)
+        elif self._init_state in self.pending_region and self.strategy_handle._play_hopeful_game is True:
+            # when the game starts in hopeful game we can transition safe adm game. 
+            # Thus, we need to check if the previous sys state belongs a safeadm stratgey.
+            # if yes, then we return the safeadm strategy 
+            if self.strategy_handle.safe_adm_str.get(prev_state) is not None:
+                return self.env_safeadm_coop_str.get(curr_state)
+            return self._env_coop_str.get(curr_state)
+
 
     def get_edge_action(self, curr_state, succ_state):
         """
@@ -447,7 +481,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         return succ_list[int(idx_num)]
 
 
-    def get_next_state(self, curr_state, rand_adm: bool = False, coop_env: bool = False) -> Tuple[str, str]:
+    def get_next_state(self, curr_state, coop_env: bool = False, prev_state = None) -> Tuple[str, str]:
         """
          A helper function that wrap around sys_strategy dictionary. 
          If Sys strategy is deterministic, i.e., there is only one action to take then we return that action. 
@@ -455,13 +489,18 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             If a Wcoop strategy exists then we randomly choose one
             If safe-adm strategy exists, then we randomly choose one
             If Hope-adm strategy exists then we 
+         I need  prev state to determing what region the Players are operating in. 
+         If prev state is SafeAdm then I return Env Coop strategy on the safe adm game else I return to the original. 
         """
         #### Choosing Env action
         if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
             if coop_env:
-                if not isinstance(self.env_coop_str.get(curr_state), list):
-                    return self.env_coop_str.get(curr_state), ''
-                return random.choice(self.env_coop_str.get(curr_state)), ''
+                # if not isinstance(self.env_coop_str.get(curr_state), list):
+                #     return self.env_coop_str.get(curr_state), ''
+                # return random.choice(self.env_coop_str.get(curr_state)), ''
+                if not isinstance(self.get_env_coop_strategy(prev_state, curr_state), list):
+                    return self.get_env_coop_strategy(prev_state, curr_state), ''
+                return random.choice(self.get_env_coop_strategy(prev_state, curr_state)), ''
             else:
                 if not isinstance(self.env_strategy.get(curr_state), list):
                     return self.env_strategy.get(curr_state), ''
@@ -489,9 +528,12 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
 
         self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
         steps: int = 0
+        self.logger.reset_episode()
+
 
         if 'tic' in self.game_name and self.debug:
             self.print_board(next_state)
+        self.log_data(counter=steps, curr_state=curr_state, next_state=next_state)
 
         while True and steps < self.max_steps:
             curr_state = next_state
@@ -502,12 +544,14 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                 self.print_board(next_state)
             
 
-            if next_state in self.absorbing_states:
+            if curr_state in self.target_states or curr_state in self.sink_states:
+                steps += 1
                 _edge_act = self.game._graph[curr_state][next_state][0].get("actions")
                 if self.action_seq[-1] != _edge_act:
                     self.action_seq.append(self.game._graph[curr_state][next_state][0].get("actions"))
                 if 'tic' in self.game_name and self.debug:
                     self.print_board(next_state)
+                self.log_data(counter=steps, curr_state=curr_state, next_state=next_state)
                 break
                 
             if next_state is not None:
@@ -517,7 +561,9 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                     print(self.action_seq[-1])
             
             steps += 1
+            self.log_data(counter=steps, curr_state=curr_state, next_state=next_state)
         
+        self.logger._results.append(self.logger.get_episodic_data())
         if self.debug:
             print("Action Seq:")
             for _action in self.action_seq:
@@ -545,7 +591,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         self.logger.reset_episode()
 
         curr_state = self.init_state
-        next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
+        next_state, str_type = self.get_next_state(curr_state, prev_state='', coop_env=coop_env)
         if self.debug:
             print(f"Init State: {curr_state}")
 
@@ -553,8 +599,9 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
 
         while True and counter < self.max_steps:
+            prev_state = curr_state
             curr_state = next_state
-            next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
+            next_state, str_type = self.get_next_state(curr_state, prev_state=prev_state, coop_env=coop_env)
 
             # if next_state in self.target_states or next_state in self.sink_states:
             if curr_state in self.target_states or curr_state in self.sink_states:
@@ -598,8 +645,8 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         print("Rolling out with Mixed human interventions")
         counter: int = 0
         curr_state = self.init_state
-        next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
-        
+        next_state, str_type = self.get_next_state(curr_state, prev_state='', coop_env=coop_env)
+        self.logger.reset_episode()
         if self.debug:
             print(f"Init State: {curr_state}")
 
@@ -609,15 +656,16 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         env_count = 0
         
         while True and counter < self.max_steps:
+            prev_state = curr_state
             curr_state = next_state
-            next_state, str_type = self.get_next_state(curr_state, rand_adm=True, coop_env=coop_env)
+            next_state, str_type = self.get_next_state(curr_state, prev_state=prev_state, coop_env=coop_env)
 
             if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
                 env_count += 1
                 if env_count % n_steps == 0:
                     next_state = random.choice([_state for _state in self.game._graph.successors(curr_state)])
 
-            if next_state in self.target_states or next_state in self.sink_states:
+            if curr_state in self.target_states or curr_state in self.sink_states:
                 counter += 1
                 self._log_action(curr_state, next_state, counter, str_type)
                 self.log_data(counter=counter, curr_state=curr_state, next_state=next_state)
@@ -639,7 +687,7 @@ class RandomSysStrategyRolloutProvider(RefinedAdmStrategyRolloutProvider):
     def __init__(self, game, strategy_handle, debug = False, max_steps = 10, logger: Optional[Simulator] = None):
         super().__init__(game, strategy_handle, debug, max_steps, logger)
     
-    def get_next_state(self, curr_state, rand_adm: bool = False, coop_env: bool = False) -> Tuple[str, str]:
+    def get_next_state(self, curr_state, coop_env: bool = False, prev_state = None) -> Tuple[str, str]:
         """
          A helper function that wraps around sys_strategy and env_strategy dictionary. 
          If Sys strategy is random.
@@ -688,7 +736,7 @@ class AdmMemeorylessStrRolloutProvider(RefinedAdmStrategyRolloutProvider):
         raise NotImplementedError()
     
     
-    def get_next_state(self, curr_state, rand_adm = False, coop_env = False):
+    def get_next_state(self, curr_state, coop_env = False, prev_state = None):
         #### Choosing Env action
         if self.game.get_state_w_attribute(curr_state, 'player') == "adam":
             if coop_env:
@@ -701,10 +749,13 @@ class AdmMemeorylessStrRolloutProvider(RefinedAdmStrategyRolloutProvider):
                 return random.choice(self.env_strategy.get(curr_state)), ''
 
         #### Choosing Sys action
-        self.strategy[curr_state] = list(self.strategy.get(curr_state))
-        is_winning: bool = True if curr_state in self.winning_region else False
-        act = random.choice(self.strategy.get(curr_state))
-        if is_winning:
-            return act, 'Win' 
-        else:
-            return act, 'Coop'
+        try:
+            self.strategy[curr_state] = list(self.strategy.get(curr_state))
+            is_winning: bool = True if curr_state in self.winning_region else False
+            act = random.choice(self.strategy.get(curr_state))
+            if is_winning:
+                return act, 'Win' 
+            else:
+                return act, 'Coop'
+        except TypeError:
+            return random.choice(list(self.game._graph.successors(curr_state))), ''
