@@ -345,7 +345,7 @@ class NonDeterministicMiniGrid():
                                                          player_steps=self.player_steps,
                                                          monitor_log_location=os.path.join(DIR, GYM_MONITOR_LOG_DIR_NAME))
         self.minigrid_env.reset()
-        env_filename = os.path.join(DIR, 'plots', f'{self.env_id}_Game.png')
+        env_filename = os.path.join(DIR, 'plots', f'{self.env_id}_Game.' + self.env_snap_format)
         Path(os.path.split(env_filename)[0]).mkdir(parents=True, exist_ok=True)
         if env_snap:
             self.minigrid_env.render_notebook(env_filename, self.env_dpi)
@@ -467,15 +467,17 @@ class NonDeterministicMiniGrid():
 
         # manually parse the actions, the first action is by Sys player, the next one is by Env ...
         for itr, act in enumerate(action_seq):
-            if itr % 2 == 0:
-                assert act.split('__')[1] == 'None', "Error when rolling out strategy"
+            if act.split('__')[1] == 'None':
+            # if itr % 2 == 0:
+                # assert act.split('__')[1] == 'None', "Error when rolling out strategy"
                 # action edge is of type North_North__None
                 sys_action = act.split('__')[0]
                 act_tuple = tuple(sys_action.split('_'))
                 system_actions.append(act_tuple)
-                
-            elif itr % 2 != 0:
-                assert act.split('__')[0] == 'None', "Error when rolling out strategy"
+            
+            elif act.split('__')[0] == 'None':    
+            # elif itr % 2 != 0:
+                # assert act.split('__')[0] == 'None', "Error when rolling out strategy"
                 # action edge is of type None__South_South
                 env_action = act.split('__')[1]
                 act_tuple = tuple(env_action.split('_'))
