@@ -913,7 +913,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
                     color='darkblue',
                     # restricted_objs=['floor'],
                     # restricted_objs=['lava', 'water'],
-                    restricted_positions=[self.goal_pos]
+                    restricted_positions=self.goal_pos
                     ),
                 *p,
                 d,
@@ -1002,7 +1002,7 @@ class FourDoorIntruderRobotCarpetRAL25(ThreeDoorIntruderRobotRAL25):
                     color='darkblue',
                     # restricted_objs=['floor'],
                     # restricted_objs=['lava', 'water'],
-                    restricted_positions=[self.goal_pos]
+                    restricted_positions=self.goal_pos
                     ),
                 *p,
                 d,
