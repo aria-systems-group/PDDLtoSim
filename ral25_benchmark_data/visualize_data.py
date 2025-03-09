@@ -9,7 +9,8 @@ import pandas as pd
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-from typing import List, Dict
+from typing import List, Dict, Union
+from collections import defaultdict
 
 
 VALID_MINIGRID_ENVS = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', \
@@ -28,15 +29,18 @@ CWD_DIRECTORY  = os.path.dirname(os.path.abspath(__file__)) # get current workin
 FILES = os.listdir(CWD_DIRECTORY) # List all files in the directory
 FILES_WAIT = os.listdir(ROOT_PATH + "/wait_gw_fixed") # List all files in the WAIT directory
 
-SYS_ALIAS_DICT = {'random-sys': 'rnd',
-                  'QuantiativeRefinedAdmissible': 'Ours',
+# SYS_ALIAS_DICT = {'random-sys': 'rnd',
+#                   'QuantiativeRefinedAdmissible': 'Ours',
+#                   'QuantitativeAdmMemorless': 'Adm-Memless'}
+SYS_ALIAS_DICT = {'QuantiativeRefinedAdmissible': 'Ours',
                   'QuantitativeAdmMemorless': 'Adm-Memless'}
 
 
-ENV_ALIAS_DICT = {VALID_HUMAN_TYPE[0]: 'Hrnd',
+ENV_ALIAS_DICT = {VALID_HUMAN_TYPE[2]: 'HCoop',
+                  VALID_HUMAN_TYPE[0]: 'Hrnd',
+                  VALID_HUMAN_TYPE[3]: 'HAdv_Rnd',
                   VALID_HUMAN_TYPE[1]: 'HAdv',
-                  VALID_HUMAN_TYPE[2]: 'HCoop',
-                  VALID_HUMAN_TYPE[3]: 'HAdv_Rnd'}
+                  }
 
 MINIGRID_NAME_ALIAS_DICT = {VALID_MINIGRID_ENVS[0]: 'IJCAI25-Lava',
                             VALID_MINIGRID_ENVS[1]: '1-Door',
@@ -254,9 +258,21 @@ def create_alternative_visualizations(costs):
     return plt.gcf()
 
 
-def print_stats(costs: List[int]) -> None:
+def print_stats(costs: List[int]) -> Dict[str, Union[int, float]]:
     # Display statistics in the console
     cost_array = np.array(costs)
+    stats_dict = {
+        "runs": len(costs),
+        "mean": np.mean(cost_array),
+        "median": np.median(cost_array),
+        "min": min(costs),
+        "max": max(costs),
+        "q1": np.percentile(cost_array, 25),
+        "q3": np.percentile(cost_array, 75),
+        "freq_51": list(costs).count(51),
+        "pct_51": (list(costs).count(51) / len(costs)) * 100
+    }
+
     print(f"Number of runs: {len(costs)}")
     print(f"Mean cost: {np.mean(cost_array):.2f}")
     print(f"Median cost: {np.median(cost_array)}")
@@ -266,8 +282,315 @@ def print_stats(costs: List[int]) -> None:
     print(f"Q3: {np.percentile(cost_array, 75)}")
     print(f"Frequency of Cost = 51: {list(costs).count(51)}")
     print(f"Percentage of Costs = 51: {list(costs).count(51)/len(costs)*100:.2f}%")
+
+    return stats_dict
+
+def plot_mean_dict_with_bars(mean_dict):
+    """
+    Plot the mean_dict dictionary as bar charts.
+    Each human type will have 8 bars (4 environments × 2 system types).
+    Different colors will be used for different environments, and hatching patterns
+    will distinguish between the two system strategies.
+    """
     
-    # print("\nVisualization saved as 'cost_boxplot_analysis.png' and 'cost_alternative_visualizations.png'")
+    # import numpy as np
+    # import matplotlib.pyplot as plt
+    import matplotlib.patches as mpatches
+    from matplotlib.ticker import AutoMinorLocator
+
+    # Enable TeX rendering
+    plt.rcParams['text.usetex'] = False
+    plt.rcParams['mathtext.default'] = 'regular'
+
+    # Both these dictionary are sued to matching the naming convention of the environments and system strategies in the paper.
+    LEGENDS_DICT = {'IJCAI25-Lava': r'$\mathbb{E}_1$',
+                    '1-Door': r'$\mathbb{E}_2$',
+                    '3-Door': r'$\mathbb{E}_3$',
+                    '4-Door - CPLX': r'$\mathbb{E}_4$',
+                    '4-Door - NOT CPLX': r'$\mathbb{E}_5$'
+                    }
+    
+    HUMAN_LABEL_DICT = {'HCoop': r'$\mathbf{Co-Op}$',
+                        'Hrnd': r'$\mathbf{Rand}$' ,
+                        'HAdv_Rnd': r'$\mathbf{WCO}-\mathbf{Rand}$',
+                        'HAdv': r'$\mathbf{WCO}$'}
+    
+    SYS_LABEL_DICT = {'Ours': r'$\mathbf{Adm-Rat}$',
+                      'Adm-Memless': r'$\mathbf{Adm}$- Memless'}
+    
+    human_types = list(mean_dict.keys())
+    env_types = list(MINIGRID_NAME_ALIAS_DICT.values())
+    sys_str_types = list(SYS_ALIAS_DICT.values())
+
+    skip_human_types = ['HAdv']  # e.g., ['HAdv'] to skip the HAdv human type
+
+
+    human_types = [h for h in list(mean_dict.keys()) if h not in skip_human_types]
+    # env_types = [e for e in list(MINIGRID_NAME_ALIAS_DICT.values()) if e not in skip_env_types]
+    # sys_str_types = [s for s in list(SYS_ALIAS_DICT.values()) if s not in skip_sys_types]
+    
+    # Colors for different environments (using a color-blind friendly palette)
+    env_colors = ['#4daf4a', '#377eb8', '#ff7f00', '#984ea3']
+    
+    # Hatching patterns for different system strategies
+    sys_hatches = ['', '///']
+    
+    fig, ax = plt.subplots(figsize=(14, 8))
+    
+    # Width of each bar
+    bar_width = 0.09
+    
+    # Calculate positions for bars
+    group_width = len(env_types) * len(sys_str_types) * bar_width + bar_width  # Width of one human type group
+    group_positions = np.arange(len(human_types)) * (group_width + 0.2)  # Add space between human type groups
+    
+    # For legend
+    legend_handles_env = []
+    legend_handles_sys = []
+    
+    # Keep track of tick positions for x-axis
+    tick_positions = []
+    
+    # Plot bars
+    for human_idx, human in enumerate(human_types):
+        tick_positions.append(group_positions[human_idx] + group_width/2 - bar_width/2)
+        
+        for env_idx, env in enumerate(env_types):
+            for sys_idx, sys_str in enumerate(sys_str_types):
+                if human in mean_dict and env in mean_dict[human] and sys_str in mean_dict[human][env]:
+                    # skip WCO 
+                    # if human == 'HAdv':
+                    #     continue
+                    # Calculate bar position
+                    bar_position = group_positions[human_idx] + (env_idx * len(sys_str_types) + sys_idx) * bar_width
+                    
+                    # Plot the bar
+                    bar = ax.bar(bar_position, mean_dict[human][env][sys_str], 
+                                 width=bar_width, 
+                                 color=env_colors[env_idx], 
+                                 hatch=sys_hatches[sys_idx],
+                                 edgecolor='black',
+                                 linewidth=0.5)
+                    
+                    # Create legend handles (only once)
+                    if human_idx == 0:
+                        if sys_idx == 0:
+                            # Add environment to legend
+                            legend_handles_env.append(mpatches.Patch(
+                                color=env_colors[env_idx], 
+                                # label=f'Env: {LEGENDS_DICT[env]}'
+                                label=f'{LEGENDS_DICT[env]}'
+                            ))
+                        if env_idx == 0:
+                            # Add system strategy to legend
+                            legend_handles_sys.append(mpatches.Patch(
+                                # facecolor='lightgray' if sys_idx == 0 else 'lightgray',
+                                facecolor='white' if sys_idx == 0 else 'white',
+                                hatch=sys_hatches[sys_idx],
+                                edgecolor='black',
+                                # label=f'System: {sys_str}'
+                                label=f'{SYS_LABEL_DICT[sys_str]}'
+                            ))
+    
+    # Set x-tick positions and labels
+    ax.set_xticks(tick_positions)
+    ax.set_xticklabels([HUMAN_LABEL_DICT[_human] for _human in human_types])  ### all labels
+    # ax.set_xticklabels([HUMAN_LABEL_DICT[_human] for _human in human_types if _human != 'HAdv'])
+    
+    # Better labels and title
+    # ax.set_xlabel('Human Type (Increasing Difficulty →)', fontsize=24, labelpad=10)
+    ax.set_ylabel('Mean Payoff (Lower is better)', fontsize=24, labelpad=10)
+    # ax.set_title('Performance Deterioration Across Human Types and Environments', fontsize=14, pad=20)
+    
+    # Increase tick label font sizes, with xticks larger than yticks
+    ax.tick_params(axis='x', which='major', labelsize=20, pad=8)  # Larger x-tick labels
+    ax.tick_params(axis='y', which='major', labelsize=20)
+
+    # Add grid for better readability (only horizontal)
+    ax.grid(axis='y', linestyle='--', alpha=0.3)
+    ax.set_axisbelow(True)  # Put grid behind bars
+    
+    # Add minor ticks for y-axis for better readability
+    ax.yaxis.set_minor_locator(AutoMinorLocator())
+    
+    # Create a clearer legend with two parts
+    # First legend for environments
+    env_legend = ax.legend(handles=legend_handles_env, loc='upper left', 
+                           bbox_to_anchor=(0.01, 0.99),
+                        #    title='Environment Types',
+                        #    title_fontsize=20,
+                           fontsize=20)
+    # Add the first legend manually
+    ax.add_artist(env_legend)
+    # Second legend for system strategies, placed below the first one
+    ax.legend(handles=legend_handles_sys, loc='upper left', 
+              bbox_to_anchor=(0.12, 0.99),
+            #   title='System Strategies',
+            #   title_fontsize=20,
+              fontsize=20)
+    
+    # Add an annotation about performance deterioration
+    # mid_x = (tick_positions[0] + tick_positions[-1]) / 2
+    # arrow_y = ax.get_ylim()[1] * 0.8
+    # ax.annotate('Performance Deterioration', 
+    #             xy=(tick_positions[-1], arrow_y), xytext=(mid_x, arrow_y),
+    #             arrowprops=dict(facecolor='black', shrink=0.05, width=1.5, headwidth=8),
+    #             fontsize=12, ha='center')
+    
+    plt.tight_layout()
+    plt.savefig(PLOTS_DIR_WAIT + 'mean_cost_bar_chart_no_Hadv', dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close(fig)
+
+# def plot_mean_dict_2():
+def plot_mean_dict_2(mean_dict):
+    """
+    Plot the mean_dict dictionary with trend lines showing performance deterioration.
+    Each human type will be on the x-axis, and the y-axis will represent the mean costs.
+    Different markers will be used for different environments, and blue and red colors will be used to distinguish
+    between the two system strategies for the same environment and human type.
+    """
+    human_types = list(mean_dict.keys())
+    env_types = list(MINIGRID_NAME_ALIAS_DICT.values())
+    sys_str_types = list(SYS_ALIAS_DICT.values())
+
+    markers = ['o', '^', 's', 'D']  # Different markers for different environments
+    colors = ['blue', 'red']  # Blue and red colors for the two system strategies
+    
+    # Create a bigger figure for better readability
+    fig, ax = plt.subplots(figsize=(12, 8))
+    
+    # Track points for trend lines
+    trend_lines = {env: {sys_str: {'x': [], 'y': []} for sys_str in sys_str_types} for env in env_types}
+    
+    # Plot scatter points first
+    for env_idx, env in enumerate(env_types):
+        for sys_idx, sys_str in enumerate(sys_str_types):
+            for human_idx, human in enumerate(human_types):
+                if human in mean_dict and env in mean_dict[human] and sys_str in mean_dict[human][env]:
+                    # Store points for trend lines
+                    trend_lines[env][sys_str]['x'].append(human_idx)
+                    trend_lines[env][sys_str]['y'].append(mean_dict[human][env][sys_str])
+                    
+                    # Plot scatter point
+                    color = colors[sys_idx % 2]
+                    marker = markers[env_idx % len(markers)]
+                    label = f'{env} - {sys_str}' if human_idx == 0 else None  # Only add to legend once
+                    ax.scatter(human_idx, mean_dict[human][env][sys_str], color=color, marker=marker, s=80, label=label)
+    
+    # Now add trend lines for each environment and system strategy
+    for env_idx, env in enumerate(env_types):
+        for sys_idx, sys_str in enumerate(sys_str_types):
+            if trend_lines[env][sys_str]['x']:  # Check if we have points for this combination
+                color = colors[sys_idx % 2]
+                # Add trend line with lower opacity
+                ax.plot(trend_lines[env][sys_str]['x'], trend_lines[env][sys_str]['y'], 
+                        color=color, linestyle='--', alpha=0.4)
+    
+    # # Calculate and plot average trend lines
+    # for sys_idx, sys_str in enumerate(sys_str_types):
+    #     avg_y_by_human = []
+    #     for human_idx, human in enumerate(human_types):
+    #         values = []
+    #         for env in env_types:
+    #             if human in mean_dict and env in mean_dict[human] and sys_str in mean_dict[human][env]:
+    #                 values.append(mean_dict[human][env][sys_str])
+    #         if values:
+    #             avg_y_by_human.append(sum(values) / len(values))
+    #         else:
+    #             avg_y_by_human.append(None)
+        
+    #     # Filter out None values for plotting
+    #     valid_indices = [i for i, v in enumerate(avg_y_by_human) if v is not None]
+    #     valid_values = [avg_y_by_human[i] for i in valid_indices]
+        
+    #     if valid_indices:  # Only plot if we have valid values
+    #         color = colors[sys_idx % 2]
+    #         ax.plot(valid_indices, valid_values, color=color, linewidth=2.5, alpha=0.7,
+    #                 label=f'Avg. {sys_str} Trend')
+    
+    # Set x-tick positions and labels
+    ax.set_xticks(range(len(human_types)))
+    ax.set_xticklabels(human_types)
+    
+    # Better labels and title
+    ax.set_xlabel('Human Type (Increasing Difficulty →)', fontsize=12, labelpad=10)
+    ax.set_ylabel('Mean Cost (Higher = Worse Performance)', fontsize=12, labelpad=10)
+    ax.set_title('Performance Deterioration Across Human Types and Environments', fontsize=14, pad=20)
+    
+    # Add grid for better readability
+    ax.grid(axis='y', linestyle='--', alpha=0.3)
+    
+    # Create a better legend with grouped items
+    handles, labels = ax.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    ax.legend(by_label.values(), by_label.keys(), loc='upper left', 
+              bbox_to_anchor=(1.01, 1), title='System & Environment')
+    
+    # Annotate to emphasize performance deterioration
+    midpoint_x = len(human_types) // 2 - 0.5
+    min_y = min([min(trend_lines[env][sys_str]['y']) 
+                for env in env_types 
+                for sys_str in sys_str_types 
+                if trend_lines[env][sys_str]['y']], default=0)
+    
+    # # Add an arrow showing deterioration trend
+    # arrow_y = min_y * 1.2
+    # ax.annotate('Performance Deterioration', 
+    #             xy=(midpoint_x, arrow_y), xytext=(midpoint_x, arrow_y - 10),
+    #             arrowprops=dict(facecolor='black', shrink=0.05, width=1.5, headwidth=8),
+    #             fontsize=12, ha='center')
+    
+    # Add explanation for environment markers
+    for env_idx, env in enumerate(env_types):
+        marker = markers[env_idx % len(markers)]
+        ax.scatter([], [], color='gray', marker=marker, s=80, label=f'Env: {env}')
+    
+    plt.tight_layout()
+    plt.savefig(PLOTS_DIR_WAIT + 'mean_cost_dist', dpi=300, bbox_inches='tight')
+    plt.show()
+    plt.close(fig)
+
+
+def plot_mean_dict(mean_dict):
+    """
+    Plot the mean_dict dictionary with the specified requirements.
+    Each human type will be on the x-axis, and the y-axis will represent the mean costs.
+    Different markers will be used for different environments, and blue and red colors will be used to distinguish
+    between the two system strategies for the same environment and human type.
+    """
+    human_types = list(mean_dict.keys())
+    env_types = list(MINIGRID_NAME_ALIAS_DICT.values())
+    sys_str_types = list(SYS_ALIAS_DICT.values())
+
+    markers = ['o', 's', 'D', '^']  # Different markers for different environments
+    colors = ['blue', 'red']  # Blue and red colors for the two system strategies
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    for env_idx, env in enumerate(env_types):
+        for sys_idx, sys_str in enumerate(sys_str_types):
+            x = []
+            y = []
+            for human in human_types:
+                if human in mean_dict and env in mean_dict[human] and sys_str in mean_dict[human][env]:
+                    x.append(human)
+                    y.append(mean_dict[human][env][sys_str])
+                    color = colors[sys_idx % 2]
+                    marker = markers[env_idx % len(markers)]
+                    ax.scatter(human, mean_dict[human][env][sys_str], color=color, marker=marker, label=f'{env} - {sys_str}' if sys_idx == 0 else "")
+
+    ax.set_xlabel('Human Type')
+    ax.set_ylabel('Mean Cost')
+    ax.set_title('Mean Costs for Different Human Types and Environments')
+    ax.legend(loc='upper right', bbox_to_anchor=(1.15, 1))
+
+    # plt.xticks(rotation=45)
+    plt.tight_layout()
+    plt.show()
+    plt.savefig(PLOTS_DIR_WAIT + 'mean_cost_dist', dpi=300, bbox_inches='tight')
+    # plt.savefig(PLOTS_DIR + file_name, dpi=300, bbox_inches='tight')
+    plt.close(fig)
 
 
 def plot_box_plot(costs, file_name: str, labels: str = [], fig_title: str = '') -> None:
@@ -315,11 +638,27 @@ def plot_box_plot(costs, file_name: str, labels: str = [], fig_title: str = '') 
     plt.close(fig)
 
 
+def convert_defaultdict_to_dict(d):
+    """
+    Recursively convert a defaultdict to a regular dictionary.
+    """
+    if isinstance(d, defaultdict):
+        d = {k: convert_defaultdict_to_dict(v) for k, v in d.items()}
+    return d
+
+
 # Main execution
 if __name__ == "__main__":
     # Try plotting the box plot for fixed Minigrid Env and Human type
     # env = 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0'
     # valid_human_type = "epsilon-human"
+    MAX_COST_VAL = 51
+    mean_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    for htype in ENV_ALIAS_DICT.values():
+        for env_gridworld in VALID_MINIGRID_ENVS:
+            for stype in VALID_SYS_STR_TYP:
+                mean_dict[htype][MINIGRID_NAME_ALIAS_DICT.get(env_gridworld)][SYS_ALIAS_DICT[stype]] = MAX_COST_VAL
+    
     for env in VALID_MINIGRID_ENVS:
         # if env != 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0':
         #     continue
@@ -338,8 +677,9 @@ if __name__ == "__main__":
                     if DEBUG:
                         print("***************************************************************************************************")
                         print(f"{env} - {human} - {st}")
-                        print_stats(one_env_cost)
+                        stats_dict = print_stats(one_env_cost)
                         print("***************************************************************************************************")
+                        mean_dict[ENV_ALIAS_DICT.get(human)][MINIGRID_NAME_ALIAS_DICT.get(env)][SYS_ALIAS_DICT[st]] = float(stats_dict['mean'])
 
             if USE_ALIAS:
                 human = ENV_ALIAS_DICT.get(human)
@@ -353,9 +693,24 @@ if __name__ == "__main__":
                 else:
                     plot_box_plot(costs, file_name=fig_name, labels=VALID_SYS_TYPE + VALID_SYS_STR_TYP,  fig_title=env)
 
+    # for Adv huam env 
+    # dump the dictionary to a yaml file
+    # mean_dict = convert_defaultdict_to_dict(mean_dict)
+    # with open('mean_dict_gw_wait.yaml', 'w') as file:
+    #     yaml.dump(mean_dict, file)
+    
+    
+    # load yaml dictionary
+    # with open('mean_dict_gw_wait.yaml', 'r') as file: 
+    #     mean_dict = yaml.load(file, Loader=yaml.Loader) 
+
+    # plot_mean_dict(mean_dict)
+    # plot_mean_dict_2(mean_dict)
+    # plot_mean_dict_with_bars(mean_dict)
+
     #### TESTING plotting for single file
-    # file_name = "MiniGrid-IntruderRobotRAL25-v0_DFA_game_random-human_random-sys_120250307_155551.yaml"
-    # costs = extract_costs_from_yaml(file_name, get_game_stats=True, wait_gw=True)
+    # file_name = "MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0_DFA_game_coop-human_random-sys_120250309_051833.yaml"
+    # costs = extract_costs_from_yaml(file_name, get_game_stats=True, wait_gw=False)
     # plot_box_plot(np.array(costs), file_name='testing', labels=['Adm-Mem'], fig_title='4-Door')
     
     # Create visualization
