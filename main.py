@@ -154,7 +154,7 @@ def run_synthesis_and_rollout(strategy_type: str,
                               debug: bool = False,
                               epsilon: float = 0.1,
                               reg_factor: float = 1.25, 
-                              max_iterations: int = 100) -> Tuple[Strategy, RolloutProvider]:
+                              max_iterations: int = 100) -> Tuple[Strategy, Optional[RolloutProvider]]:
     """
     A helper function that compute all type of strategies from the set of valid strategies for all possible env (human) behaviors from the set of valid behaviors. 
     """
@@ -484,26 +484,31 @@ def minigrid_main(debug: bool = False,
         # use "coop-human" for cooperative human
         # use "mixed-human" for Adv. and Random Human
         else:
-            _, roller = run_synthesis_and_rollout(strategy_type=strategy_type,
-                                                #   strategy_type=VALID_STR_SYN_ALGOS[-2],
-                                                game=minigrid_handle.dfa_game,
-                                                #   human_type='manual',
-                                                human_type=human_type,
-                                                #   human_type ='epsilon-human',
-                                                #   human_type='random-human',
-                                                #    human_type ='coop-human',
-                                                #  human_type='mixed-human',
-                                                #  sys_type = 'random-sys',
-                                                rollout_flag=True,
-                                                epsilon=1,
-                                                debug=True,
-                                                max_iterations=max_iterations)
+            str_handle, roller = run_synthesis_and_rollout(strategy_type=strategy_type,
+                                                           #   strategy_type=VALID_STR_SYN_ALGOS[-2],
+                                                           game=minigrid_handle.dfa_game,
+                                                           #   human_type='manual',
+                                                           human_type=human_type,
+                                                           #   human_type ='epsilon-human',
+                                                           #   human_type='random-human',
+                                                           #    human_type ='coop-human',
+                                                           #  human_type='mixed-human',
+                                                           #  sys_type = 'random-sys',
+                                                           rollout_flag=True,
+                                                           epsilon=1,
+                                                           debug=True,
+                                                           max_iterations=max_iterations)
+        
+        minigrid_handle._logger._results.append(str_handle._logger.package_data())
+        minigrid_handle._logger._episode += 1
 
         # run the simulation if the render or record flag is true
         if render or record:
             system_actions, env_actions = minigrid_handle._action_parser(action_seq=roller.action_seq)
 
             minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
+    
+        minigrid_handle._logger.dump_results_to_yaml(file_path=ROOT_PATH + BENCHMARK_DIR + "/comp_time", add_time_stamp=True)
         
 
     # _dump_strs = input("Do you want to save the rollout of the strategy,Enter: Y/y")

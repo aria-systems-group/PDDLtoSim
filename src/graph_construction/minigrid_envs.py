@@ -243,7 +243,7 @@ class ModifyIntruderRobotGame:
                                         save_flag=True,
                                         sc_ltl='',
                                         use_alias=False,
-                                        plot=True)
+                                        plot=False)
 
             # book keeping - add this to the door_ts dict
             door_ts_dict[door] = door_ts
