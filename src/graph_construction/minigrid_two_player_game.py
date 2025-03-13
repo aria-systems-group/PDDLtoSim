@@ -89,6 +89,13 @@ class NonDeterministicMiniGrid():
             self._results = []
             self._episode = 0
         
+
+        def log(self, comp_time: dict, abs_dict: dict):
+            """
+             This method appends the computation results along with abstraction construciton results.
+            """
+            self._results.append({'abs_dict': abs_dict, 'comp_time': comp_time})
+        
         def dump_results_to_yaml(self, file_path: str, add_time_stamp: bool = True):
             """
             Dump the _results list to a YAML file.

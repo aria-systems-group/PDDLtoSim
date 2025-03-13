@@ -12,6 +12,7 @@ from src.rollout_str.rollout_provider_if import RolloutProvider
 
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
 from regret_synthesis_toolbox.src.strategy_synthesis.safety_game import SafetyGame
+from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import PermissiveCoopValueIteration 
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
 
@@ -269,7 +270,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         super().__init__(game, strategy_handle, debug, max_steps, logger)
         self.sys_opt_coop_str: Optional[dict] =  self.strategy_handle.coop_optimal_sys_str
         self.env_coop_str: Optional[dict] = self.strategy_handle.env_coop_winning_str
-        self.env_safeadm_coop_str: Optional[dict] = self.strategy_handle.safety_game
+        self.env_safeadm_coop_str: Optional[dict] = self.strategy_handle.safeadm_game
         self.coop_state_values:  Dict[str, float] = self.strategy_handle.coop_winning_state_values
         self.winning_region: set = self.strategy_handle.winning_region
         self.losing_region: set = self.strategy_handle.losing_region
@@ -314,9 +315,9 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
         self._env_coop_str = str_dict
     
     @env_safeadm_coop_str.setter
-    def env_safeadm_coop_str(self, safety_game: Optional[SafetyGame]):
-        if safety_game is not None:
-            self._env_safeadm_coop_str = safety_game.env_str_dict
+    def env_safeadm_coop_str(self, safeadm_game: Optional[PermissiveCoopValueIteration]):
+        if safeadm_game is not None:
+            self._env_safeadm_coop_str = safeadm_game.env_str_dict
         else:
             self._env_safeadm_coop_str = {}
     
