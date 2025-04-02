@@ -1,9 +1,11 @@
 import os
 import sys
-import time
 import gym
+import time
 import pprint
 import warnings
+
+import yaml
 import numpy as np
 
 from pathlib import Path
@@ -76,6 +78,41 @@ class NonDeterministicMiniGrid():
         # env snaprshot related attributes
         self.env_snap_format = env_snap_format
         self.env_dpi = env_dpi
+        self._logger = self.AdmLogger()
+    
+
+    class AdmLogger():
+        def __init__(self):
+            self.reset()
+
+        def reset(self):
+            self._results = []
+            self._episode = 0
+        
+
+        def log(self, comp_time: dict, abs_dict: dict):
+            """
+             This method appends the computation results along with abstraction construciton results.
+            """
+            self._results.append({'abs_dict': abs_dict, 'comp_time': comp_time})
+        
+        def dump_results_to_yaml(self, file_path: str, add_time_stamp: bool = True):
+            """
+            Dump the _results list to a YAML file.
+
+            :param file_path: The path to the YAML file.
+            """
+            if add_time_stamp:
+                import datetime
+                now = datetime.datetime.now()
+                timestamp: str = now.strftime("%Y%m%d_%H%M%S")
+                file_path += f"_{timestamp}.yaml"
+            else:
+                file_path += ".yaml"
+            tmp_dict = {f'Run {run}': run_data for run, run_data in enumerate(self._results)}
+            with open(file_path, 'w') as file:
+                yaml.dump(tmp_dict, file, default_flow_style=False)
+
     
 
     @property
@@ -361,7 +398,7 @@ class NonDeterministicMiniGrid():
                                              config_yaml=config_yaml,
                                              from_file=False,
                                              minigrid=self.minigrid_env,
-                                             minigrid_wait=False,
+                                             minigrid_wait=True,
                                              save_flag=self.save_flag,
                                              plot=self.plot_minigrid,
                                              view=False,
@@ -475,7 +512,7 @@ class NonDeterministicMiniGrid():
                 act_tuple = tuple(sys_action.split('_'))
                 system_actions.append(act_tuple)
             
-            elif act.split('__')[0] == 'None':    
+            elif act.split('__')[0] == 'None':
             # elif itr % 2 != 0:
                 # assert act.split('__')[0] == 'None', "Error when rolling out strategy"
                 # action edge is of type None__South_South

@@ -27,8 +27,13 @@ Primarily, we use this code to
 git clone --recurse-submodules https://github.com/aria-systems-group/PDDLtoSim.git .
  ```
 
-The `--recurse-submodule` will automatically initialize and update each submodule in the repository.
+My Repositiory depends on multiple submodules and each branch possibly has different submodule version in it.  The `--recurse-submodule` will automatically initialize and update each submodule in the repository. However, this command will **only** update all submodules (including nested ones) to the commit that's referenced by **the current branch** of the parent repository. If you want to automate this process, use the `--recurse-submodules=on-demand` option with `git checkout`, like this:
 
+```bash
+git checkout --recurse-submodules=on-demand branch-name
+```
+
+This will automatically update the submodules when switching branches.
 
 ## Docker Installation - Creating an Image and Spinning a Container
 

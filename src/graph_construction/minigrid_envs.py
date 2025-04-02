@@ -243,7 +243,7 @@ class ModifyIntruderRobotGame:
                                         save_flag=True,
                                         sc_ltl='',
                                         use_alias=False,
-                                        plot=True)
+                                        plot=False)
 
             # book keeping - add this to the door_ts dict
             door_ts_dict[door] = door_ts
@@ -773,7 +773,7 @@ class IntruderRobotRAL25(MultiAgentMiniGridEnv):
         # plot door - experimental
         if self.plot_doors:
             for door, door_pos in self.door_dict.items():
-                self.put_obj(Floor(color='pink'), *door_pos)
+                self.put_obj(Door(color='green'), *door_pos)
 
         # Place the agent
         p = self.agent_start_pos
@@ -911,7 +911,7 @@ class ThreeDoorIntruderRobotRAL25(MultiAgentMiniGridEnv):
                     name=f'EnvAgent{i+1}',
                     view_size=self.view_size,
                     color='darkblue',
-                    restricted_objs=['floor'],
+                    # restricted_objs=['floor'],
                     # restricted_objs=['lava', 'water'],
                     restricted_positions=self.goal_pos
                     ),
