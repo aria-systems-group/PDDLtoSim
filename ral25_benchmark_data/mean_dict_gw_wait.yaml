@@ -1,0 +1,52 @@
+HCoop:
+  1-Door:
+    Adm-Memless: 19.0
+    Ours: 19.0
+  3-Door:
+    Adm-Memless: 22.0
+    Ours: 22.0
+  4-Door - CPLX:
+    Adm-Memless: 22.0
+    Ours: 22.0
+  IJCAI25-Lava:
+    Adm-Memless: 5.0
+    Ours: 6.0
+Hrnd:
+  1-Door:
+    Adm-Memless: 37.77560975609756
+    Ours: 36.36150234741784
+  3-Door:
+    Adm-Memless: 35.810526315789474
+    Ours: 35.86986301369863
+  4-Door - CPLX:
+    Adm-Memless: 38.18852459016394
+    Ours: 37.59130434782609
+  IJCAI25-Lava:
+    Adm-Memless: 11.829174664107486
+    Ours: 11.412926391382406
+HAdv_Rnd:
+  1-Door:
+    Adm-Memless: 37.76
+    Ours: 37.86780383795309
+  3-Door:
+    Adm-Memless: 36.136882129277566
+    Ours: 38.596119929453266
+  4-Door - CPLX:
+    Adm-Memless: 37.8412017167382
+    Ours: 39.57035175879397
+  IJCAI25-Lava:
+    Adm-Memless: 9.047619047619047
+    Ours: 13.750501002004007
+HAdv:
+  1-Door:
+    Adm-Memless: 51
+    Ours: 51
+  3-Door:
+    Adm-Memless: 51
+    Ours: 51
+  4-Door - CPLX:
+    Adm-Memless: 51
+    Ours: 51
+  IJCAI25-Lava:
+    Adm-Memless: 51
+    Ours: 51
