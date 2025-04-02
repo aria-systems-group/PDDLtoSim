@@ -1,22 +1,27 @@
 import os
 import copy
+import math
 import difflib
 import warnings
 
 import yaml
 import numpy as np
 
-import matplotlib.pyplot as plt
-
 from abc import ABC
-from matplotlib.figure import Figure
-from typing import List, Dict, Union
+from typing import List, Dict, Union, Optional, Tuple
 from collections import defaultdict
+
+import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+
+from matplotlib.figure import Figure
+from matplotlib.ticker import AutoMinorLocator
 
 
 VALID_MINIGRID_ENVS = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', \
-                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
-                        # 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0-NOT_CPLX']
+                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0',
+                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0_NOT_CPLX',]
+                        #  'Manipulator_RAL25']
 VALID_SYS_STR_TYP = ["QuantiativeRefinedAdmissible", "QuantitativeAdmMemorless"]
 VALID_HUMAN_TYPE = ['epsilon-human', 'random-human', 'coop-human', 'mixed-human']
 VALID_SYS_TYPE = ['random-sys']
@@ -29,12 +34,13 @@ PLOTS_DIR_WAIT = ROOT_PATH + "/plots/with_waiting/"
 CWD_DIRECTORY  = os.path.dirname(os.path.abspath(__file__)) # get current working directory
 FILES = os.listdir(ROOT_PATH) # List all files in the directory
 FILES_WAIT = os.listdir(ROOT_PATH + "/wait_gw_fixed") # List all files in the WAIT directory
+FILES_SYNTH_WAIT = os.listdir(ROOT_PATH + "/construction_and_synthesis_data") # List all files in the WAIT directory
 
-SYS_ALIAS_DICT = {'random-sys': 'rnd',
-                  'QuantiativeRefinedAdmissible': 'Ours',
-                  'QuantitativeAdmMemorless': 'Adm-Memless'}
-# SYS_ALIAS_DICT = {'QuantiativeRefinedAdmissible': 'Ours',
+# SYS_ALIAS_DICT = {'random-sys': 'rnd',
+#                   'QuantiativeRefinedAdmissible': 'Ours',
 #                   'QuantitativeAdmMemorless': 'Adm-Memless'}
+SYS_ALIAS_DICT = {'QuantiativeRefinedAdmissible': 'Ours',
+                  'QuantitativeAdmMemorless': 'Adm-Memless'}
 
 
 ENV_ALIAS_DICT = {VALID_HUMAN_TYPE[2]: 'HCoop',
@@ -46,15 +52,16 @@ ENV_ALIAS_DICT = {VALID_HUMAN_TYPE[2]: 'HCoop',
 MINIGRID_NAME_ALIAS_DICT = {VALID_MINIGRID_ENVS[0]: 'IJCAI25-Lava',
                             VALID_MINIGRID_ENVS[1]: '1-Door',
                             VALID_MINIGRID_ENVS[2]: '3-Door',
+                            VALID_MINIGRID_ENVS[4]: '4-Door - NOT CPLX', 
                             VALID_MINIGRID_ENVS[3]: '4-Door - CPLX',
-                            # VALID_MINIGRID_ENVS[4]: '4-Door - NOT CPLX', 
+                            # VALID_MINIGRID_ENVS[5]: 'Manipulator', 
                             }
 
 MAX_COST_VAL = 51
 
 USE_ALIAS: bool = True
 
-DEBUG: bool = False
+DEBUG: bool = True
 
 
 # Abstract Base Class for Plotting
@@ -74,6 +81,81 @@ class BasePlotter(ABC):
         """
         plt_handle.savefig(file_name, dpi=300, bbox_inches='tight')
         plt_handle.close(fig)
+
+
+class StackedBarPlotter(BasePlotter):
+    def __init__(self, data):
+        super().__init__(data)
+    
+
+    def plot(self, file_name: str, labels: str = [], fig_title: str = ''):
+        """
+        Create stacked bar plots, one for each environment, showing the contribution
+        of different human types to the total cost.
+        """
+        
+        env_types = list(MINIGRID_NAME_ALIAS_DICT.values())
+        # sys_str = list(SYS_ALIAS_DICT.values())[0]  # Only use the first system strategy
+        
+        # Create figure
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Width of each bar
+        bar_width = 0.6
+        
+        # Calculate positions for bars
+        positions = np.arange(len(env_types))
+        
+        # Calculate total value for each environment
+        env_values = []
+        
+        for env_idx, env in enumerate(env_types):
+            total = 0
+            # for human in mean_dict:
+            #     if env in mean_dict[human] and sys_str in mean_dict[human][env]:
+            #         total += mean_dict[human][env][sys_str]
+            for synth_times in self.data[env]:
+                # if env in mean_dict[human] and sys_str in mean_dict[human][env]:
+                # total += mean_dict[human][env][sys_str]
+                env_values.append(synth_times)
+        
+        # Plot bars
+        bars = ax.bar(positions, env_values, width=bar_width, 
+                    color='steelblue', edgecolor='black', linewidth=0.5)
+        
+        # # Add value labels on top of bars
+        # for i, v in enumerate(env_values):
+        #     ax.text(positions[i], v + 0.5, f'{v:.1f}', 
+        #         ha='center', va='bottom', fontsize=12, fontweight='bold')
+        
+        # Set x-tick positions and labels
+        ax.set_xticks(positions)
+        ax.set_xticklabels([f'Environment {i+1}' for i in range(len(env_types))])
+        
+        # Increase font size for axis labels
+        ax.set_xlabel('Environment Type', fontsize=16, labelpad=10)
+        ax.set_ylabel('Total Cost', fontsize=16, labelpad=10)
+        ax.set_title('Total Cost by Environment', fontsize=16, pad=20)
+        
+        # Increase tick label font sizes
+        ax.tick_params(axis='x', which='major', labelsize=14, pad=8)
+        ax.tick_params(axis='y', which='major', labelsize=12)
+        
+        # Add grid for better readability (only horizontal)
+        ax.grid(axis='y', linestyle='--', alpha=0.3)
+        ax.set_axisbelow(True)  # Put grid behind bars
+        
+        # Add minor ticks for y-axis for better readability
+        ax.yaxis.set_minor_locator(AutoMinorLocator())
+        
+        plt.tight_layout()
+        plt.savefig(PLOTS_DIR_WAIT + 'cost_by_env', dpi=300, bbox_inches='tight')
+        plt.show()
+        plt.close(fig)
+        # plt.show(block=True)
+        if fig_title != '':
+            plt.title(fig_title)
+        self.save_plot(PLOTS_DIR + file_name, plt_handle=plt, fig=fig)
 
 
 class BoxPlotter(BasePlotter):
@@ -98,7 +180,6 @@ class BoxPlotter(BasePlotter):
         
         # add # of samples on top of each box plot
         ax.set_ylim([0, MAX_COST_VAL + 4])
-        # range(len(self.data))
         upper_labels = [len(data) for data in self.data]
         pos = np.arange(num_boxes)
         for tick, label in zip(range(num_boxes), ax.get_xticklabels()):
@@ -321,7 +402,7 @@ def find_closest_file(minigrid_env, sys_type, valid_human_type, sys_str_type, wa
     # target file_name patter - game._graph.name + "_" + strategy_type + "_" + human_type + "_" + sys_type + "_" + str(epsilon) + timestamp + ".yaml"
     name: str = copy.copy(minigrid_env)
     if 'NOT_CPLX' in name:
-        name = name.replace('-NOT_CPLX', '')
+        name = name.replace('NOT_CPLX', '')
         minigrid_game = f"{name}_DFA_GAME_NOT_CPLX"
     else:
         minigrid_game = f"{name}_DFA_GAME"
@@ -355,14 +436,28 @@ def convert_defaultdict_to_dict(d):
 def print_stats(costs: List[int]) -> Dict[str, Union[int, float]]:
     # Display statistics in the console
     cost_array = np.array(costs)
+    # stats_dict = {
+    #     "data": costs,
+    #     "runs": len(costs),
+    #     "mean": np.mean(cost_array),
+    #     "median": np.median(cost_array),
+    #     "min": min(costs),
+    #     "max": max(costs),
+    #     "q1": np.percentile(cost_array, 25),
+    #     "q3": np.percentile(cost_array, 75),
+    #     "freq_51": list(costs).count(51),
+    #     "pct_51": (list(costs).count(51) / len(costs)) * 100
+    # }
+
     stats_dict = {
+        "data": costs,
         "runs": len(costs),
-        "mean": np.mean(cost_array),
-        "median": np.median(cost_array),
-        "min": min(costs),
-        "max": max(costs),
-        "q1": np.percentile(cost_array, 25),
-        "q3": np.percentile(cost_array, 75),
+        "mean": float(np.mean(cost_array)),
+        "median": float(np.median(cost_array)),
+        "min": float(min(costs)),
+        "max": float(max(costs)),
+        "q1": float(np.percentile(cost_array, 25)),
+        "q3": float(np.percentile(cost_array, 75)),
         "freq_51": list(costs).count(51),
         "pct_51": (list(costs).count(51) / len(costs)) * 100
     }
@@ -380,6 +475,100 @@ def print_stats(costs: List[int]) -> Dict[str, Union[int, float]]:
     return stats_dict
 
 
+def get_stats_synth_times(data: Dict[str, Optional[float]]) -> Tuple[Dict[str, float], Dict[str, float]]:
+    # Initialize dictionaries to store values
+    comp_time_values = {
+        'coop_time': [],
+        'hopeadm_time': [],
+        'safe_coop_time': [],
+        'safeadm_time': [],
+        'safety_time': [],
+        'wco_time': [],
+        'wcoop_time': []
+    }
+
+    abs_dict_values = {
+        '2p_game_constr_time': [],
+        'DFA_game_constr_time': [],
+        'DFA_game_edges': [],
+        'DFA_game_nodes': []
+    }
+
+    # Extract values from the data
+    for _, run_data in data.items():
+        # Extract comp_time values
+        for key in comp_time_values.keys():
+            value = run_data['comp_time'][key]
+            if value is not None:  # Skip None values
+                comp_time_values[key].append(value)
+        
+        # Extract abs_dict values
+        for key in abs_dict_values.keys():
+            abs_dict_values[key].append(run_data['abs_dict'][key])
+
+    # Calculate means
+    comp_time_means: Dict[str, float] = {key: np.mean(values) if values else None for key, values in comp_time_values.items()}
+    abs_dict_means: Dict[str, float] = {key: np.mean(values) for key, values in abs_dict_values.items()}
+
+    total_synthesis_time: float = comp_time_means['coop_time'] +  comp_time_means['wco_time'] +  comp_time_means['wcoop_time'] + comp_time_means['safeadm_time']
+    total_abs_time: float = abs_dict_means['DFA_game_constr_time']
+
+    if comp_time_means.get('hopeadm_time') is not None:
+        total_synthesis_time += comp_time_means['hopeadm_time']
+
+    print(f"\nMean values for Total synthesis times: {total_synthesis_time:.2f} s")
+
+    percentage_coop = (comp_time_means['coop_time'] / total_synthesis_time) * 100
+    percentage_wco = (comp_time_means['wco_time'] / total_synthesis_time) * 100
+    percentage_wcoop = (comp_time_means['wcoop_time'] / total_synthesis_time) * 100
+    percentage_safeadm = (comp_time_means['safeadm_time'] / total_synthesis_time) * 100
+        
+
+    percentage_safe_coop = (comp_time_means['safe_coop_time']/comp_time_means['safeadm_time']) * 100
+    percentage_safety = (comp_time_means['safety_time']/comp_time_means['safeadm_time']) * 100
+
+    percentage_game_time = (abs_dict_means['2p_game_constr_time']/total_abs_time) * 100
+    # percentage_daf_game_time = (abs_dict_means['safety_time']/total_abs_time) * 100
+
+    comp_time_percentage = {"percentage_coop": percentage_coop,
+                            "percentage_wco": percentage_wco,
+                            "percentage_wcoop": percentage_wcoop,
+                            "percentage_safeadm": percentage_safeadm}
+
+    if comp_time_means['hopeadm_time']:
+        percentage_hopeadm = (comp_time_means['hopeadm_time'] / total_synthesis_time) * 100
+        comp_time_percentage["percentage_hopeadm"] = percentage_hopeadm
+
+    
+
+    safeadm_comp_time_percentage = {"percentage_safety": percentage_safety,
+                                    "percentage_safe_coop": percentage_safe_coop}
+    
+    abs_constr_time_percentage = {"percentage_game": percentage_game_time}
+
+
+    print("\nPercentages of total synthesis time:")
+    print(f"  coop_time: {percentage_coop:.2f}%")
+    print(f"  wco_time: {percentage_wco:.2f}%")
+    print(f"  wcoop_time: {percentage_wcoop:.2f}%")
+    print(f"  safeadm_time: {percentage_safeadm:.2f}%")
+
+    if comp_time_percentage.get("percentage_hopeadm") is not None:
+        print(f"  hopeadm_time: {percentage_hopeadm:.2f}%")
+
+    print("\nPercentages of Safe Adm synthesis time: ")
+    print(f" Safety Game time: {percentage_safety:.2f}%")
+    print(f"  Safe Coop Game time: {percentage_safe_coop:.2f}%")
+
+    # print("\nAbs. Size and Construction time: ")
+    # print(f" DFA Game Nodes {int(abs_dict_means['DFA_game_nodes'])}")
+    # print(f" DFA Game Edges {int(abs_dict_means['DFA_game_edges'])}")
+    # print(f" Game time: {abs_dict_means['2p_game_constr_time']:.2f} s")
+    # print(f" DFA Game time: {abs_dict_means['DFA_game_constr_time']:.2f} s")
+    
+    return comp_time_percentage, safeadm_comp_time_percentage
+
+
 
 
 def plot_mean_dict_with_bars(mean_dict):
@@ -392,8 +581,7 @@ def plot_mean_dict_with_bars(mean_dict):
     
     # import numpy as np
     # import matplotlib.pyplot as plt
-    import matplotlib.patches as mpatches
-    from matplotlib.ticker import AutoMinorLocator
+    
 
     # Enable TeX rendering
     plt.rcParams['text.usetex'] = False
@@ -403,8 +591,8 @@ def plot_mean_dict_with_bars(mean_dict):
     LEGENDS_DICT = {'IJCAI25-Lava': r'$\mathbb{E}_1$',
                     '1-Door': r'$\mathbb{E}_2$',
                     '3-Door': r'$\mathbb{E}_3$',
-                    '4-Door - CPLX': r'$\mathbb{E}_4$',
-                    '4-Door - NOT CPLX': r'$\mathbb{E}_5$'
+                    '4-Door - NOT CPLX': r'$\mathbb{E}_4$',
+                    '4-Door - CPLX': r'$\mathbb{E}_5$'
                     }
     
     HUMAN_LABEL_DICT = {'HCoop': r'$\mathbf{Co-Op}$',
@@ -427,12 +615,14 @@ def plot_mean_dict_with_bars(mean_dict):
     # sys_str_types = [s for s in list(SYS_ALIAS_DICT.values()) if s not in skip_sys_types]
     
     # Colors for different environments (using a color-blind friendly palette)
-    env_colors = ['#4daf4a', '#377eb8', '#ff7f00', '#984ea3']
+    # env_colors = ['#4daf4a', '#377eb8', '#ff7f00', '#984ea3']
+    env_colors = ['#4daf4a', '#377eb8', '#ff7f00', '#984ea3', '#e41a1c']
     
     # Hatching patterns for different system strategies
     sys_hatches = ['', '///']
     
     fig, ax = plt.subplots(figsize=(14, 8))
+    # fig, ax = plt.subplots(figsize=(14, 14))
     
     # Width of each bar
     bar_width = 0.09
@@ -528,7 +718,7 @@ def plot_mean_dict_with_bars(mean_dict):
     
     
     plt.tight_layout()
-    plt.savefig(PLOTS_DIR_WAIT + 'mean_cost_bar_chart_no_Hadv', dpi=300, bbox_inches='tight')
+    plt.savefig(PLOTS_DIR_WAIT + 'mean_cost_bar_chart_no_Hadv_all_five', dpi=300, bbox_inches='tight')
     plt.show()
     plt.close(fig)
 
