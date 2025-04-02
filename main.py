@@ -179,7 +179,7 @@ def run_synthesis_and_rollout(strategy_type: str,
         for _ in range(NUM_OF_TRAILS):
             roller: Type[RolloutProvider] = rollout_strategy(strategy=str_handle,
                                                             game=game,
-                                                            debug=False,
+                                                            debug=True,
                                                             human_type=human_type,
                                                             logger=simulator,
                                                             sys_type=sys_type,
@@ -427,9 +427,9 @@ def minigrid_main(debug: bool = False,
     # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
-    nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
+    # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
     # nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
-    # nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
+    nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
     # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     # start = time.time()
     
@@ -450,13 +450,13 @@ def minigrid_main(debug: bool = False,
             # now construct the abstraction, the dfa and take the product
             start = time.time()
             if id in ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', 'MiniGrid-IntruderRobotRAL25-v0']:
-                minigrid_handle.build_minigrid_game(env_snap=False,
+                minigrid_handle.build_minigrid_game(env_snap=True,
                                                     only_augment_obs=False,
                                                     modify_intruder_game=True,
                                                     config_yaml_dict=OrderedDict(door_dict[id]))
             else:
                 minigrid_handle.build_minigrid_game(env_snap=False, get_aps=False)
-            # sys.exit(-1)
+            sys.exit(-1)
             stop = time.time()
             abs_dict['2p_game_constr_time'] = stop - start 
             minigrid_handle.get_aps(print_flag=True)
@@ -475,11 +475,15 @@ def minigrid_main(debug: bool = False,
             stop = time.time()
             abs_dict['DFA_game_constr_time'] = stop - start 
             print(f"Done Constrcuting the DFA Game: {stop-start:0.2f} seconds")
+            print(f"No. of nodes in the Game graph is :{len(minigrid_handle._two_player_trans_sys._graph.nodes())}")
+            print(f"No. of edges in the Game graph is :{len(minigrid_handle._two_player_trans_sys._graph.edges())}")
             print(f"No. of nodes in the product graph is :{len(minigrid_handle.dfa_game._graph.nodes())}")
             print(f"No. of edges in the product graph is :{len(minigrid_handle.dfa_game._graph.edges())}")
+            print(f"No. of nodes in the DFA is :{len(minigrid_handle._dfa._graph.nodes())}")
+            print(f"No. of edges in the DFA is :{len(minigrid_handle._dfa._graph.edges())}")
             abs_dict['DFA_game_nodes'] = len(minigrid_handle.dfa_game._graph.nodes())
             abs_dict['DFA_game_edges'] = len(minigrid_handle.dfa_game._graph.edges())
-        
+            sys.exit(-1)
             # run all synthesins and rollout algorithms0
             if test_all_str:
                 run_all_synthesis_and_rollouts(game=minigrid_handle.dfa_game,
@@ -651,7 +655,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
     # sys.exit(-1)
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_SAFE_ADM_TEST_2,  plot=True)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=True)
+    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=False)
     # sys.exit(-1)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
@@ -676,10 +680,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-1],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
                                               game=product_graph,
-                                            #   human_type='random-human',
-                                              human_type='manual',
+                                              human_type='coop-human',
+                                            #   human_type='manual',
                                               rollout_flag=rollout_flag,
                                               debug=True,
                                               max_iterations=100,
@@ -811,7 +815,7 @@ if __name__ == "__main__":
         #                       human_type=args.human_type,
         #                       strategy_type=args.strategy_type,
         #                       env_type=args.env_type)
-        construct_abstraction(abstraction_instance='minigrid',
+        construct_abstraction(abstraction_instance='daig-main',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,

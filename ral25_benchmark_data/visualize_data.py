@@ -201,7 +201,7 @@ class BoxPlotter(BasePlotter):
         # plt.show(block=True)
         if fig_title != '':
             plt.title(fig_title)
-        self.save_plot(PLOTS_DIR + file_name, plt_handle=plt, fig=fig)
+        self.save_plot(PLOTS_DIR_WAIT + file_name, plt_handle=plt, fig=fig)
         # plt.savefig(PLOTS_DIR_WAIT + file_name, dpi=300, bbox_inches='tight')
         # plt.savefig(PLOTS_DIR + file_name, dpi=300, bbox_inches='tight')
         # plt.close(fig)
@@ -297,6 +297,181 @@ class BoxPlotter(BasePlotter):
         
         # return plt.gcf()
     
+
+    def plot_mean_dict_with_bars_for_specific_human(self, stats_dict, file_name: str, labels: str = [], fig_title: str = '') -> None:
+        """
+        Plot box plot for a specific human type (HAdv_Rnd by default) for various Envs.
+        All environments are plotted on one canvas with color intensity representing sample counts.
+        """
+        import matplotlib.colors as mcolors
+
+        # Enable TeX rendering
+        plt.rcParams['text.usetex'] = False
+        plt.rcParams['mathtext.default'] = 'regular'
+        meanprpos = {'marker': 'D',          # Diamond marker
+                    'markerfacecolor': 'red',  # Red fill
+                    'markeredgecolor': 'black', # Black outline
+                    'markersize': 6}
+
+        # setting up things
+        skip_human_types = ['HAdv', 'HCoop', 'Hrnd']  # e.g., ['HAdv'] to skip the HAdv human type
+        human_types = [h for h in list(stats_dict.keys()) if h not in skip_human_types]
+
+        # human_types = list(stats_dict.keys())
+        env_types = list(MINIGRID_NAME_ALIAS_DICT.values())
+        sys_str_types = ['Ours', 'Adm-Memless']
+
+        fig, ax = plt.subplots()
+        ax.set_ylabel('Payoff', fontsize=16, labelpad=10)
+        self.data = []
+        
+        sample_counts = []
+        labels = []
+        min_count = math.inf
+        max_count = 0
+        for human_idx, human in enumerate(human_types):
+            for env_idx, env in enumerate(env_types):
+                for sys_idx, sys_str in enumerate(sys_str_types):
+                    if human in stats_dict and env in stats_dict[human] and sys_str in stats_dict[human][env]:
+                        if stats_dict[human][env][sys_str] is not None:
+                            self.data.append(stats_dict[human][env][sys_str]['data'])
+                            labels.append(sys_str)
+                            sample_counts.append(len(stats_dict[human][env][sys_str]['data']))
+        
+        num_boxes: int = len(self.data)
+        bplot = plt.boxplot(positions=list(range(num_boxes)),
+                            labels=labels,     ### Overide the labels with the Env labels later.
+                            x=[np.array(cost) for cost in self.data],
+                            showmeans=True,
+                            meanprops=meanprpos,
+                            patch_artist=True, 
+                            showfliers=False)
+
+        # Create a color normalization
+        min_count = min(sample_counts)
+        max_count = max(sample_counts)
+        norm = mcolors.Normalize(vmin=min_count, vmax=max_count)
+
+        # Create a colormap - using a sequential colormap
+        cmap = plt.cm.viridis  # You can try other colormaps like 'plasma', 'inferno', 'magma', etc.
+        # cmap = plt.cm.Greys  # Using the Greys colormap for grayscale
+        # cmap = plt.cm.Greys_r  # Using the Inverted Greys colormap for grayscale
+        # cmap = plt.cm.coolwarm
+        
+        # Add sample counts on top of each box plot
+        ax.set_ylim([0, MAX_COST_VAL + 4])
+        pos = np.arange(num_boxes)
+        for tick, count in zip(range(num_boxes), sample_counts):
+            ax.text(pos[tick], 0.95, count,
+                    transform=ax.get_xaxis_transform(),
+                    horizontalalignment='center', size='small')
+
+        
+        # set markcolor to red
+        # for box_mean in bplot['means']:
+        #     # box_mean._set_markercolor('red')
+        #     box_mean._color = 'red'
+
+        # Fill with heat map colors based on sample count
+        for i, (patch, count) in enumerate(zip(bplot['boxes'], sample_counts)):
+            color = cmap(norm(count))
+            patch.set_facecolor(color)
+
+            if i % 2 == 0:
+                line_style = '-'  # solid line
+            else:
+                line_style = '--'  # dashed line
+            
+            patch.set_linestyle(line_style)
+            
+            # Also color the median, whiskers, caps, and fliers to match
+            # ['medians', 'whiskers', 'caps', 'fliers'] - Org list
+            for element in ['medians', 'whiskers', 'caps']:
+                if element == 'whiskers' or element == 'caps':
+                    # These elements come in pairs
+                    # bplot[element][i*2].set_color(color)
+                    # bplot[element][i*2+1].set_color(color) 
+                    bplot[element][i*2].set_color('black')
+                    bplot[element][i*2+1].set_color('black')
+                    bplot[element][i*2].set_linestyle(line_style)
+                    bplot[element][i*2+1].set_linestyle(line_style)
+                elif element in bplot:
+                    bplot[element][i].set_color('black')  # Keep median line black for contrast
+                    
+                    if element == 'fliers':  # Make outlier points darker for visibility
+                        bplot[element][i].set_markerfacecolor('black')
+                        bplot[element][i].set_markeredgecolor('black')
+        
+        custom_labels = [r'$\mathbb{E}_1$', r'$\mathbb{E}_2$', r'$\mathbb{E}_3$', r'$\mathbb{E}_4$', r'$\mathbb{E}_5$']
+        # Calculate positions for the 5 labels (positioned between pairs of boxes)
+        if num_boxes > 1:
+            # step = (num_boxes - 1) / 4  # To get 5 positions across the range
+            # label_positions = [i * step for i in range(5)]
+            label_positions = [0.5, 2.5, 4.5, 6.5, 8.5]
+            
+            # Set custom tick positions and labels
+            ax.set_xticks(label_positions)
+            ax.set_xticklabels(custom_labels)
+            
+            # Add minor ticks where the actual boxes are to help with alignment
+            # ax.set_xticks(range(num_boxes), minor=True)
+            
+            # Add vertical grid lines at the label positions if desired
+            for pos in label_positions[:-1]:
+                ax.axvline(x=pos + 1, color='gray', linestyle=':', alpha=1)
+        else:
+            # If there's only one box, just put the label there
+            ax.set_xticks([0])
+            ax.set_xticklabels([custom_labels[0]])
+
+        ax.tick_params(axis='x', which='major', labelsize=12, pad=8)  # Larger x-tick labels
+        ax.tick_params(axis='y', which='major', labelsize=12)
+
+
+        # Add a colorbar to show the sample count scale
+        sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax)
+        cbar.set_label(r'$|\it{win}|$', fontsize=16)
+
+        ax.grid(True, linestyle='--', alpha=0.7, axis='y')  # Only y-axis grid lines
+        # Set the grid to appear behind the plot elements
+        ax.set_axisbelow(True)
+
+        # add a legend on the bottom right
+        legend_handles = []
+        line_style = ['-', '--']
+        for sys_idx, sys_str in enumerate(sys_str_types):
+            legend_handles.append(mpatches.Patch(
+                                    facecolor='white',
+                                    linestyle=line_style[sys_idx],
+                                    edgecolor='black',
+                                    label=f'{sys_str_types[sys_idx]}'
+                                ))
+        from matplotlib.lines import Line2D
+        legend_handles.append(Line2D(
+            [0], [0],
+            color='none',  # No line
+            **meanprpos,
+            label='Mean'  # Label for the legend
+        ))
+        
+        ax.legend(handles=legend_handles, loc='lower right', 
+            #   bbox_to_anchor=(0.12, 0.99),
+            #   title='System Strategies',
+            #   title_fontsize=20,
+              fontsize=12)
+        # Set title
+        if fig_title != '':
+            # ax.set_title('Default', fontsize=10)
+            plt.title(fig_title)
+            
+        # Make sure the figure fits well with the colorbar
+        plt.tight_layout()
+        
+        self.save_plot(PLOTS_DIR_WAIT + file_name, plt_handle=plt, fig=fig)
+    
+
     def create_alternative_visualizations(self, file_name: str):
         """
         Create alternative visualizations that might be useful
@@ -574,7 +749,7 @@ def get_stats_synth_times(data: Dict[str, Optional[float]]) -> Tuple[Dict[str, f
 def plot_mean_dict_with_bars(mean_dict):
     """
     Plot the mean_dict dictionary as bar charts.
-    Each human type will have 8 bars (4 environments × 2 system types).
+    Each human type will have 8 bars (4 environments x 2 system types).
     Different colors will be used for different environments, and hatching patterns
     will distinguish between the two system strategies.
     """
@@ -694,7 +869,7 @@ def plot_mean_dict_with_bars(mean_dict):
     ax.tick_params(axis='y', which='major', labelsize=20)
 
     # Add grid for better readability (only horizontal)
-    ax.grid(axis='y', linestyle='--', alpha=0.3)
+    ax.grid(axis='y', linestyle='--', alpha=1.0)
     ax.set_axisbelow(True)  # Put grid behind bars
     
     # Add minor ticks for y-axis for better readability
@@ -840,69 +1015,118 @@ def plot_mean_dict(mean_dict):
 
 
 
+def main_plot_average_synthesis():
+    """
+     The main method to plot the average time to compute adm rat stratgeies as stacker bar plot.
+    """
+    import sys
+
+    percent_synth_times = {}
+    for env in VALID_MINIGRID_ENVS:
+        yaml_files =[]
+        costs = []
+        xlabels = []
+        target_pattern = f"comp_time_{env}_WAIT"
+        closest_match = difflib.get_close_matches(target_pattern, FILES_SYNTH_WAIT, n=1)
+        yaml_files.append(closest_match[0])
+
+        # load data
+        with open(ROOT_PATH + "/construction_and_synthesis_data/" + yaml_files[-1], 'r') as stream:
+            synthesis_data: dict = yaml.load(stream, Loader=yaml.Loader)
+
+        # process data
+        print(f"*************************** {env} ***************************")
+        percent_synth_times[MINIGRID_NAME_ALIAS_DICT[env]], _ = get_stats_synth_times(data=synthesis_data)
+
+        # plotting
+        # plotter = StackedBarPlotter(data=percent_synth_times)
+        # plotter.plot()
+    sys.exit(-1)
+        
+
+
 
 # Main execution
 if __name__ == "__main__":
-    mean_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
-    for htype in ENV_ALIAS_DICT.values():
-        for env_gridworld in VALID_MINIGRID_ENVS:
-            for stype in VALID_SYS_STR_TYP:
-                mean_dict[htype][MINIGRID_NAME_ALIAS_DICT.get(env_gridworld)][SYS_ALIAS_DICT[stype]] = MAX_COST_VAL
+    # main_plot_average_synthesis()
+
+    # mean_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    # stats_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
+    # for htype in ENV_ALIAS_DICT.values():
+    #     for env_gridworld in VALID_MINIGRID_ENVS:
+    #         for stype in VALID_SYS_STR_TYP:
+    #             mean_dict[htype][MINIGRID_NAME_ALIAS_DICT.get(env_gridworld)][SYS_ALIAS_DICT[stype]] = MAX_COST_VAL
+    #             stats_dict[htype][MINIGRID_NAME_ALIAS_DICT.get(env_gridworld)][SYS_ALIAS_DICT[stype]] = None
     
-    for env in VALID_MINIGRID_ENVS:
-        # if env != 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0':
-        #     continue
-        for human in VALID_HUMAN_TYPE:
-            yaml_files =[]
-            costs = []
-            xlabels = []
-            for st in VALID_SYS_TYPE + VALID_SYS_STR_TYP:
-            # for st in VALID_SYS_STR_TYP:
-                yaml_files.append(find_closest_file(minigrid_env=env, sys_type=st, valid_human_type=human, sys_str_type=st, wait_gw=True))
+    # for env in VALID_MINIGRID_ENVS:
+    #     # if env != 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0':
+    #     #     continue
+    #     for human in VALID_HUMAN_TYPE:
+    #         yaml_files =[]
+    #         costs = []
+    #         xlabels = []
+    #         for st in VALID_SYS_TYPE + VALID_SYS_STR_TYP:
+    #         # for st in VALID_SYS_STR_TYP:
+    #             yaml_files.append(find_closest_file(minigrid_env=env, sys_type=st, valid_human_type=human, sys_str_type=st, wait_gw=True))
 
-                # Extract costs
-                one_env_cost = extract_costs_from_yaml(yaml_files[-1], wait_gw=True)
-                if len(one_env_cost) > 0:
-                    costs.append(one_env_cost)
-                    xlabels.append(SYS_ALIAS_DICT.get(st))
+    #             # Extract costs
+    #             one_env_cost = extract_costs_from_yaml(yaml_files[-1], wait_gw=True)
+    #             if len(one_env_cost) > 0:
+    #                 costs.append(one_env_cost)
+    #                 xlabels.append(SYS_ALIAS_DICT.get(st))
 
-                    if DEBUG:
-                        print("***************************************************************************************************")
-                        print(f"{env} - {human} - {st}")
-                        stats_dict = print_stats(one_env_cost)
-                        print("***************************************************************************************************")
-                        mean_dict[ENV_ALIAS_DICT.get(human)][MINIGRID_NAME_ALIAS_DICT.get(env)][SYS_ALIAS_DICT[st]] = float(stats_dict['mean'])
+    #                 if DEBUG:
+    #                     print("***************************************************************************************************")
+    #                     print(f"{env} - {human} - {st}")
+    #                     one_env_stats_dict: dict = print_stats(one_env_cost)
+    #                     print("***************************************************************************************************")
+    #                     mean_dict[ENV_ALIAS_DICT.get(human)][MINIGRID_NAME_ALIAS_DICT.get(env)][SYS_ALIAS_DICT[st]] = float(one_env_stats_dict['mean'])
+    #                     stats_dict[ENV_ALIAS_DICT.get(human)][MINIGRID_NAME_ALIAS_DICT.get(env)][SYS_ALIAS_DICT[st]] = one_env_stats_dict 
 
-            if USE_ALIAS:
-                human = ENV_ALIAS_DICT.get(human)
-            fig_name = f"cost_{human}_{env}_waiting.png"
+            # if USE_ALIAS:
+            #     human = ENV_ALIAS_DICT.get(human)
+            # fig_name = f"cost_{human}_{env}_waiting.png"
 
-            barplotter = BoxPlotter(data=costs)
-            if len(costs) > 0:    
-                if USE_ALIAS:
-                    # labels = [SYS_ALIAS_DICT.get(sys_type) for sys_type in VALID_SYS_STR_TYP] + [SYS_ALIAS_DICT.get(sys_type) for sys_type in VALID_SYS_TYPE]
-                    env_alias = MINIGRID_NAME_ALIAS_DICT.get(env)
-                    barplotter.plot(file_name=fig_name, labels=xlabels, fig_title=env_alias + "-" + human)
-                else:
-                    barplotter.plot(file_name=fig_name, labels=xlabels,  fig_title=env + "-" + human)
+            # barplotter = BoxPlotter(data=costs)
+            # if len(costs) > 0:    
+            #     if USE_ALIAS:
+            #         # labels = [SYS_ALIAS_DICT.get(sys_type) for sys_type in VALID_SYS_STR_TYP] + [SYS_ALIAS_DICT.get(sys_type) for sys_type in VALID_SYS_TYPE]
+            #         env_alias = MINIGRID_NAME_ALIAS_DICT.get(env)
+            #         barplotter.plot(file_name=fig_name, labels=xlabels, fig_title=env_alias + "-" + human)
+            #     else:
+            #         barplotter.plot(file_name=fig_name, labels=xlabels,  fig_title=env + "-" + human)
 
     # for Adv huam env 
     # dump the dictionary to a yaml file
     # mean_dict = convert_defaultdict_to_dict(mean_dict)
-    # with open('mean_dict_gw_no_wait.yaml', 'w') as file:
+    # with open('mean_dict_gw_wait_all_five.yaml', 'w') as file:
     #     yaml.dump(mean_dict, file)
+
+    # stats_dict = convert_defaultdict_to_dict(stats_dict)
+    # with open('stats_dict_gw_wait_all_five.yaml', 'w') as file:
+    #     yaml.dump(stats_dict, file)
     
     
     # load yaml dictionary
-    # with open('mean_dict_gw_wait.yaml', 'r') as file: 
-    #     mean_dict = yaml.load(file, Loader=yaml.Loader) 
+    # with open('ral25_benchmark_data/stats_dict_gw_wait_all_five.yaml', 'r') as file: 
+    #     stats_dict = yaml.load(file, Loader=yaml.Loader) 
+
+    # barplotter = BoxPlotter(data=None)
+    # barplotter.plot_mean_dict_with_bars_for_specific_human(stats_dict=stats_dict,
+    #                                                        file_name='box_plot_HAdv_Rnd',
+    #                                                        labels=VALID_SYS_STR_TYP,
+    #                                                     #    fig_title='Box plot for Different System Strategies for HAdv_Rnd', 
+    #                                                        fig_title='')
+
+    with open('ral25_benchmark_data/mean_dict_gw_wait_all_five.yaml', 'r') as file: 
+        mean_dict = yaml.load(file, Loader=yaml.Loader) 
 
     # plot_mean_dict(mean_dict)
     # plot_mean_dict_2(mean_dict)
-    # plot_mean_dict_with_bars(mean_dict)
+    plot_mean_dict_with_bars(mean_dict)
 
     #### TESTING plotting for single file
-    # file_name = "MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0_DFA_game_coop-human_random-sys_120250309_051833.yaml"
+    # file_name = "only_four_door_wait/MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0_DFA_game_QuantitativeAdmMemorless_random-human__120250317_010139.yaml"
     # costs = extract_costs_from_yaml(file_name, get_game_stats=True, wait_gw=False)
     # plot_box_plot(np.array(costs), file_name='testing', labels=['Adm-Mem'], fig_title='4-Door')
     
