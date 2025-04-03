@@ -768,6 +768,8 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
+    
+    dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -836,7 +838,7 @@ if __name__ == "__main__":
         #                       human_type=args.human_type,
         #                       strategy_type=args.strategy_type,
         #                       env_type=args.env_type)
-        construct_abstraction(abstraction_instance='daig-main',
+        construct_abstraction(abstraction_instance='arch-main',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,
