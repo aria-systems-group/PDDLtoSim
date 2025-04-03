@@ -54,6 +54,23 @@ class TwoPlayerGame:
     @property
     def formula(self):
         return self._formula
+    
+
+    def construct_game_from_yaml(self, graph_yaml_dir: dict):
+        """
+         A helper function to load the game from yaml file
+        """
+        _graph_name = "two_player_implicit" + self._causal_graph.task.name
+        _config_yaml = "/config/" + "two_player_implicit_" + self._causal_graph.task.name
+
+        self._two_player_implicit_game = graph_factory.get("TwoPlayerGraph",
+                                                           graph_name=_graph_name,
+                                                           config_yaml=graph_yaml_dir,
+                                                           from_file=True,
+                                                           save_flag=True,
+                                                           plot=False)
+
+
 
     def build_two_player_game(self,
                               human_intervention: int = 1,
@@ -228,7 +245,7 @@ class TwoPlayerGame:
         """
 
         _graph_name = "two_player_implicit" + self._causal_graph.task.name
-        _config_yaml = "/config/" + "two_player_implicit" + self._causal_graph.task.name
+        _config_yaml = "/config/" + "two_player_implicit_" + self._causal_graph.task.name
 
         self._two_player_implicit_game = graph_factory.get("TwoPlayerGraph",
                                                            graph_name=_graph_name,
@@ -879,8 +896,8 @@ class TwoPlayerGame:
             warnings.warn("Please make sure the input formula is of type string.")
 
         _ltl_automaton = graph_factory.get('LTLfDFA',
-                                           graph_name="pddl_ltlf",
-                                           config_yaml="/config/pddl_ltlf",
+                                           graph_name="pddl_ltlf_adm",
+                                           config_yaml="/config/pddl_ltlf_adm",
                                            save_flag=True,
                                            ltlf=formula,
                                            plot=plot)

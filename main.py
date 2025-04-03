@@ -12,6 +12,8 @@ import warnings
 from collections import OrderedDict
 from typing import Optional, Dict, Type, Union, Tuple, List
 
+from networkx.utils import graphs_equal 
+
 from icra_examples.safe_adm_game import modify_abstraction, remove_non_reachable_states
 from icra_examples.tic_tac_toe_abs import TicTacToe
 
@@ -589,12 +591,15 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     #### Safe-Adm game domain file - ICRA 25 ####
     # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_2.pddl'
-    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
+    # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
+
+    #### Arch Construction Safe-Adm game domain file - TRO 25 ####
+    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_arch.pddl'
 
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
-                                         domain_file=domain_file_path,
-                                         draw=False)
+                                        domain_file=domain_file_path,
+                                        draw=False)
 
     causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
 
@@ -616,9 +621,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
     two_player_instance.build_two_player_game(human_intervention=2,
-                                               human_intervention_cost=0,
-                                               plot_two_player_game=False,
-                                               arch_construction=False)
+                                              human_intervention_cost=0,
+                                              plot_two_player_game=False,
+                                              arch_construction=False)
 
     # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
 
@@ -627,12 +632,28 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(implicit=True)
+
+    ## Testing dumping and loading of a graph
+    # CONFIG_DIR = ROOT_PATH + "/regret_synthesis_toolbox"
+    # two_player_instance._two_player_implicit_game.dump_to_yaml()
+    
+    # loaded_two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    # start = time.time()
+    # loaded_two_player_instance.construct_game_from_yaml(ROOT_PATH + "/regret_synthesis_toolbox/config/two_player_implicit_franka_adm_arch_problem")
+    # stop = time.time()
+    # if graphs_equal(two_player_instance.two_player_implicit_game._graph, loaded_two_player_instance.two_player_implicit_game._graph):
+    #     print("Graphs are equal: Time for Computation {:.3f} seconds".format(stop - start))
+    #     sys.exit(-1)
+
+    # sys.exit(-1)
     # two_player_instance.modify_edge_weights(implicit=True)
-    modify_abstraction(game=two_player_instance.two_player_implicit_game,
-                       all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
-                       hopeless_human_loc=set(['l6', 'l7', 'l8']),
-                       human_only_loc=set(['l9']),
-                       debug=False)
+    
+    #### Abstraction for 
+    # modify_abstraction(game=two_player_instance.two_player_implicit_game,
+    #                    all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
+    #                    hopeless_human_loc=set(['l6', 'l7', 'l8']),
+    #                    human_only_loc=set(['l9']),
+    #                    debug=False)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -655,7 +676,7 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
     # sys.exit(-1)
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_SAFE_ADM_TEST_2,  plot=True)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=False)
+    dfa = two_player_instance.build_LTLf_automaton(formula=ARCH_ADM_FORMULA, plot=False)
     # sys.exit(-1)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
@@ -682,8 +703,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     else:    
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
                                               game=product_graph,
-                                              human_type='coop-human',
-                                            #   human_type='manual',
+                                            #   human_type='coop-human',
+                                              human_type='manual',
                                               rollout_flag=rollout_flag,
                                               debug=True,
                                               max_iterations=100,
@@ -732,9 +753,9 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
     two_player_instance.build_two_player_game(human_intervention=2,
-                                               human_intervention_cost=0,
-                                               plot_two_player_game=False,
-                                               arch_construction=True)
+                                              human_intervention_cost=0,
+                                              plot_two_player_game=False,
+                                              arch_construction=True)
 
     # for implicit construction, the human intervention should >=2
     two_player_instance.build_two_player_implicit_transition_system_from_explicit(

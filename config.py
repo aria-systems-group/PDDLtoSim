@@ -35,6 +35,7 @@ FORMULA_ADM_TIC_TAC_TOE_3 = '(!(lose) U win)'
 
 # Arch Formulas 
 ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
+ARCH_ADM_FORMULA = "F(((p14 & p25 & p06) | (p15 & p24 & p06))) & G(!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24))"
 
 
 # Diag Formulas
