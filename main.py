@@ -742,7 +742,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
     transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
-    transition_system_instance.build_arch_abstraction(plot=False, relabel_nodes=False)
+    transition_system_instance.build_arch_abstraction(arch_dict=ARCH_LOCS_DICT ,plot=False, relabel_nodes=False)
     transition_system_instance.modify_edge_weights()
 
     if print_flag:
@@ -751,7 +751,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         print(f"No. of edges in the Transition System is :"
               f"{len(transition_system_instance.transition_system._graph.edges())}")
 
-    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance, arch_locs_dict=ARCH_LOCS_DICT)
     two_player_instance.build_two_player_game(human_intervention=2,
                                               human_intervention_cost=0,
                                               plot_two_player_game=False,
@@ -788,6 +788,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
                                               game=product_graph,
                                               human_type='no-human',
+                                            #   human_type='manual',
                                               rollout_flag=True,
                                               debug=True,
                                               max_iterations=100)

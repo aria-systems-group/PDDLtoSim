@@ -34,9 +34,14 @@ FORMULA_ADM_TIC_TAC_TOE_2 = 'F(win)'
 FORMULA_ADM_TIC_TAC_TOE_3 = '(!(lose) U win)'
 
 # Arch Formulas 
+ARCH_LOCS_DICT = {1: {'supports': ["l8", "l9"], 'top': "l0"},
+                  2: {'supports': ["l3", "l2"], 'top': "l1"}
+                  }
+
+   
 ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
 ARCH_ADM_FORMULA = "F(((p14 & p25 & p06) | (p15 & p24 & p06))) & G(!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24))"
-
+# (!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24)) U (((p14 & p25 & p06) | (p15 & p24 & p06)))
 
 # Diag Formulas
 DIAG_FORMULA = "F((p22 & p14 & p03) || (p05 & p19 & p26))"
@@ -93,3 +98,4 @@ minigrid_env_formulas = {'MiniGrid-FloodingLava-v0': ['F(floor_green_open)'],
                         'MiniGrid-NarrowLavaAdm_karan-v0': '!(agent_blue_right) U (floor_green_open)',
                         'MiniGrid-LavaAdm_karan-v0': '!(agent_blue_right) U (floor_green_open)'
                         }
+                        

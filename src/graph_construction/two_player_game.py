@@ -1,6 +1,7 @@
 import re
-import warnings
 import copy
+import warnings
+
 import networkx as nx
 
 from typing import Tuple, Dict, List, Optional
@@ -20,11 +21,12 @@ class TwoPlayerGame:
     A Class that builds a Two player game based on the Transition System built using the Causal Graph.
     """
 
-    def __init__(self, causal_graph, transition_system):
+    def __init__(self, causal_graph, transition_system, arch_locs_dict: dict = None):
         self._causal_graph: CausalGraph = causal_graph
         self._transition_system: FiniteTransitionSystem = transition_system
         self._two_player_game: Optional[TwoPlayerGraph] = None
         self._two_player_implicit_game: Optional[TwoPlayerGraph] = None
+        self._arch_locs_dict = arch_locs_dict
 
     @property
     def causal_graph(self):
@@ -452,8 +454,10 @@ class TwoPlayerGame:
 
         # human cannot intervene once the arch is build or a box is at location l0 or l1
         if arch_construction:
-            if "l0" in current_world_conf or "l1" in current_world_conf:
-                return _valid_human_actions
+            # if "l0" in current_world_conf or "l1" in current_world_conf:
+            for arch_locs in self._arch_locs_dict.values():
+                if arch_locs['top'] in current_world_conf:
+                    return _valid_human_actions
 
         for _box_idx, _box_loc in enumerate(current_world_conf):
             if _box_idx != len(current_world_conf) - 1:
@@ -551,8 +555,11 @@ class TwoPlayerGame:
 
         # human cannot intervene once the arch is build or a box is at location l0 or l1
         if arch_construction:
-            if "l0" in current_world_conf or "l1" in current_world_conf:
-                return _valid_human_actions
+            # if "l0" in current_world_conf or "l1" in current_world_conf:
+            #     return _valid_human_actions
+            for arch_locs in self._arch_locs_dict.values():
+                if arch_locs['top'] in current_world_conf:
+                    return _valid_human_actions
 
         for _box_idx, _box_loc in enumerate(current_world_conf):
             if _box_loc != "gripper" and _box_idx != len(current_world_conf) - 1:
