@@ -652,9 +652,10 @@ class FiniteTransitionSystem:
         """
          Helper method to add a release node.
         """
+        boxid = int(box[-1])
         causal_succ_node = f"(ready {top_loc})"
         succ_node_list_lbl = curr_node_list_lbl.copy()
-        succ_node_list_lbl[0] = top_loc
+        succ_node_list_lbl[boxid] = top_loc
         succ_node_list_lbl[-1] = "free"
         succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
         game_succ_node = causal_succ_node + succ_node_lbl
@@ -688,9 +689,10 @@ class FiniteTransitionSystem:
         """
          Helper method to add a grasp node.
         """
+        boxid = int(box[-1])
         causal_succ_node = f"(holding {box} {top_loc})"
         succ_node_list_lbl = curr_node_list_lbl.copy()
-        succ_node_list_lbl[0] = "gripper"
+        succ_node_list_lbl[boxid] = "gripper"
         succ_node_list_lbl[-1] = box
         succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
         game_succ_node = causal_succ_node + succ_node_lbl
@@ -707,11 +709,11 @@ class FiniteTransitionSystem:
          Helper method to add transfer edges to all empty locations.
         """
         succ_node_list_lbl = curr_node_list_lbl.copy()
-        succ_node_list_lbl[0] = "gripper"
+        # succ_node_list_lbl[0] = "gripper"
         
         # Find all empty locations
-        occupied_locs = set(succ_node_list_lbl[1:-1])
-        occupied_locs.add(top_loc)
+        occupied_locs = set(s for s in succ_node_list_lbl[:-1] if s != 'gripper')
+        # occupied_locs.add(top_loc)
         empty_locs = set(self._causal_graph.task_locations) - occupied_locs
         
         for loc in empty_locs:
@@ -770,13 +772,13 @@ class FiniteTransitionSystem:
                 # Check if you are holding b0
                 box_id, curr_loc = self._get_box_location(causal_state_name)
                 box = f"b{box_id}"
-                if box_id == 0:
-                    for _, arch_locs in arch_dict.items():
-                        # Check which support configuration is satisfied
-                        support_flag = self._check_support_configuration(current_world_config, arch_locs['supports'])
-                
-                        if support_flag:
-                            self._process_support_configuration(box, node, curr_node_list_lbl, curr_loc, arch_locs['top'])
+                # if box_id == 0:
+                for _, arch_locs in arch_dict.items():
+                    # Check which support configuration is satisfied
+                    support_flag = self._check_support_configuration(current_world_config, arch_locs['supports'])
+            
+                    if support_flag:
+                        self._process_support_configuration(box, node, curr_node_list_lbl, curr_loc, arch_locs['top'])
         
         if plot:
             if relabel_nodes:
