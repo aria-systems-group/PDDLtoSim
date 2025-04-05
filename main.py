@@ -111,7 +111,7 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
     
     elif strategy_type == "QuantiativeRefinedAdmissible":
         strategy_handle = QuantiativeRefinedAdmissible(game=game, debug=debug)
-        strategy_handle.compute_adm_strategies(plot=plot)
+        strategy_handle.compute_adm_strategies(plot=plot, plot_interactive_graph=False)
     
     elif strategy_type == "QuantitativeAdmMemorless":
         strategy_handle = QuantitativeAdmMemorless(game=game, debug=debug)
@@ -404,7 +404,7 @@ def construct_abstraction(abstraction_instance: str,
     if abstraction_instance == 'daig-main':
         daig_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str, rollout_flag=rollout_flag)
     elif abstraction_instance == 'arch-main':
-        arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
+        arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str, rollout_flag=rollout_flag)
     elif abstraction_instance == 'minigrid':
         minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str, max_iterations=max_iterations, human_type=human_type, strategy_type=strategy_type, env_type=env_type)
     elif abstraction_instance == 'tic-tac-toe':
@@ -724,9 +724,11 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 @timer_decorator
-def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False) -> None:
-    domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/domain.pddl"
-    problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/problem.pddl"
+def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False, rollout_flag: bool = False) -> None:
+    # domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/domain.pddl"
+    # problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/problem.pddl"
+    domain_file_path = ROOT_PATH + "/pddl_files/adm_unrealizable_world/domain_arch.pddl"
+    problem_file_path = ROOT_PATH + "/pddl_files/adm_unrealizable_world/problem_arch.pddl"
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
                                          domain_file=domain_file_path,
@@ -743,7 +745,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
     transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
     transition_system_instance.build_arch_abstraction(arch_dict=ARCH_LOCS_DICT ,plot=False, relabel_nodes=False)
-    transition_system_instance.modify_edge_weights()
+    # transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
@@ -758,10 +760,9 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
                                               arch_construction=True)
 
     # for implicit construction, the human intervention should >=2
-    two_player_instance.build_two_player_implicit_transition_system_from_explicit(
-        plot_two_player_implicit_game=False)
+    two_player_instance.build_two_player_implicit_transition_system_from_explicit(plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-    # two_player_instance.modify_ap_w_object_types(implicit=True)
+    two_player_instance.modify_ap_w_object_types(implicit=True)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
@@ -769,7 +770,8 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
     
-    dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
+    # dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
+    dfa = two_player_instance.build_LTLf_automaton(formula=ARCH_ADM_FORMULA, plot=False)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
@@ -785,11 +787,11 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
                                               game=product_graph,
-                                              human_type='no-human',
-                                            #   human_type='manual',
-                                              rollout_flag=True,
+                                            #   human_type='coop-human',
+                                              human_type='manual',
+                                              rollout_flag=rollout_flag,
                                               debug=True,
                                               max_iterations=100)
 

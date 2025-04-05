@@ -195,16 +195,16 @@ class AdmStrategyRolloutProvider(RolloutProvider):
         
     
     def rollout_with_human_intervention(self):
-        pass
+        raise NotImplementedError
 
     def rollout_with_strategy_dictionary(self):
-        pass
+        raise NotImplementedError
 
     def rollout_no_human_intervention(self):
-        pass
+        raise NotImplementedError
 
     def rollout_with_epsilon_human_intervention(self):
-        pass
+        raise NotImplementedError
 
 
 class AdmWinStrategyRolloutProvider(AdmStrategyRolloutProvider):
