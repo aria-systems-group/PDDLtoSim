@@ -362,6 +362,12 @@ class TwoPlayerGame:
                                                                              arch_construction=arch_construction)
         _curr_succ_idx: int = org_succ_state_name[1]
 
+        if arch_construction and len(_valid_human_actions) > 0:
+            _valid_human_actions = self.__get_valid_human_actions_for_arch_constrcution(current_world_config=_human_node['list_ap'],
+                                                                                        current_state_name=human_state_name,
+                                                                                        succ_state_name=org_succ_state_name,
+                                                                                        valid_human_actions=_valid_human_actions)
+
         # now add that human edge to the transition system and accordingly update the list_ap and ap attributes of the
         # system node
 
@@ -445,6 +451,72 @@ class TwoPlayerGame:
                                                                  arch_construction=arch_construction)
 
         return _possible_human_action
+    
+    def __get_valid_human_actions_for_arch_constrcution(self, current_world_config, current_state_name, succ_state_name, valid_human_actions: list) -> list:
+        """
+         A function that returns a list of all possible human actions when the robot is trying to build an arch.
+           We call this method the arch_construction flag is true
+        """
+        supports_not_constructed_dict: Dict[int, bool] = {}
+
+        # if there does not exists  boxes in support location then the human can not move a box on top.
+        for num, arch_locs in self._arch_locs_dict.items():
+            supports_not_constructed_dict[num] = False
+            for loc in arch_locs['supports']:
+                if loc not in current_world_config:
+                    supports_not_constructed_dict[num] = True
+                    break
+        # there are conf where the robot is about to release the object in the arch support locs.
+        #  While the above loop returns true the arch has not been completed yet.
+        for num, arch_locs in self._arch_locs_dict.items():
+            if not supports_not_constructed_dict[num] and 'free' not in current_world_config:
+                supports_not_constructed_dict[num] = True
+            
+        actions_to_remove = set()
+        for num, supports_not_constructed in supports_not_constructed_dict.items():
+            if supports_not_constructed:
+                for human_move in valid_human_actions:
+                    _, box_loc = self._get_multiple_box_location(human_move)
+                    
+                    # if support not constructed then human can not move box on top
+                    if box_loc[1] in self._arch_locs_dict[num]['top']:
+                        actions_to_remove.add(human_move)
+            else:
+                for human_move in valid_human_actions:
+                    _, box_loc = self._get_multiple_box_location(human_move)
+                    # if not supports_not_constructed (aka supports constructed) but the top is not occupied, then human can only move the a non-support block to top
+                    if self._arch_locs_dict[num]['top'] not in current_world_config:
+                        if box_loc[0] in self._arch_locs_dict[num]['supports'] and box_loc[1] == self._arch_locs_dict[num]['top']:
+                            actions_to_remove.add(human_move)
+
+                    # if the support are constructed and top locs is also occupied (aka the arch is constrcuted) then human can remove top loc
+                    elif self._arch_locs_dict[num]['top'] in current_world_config and box_loc[0] != self._arch_locs_dict[num]['top']:
+                        actions_to_remove.add(human_move)
+        
+        valid_human_actions = [action for action in valid_human_actions if action not in actions_to_remove]
+
+        # during arch constuction we do have edges of the form ('(holding b2 l4)l6_l5_gripper_b2', 1) -> (("h('(holding b2 l4)l6_l5_gripper_b2', 1)release b2 l4", 1))) -> ('(ready l4)l6_l5_l4_free', 1)
+        if 'holding' in current_state_name[0].split(')', 1)[0] and 'ready' in succ_state_name[0].split(')', 1)[0]: 
+            _, robo_loc = self._get_box_location(succ_state_name[0].split(')', 1)[0] + ")")  # will return l4 form (ready l4)
+            
+            for num, supports_not_constructed in supports_not_constructed_dict.items():
+                assert supports_not_constructed, "[Error] Removing human edges while the arch has NOT been formed in the next Sys state. Fix this!!!"
+                assert self._arch_locs_dict[num]['top'] in current_world_config, "[Error] Removing human edges while the arch has NOT been formed in the next Sys state. Fix this!!!"
+                
+                # this is not captured by the traditional compute human intervention method as the the game is directly evolving from holding state to ready state and skipping to-loc
+                for human_move in valid_human_actions:
+                    _, box_loc = self._get_multiple_box_location(human_move)
+                    # remove human actions that are moving a box to loc where the robot is trying to move.
+                    if box_loc[1] == robo_loc:
+                        actions_to_remove.add(human_move)
+                    # remove human actions that are moving a support box while the top loc is occupied.
+                    elif box_loc[0] in self._arch_locs_dict[num]['supports']: 
+                        actions_to_remove.add(human_move)
+        
+        valid_human_actions = [action for action in valid_human_actions if action not in actions_to_remove]
+
+        return valid_human_actions
+
 
     def __get_valid_human_actions_under_transit(self, current_world_conf: list, arch_construction: bool) -> list:
         """
@@ -585,107 +657,200 @@ class TwoPlayerGame:
 
         return _valid_human_actions
 
+
+    def _get_node_info(self, node):
+        """
+        Extract and return common node information.
+        """
+        node_info = {
+            'curr_two_player_node': self._two_player_game._graph.nodes[node],
+            'curr_world_config': self._two_player_game._graph.nodes[node].get("list_ap"),
+            'curr_world_config_str': self._two_player_game._graph.nodes[node].get("ap"),
+            'curr_causal_state_name': self._two_player_game._graph.nodes[node].get("causal_state_name"),
+            'intervention_remaining': node[1]
+        }
+        
+        # Extract box ID and robot location
+        # makin it more robust 
+        
+        box_id, robo_loc = self._get_box_location(node_info['curr_causal_state_name'])
+        if box_id == "":
+            assert "ready" in node_info['curr_causal_state_name'], "[Error] Error when  extracting box id and location for ready state. FIX THIS!!!!"
+            box_id = node_info['curr_world_config'].index(robo_loc)
+
+        node_info['curr_box_id'] = box_id
+        node_info['curr_robo_loc'] = robo_loc
+        
+        return node_info
+
+
+    def _get_list_ap_from_state_name(self, state_name: str) -> List[str]:
+        """
+        Extract the list of atomic propositions (list_ap) from a state name string.
+        
+        State names are typically formatted as: "(causal_state)world_config_str"
+        Example: "(to-obj b0 l1)l0_l1_l2_free" -> ['l0', 'l1', 'l2', 'free']
+        
+        :param state_name: The full state name string
+        :return: List of atomic propositions
+        """
+        # Extract the world configuration part after the closing parenthesis
+        world_config_str = state_name.split(')', 1)[1]
+        
+        # Split by underscore to get individual atomic propositions
+        list_ap = world_config_str.split('_')
+        
+        return list_ap
+    
+
+    def _add_edge_with_validation(self, from_node, to_node, action: str, weight: int):
+        """
+        Add an edge with validation to ensure the target node exists.
+        """
+        if not self._two_player_game._graph.has_node(to_node):
+            warnings.warn(f"Adding a transition from {from_node} to {to_node}. "
+                        f"The state {to_node} does not already exist")
+            
+            # Create the node with attributes inherited from the source node's successor
+            causal_state_name = to_node[0].split(')')[0] + ')'
+            world_config_str = to_node[0].split(')')[1]
+            target_attrs = {
+                'causal_state_name': causal_state_name,
+                'list_ap': world_config_str.split('_'),
+                'ap': world_config_str, 
+                'player': 'eve'}
+            self._two_player_game.add_state(to_node, **target_attrs)
+        
+        # Add the edge
+        if not self._two_player_game._graph.has_edge(from_node, to_node):
+            self._two_player_game.add_edge(u=from_node,
+                                           v=to_node,
+                                           actions=action,
+                                           weight=weight)
+    
+
+    def _add_sys_transitions_for_to_obj_node(self, node, node_info: dict) -> None:
+        """
+        Add transitions from a 'to-obj' Sys node to valid Sys successor states.
+        """
+        transit_cost: int = self._transition_system.action_to_cost.get("transit")
+        curr_robo_loc = node_info['curr_robo_loc']
+        curr_world_config = node_info['curr_world_config']
+        curr_world_config_str = node_info['curr_world_config_str']
+        intervention_remaining = node_info['intervention_remaining']
+        
+        # Add valid transitions to "to-obj b# l#" sys states
+        for box_id, box_loc in enumerate(curr_world_config[:-1]):
+            valid_state = (f'(to-obj b{box_id} {box_loc}){curr_world_config_str}', intervention_remaining)
+            edge_action = f"transit b{box_id} {curr_robo_loc} {box_loc}"
+            self._add_edge_with_validation(node, valid_state, edge_action, transit_cost)
+    
+
+    def _add_sys_transitions_for_to_loc_node(self, node, node_info: dict) -> None:
+        """
+         Add transitions from a 'to-loc' Sys node to valid  Sys successor states.
+        """
+        transfer_cost: int = self._transition_system.action_to_cost.get("transfer")
+        curr_world_config = node_info['curr_world_config']
+        curr_box_id = node_info['curr_box_id']
+        curr_robo_loc = node_info['curr_robo_loc']
+        intervention_remaining = node_info['intervention_remaining']
+        
+        # Find occupied locations
+        succ_world_conf = curr_world_config.copy()
+        occupied_locs = {loc for loc in curr_world_config[:-1] if loc != "gripper"}
+        
+        # Find free locations
+        free_locs = set(self._causal_graph.task_locations) - occupied_locs
+        
+        # Add transitions to free locations
+        for loc in free_locs:
+            succ_world_conf[-1] = loc
+            succ_world_conf_str = self._convert_list_ap_to_str(ap=succ_world_conf)
+            valid_state = (f'(to-loc b{curr_box_id} {loc}){succ_world_conf_str}', intervention_remaining)
+            edge_action = f"transfer b{curr_box_id} {curr_robo_loc} {loc}"
+            self._add_edge_with_validation(node, valid_state, edge_action, transfer_cost)
+    
+
+    def _add_arch_release_transitions(self, node, node_info: dict) -> bool:
+        """
+         Add transitions for releasing a block when building an arch.
+        """
+        curr_box_id = node_info['curr_box_id']
+        curr_robo_loc = node_info['curr_robo_loc']
+        curr_world_config = node_info['curr_world_config']
+        intervention_remaining = node_info['intervention_remaining']
+        release_cost: int = self._transition_system.action_to_cost.get("release")
+        added_edges: bool = False
+        
+        for arch in self._arch_locs_dict.values():
+            if curr_robo_loc in arch['supports'] and arch['top'] in curr_world_config:
+                # Add a release node at the same place
+                succ_world_conf = curr_world_config.copy()
+                succ_world_conf[-1] = 'free'
+                succ_world_conf[curr_box_id] = curr_robo_loc
+                succ_world_conf_str = self._convert_list_ap_to_str(ap=succ_world_conf)
+                valid_state = (f'(ready {curr_robo_loc}){succ_world_conf_str}', intervention_remaining)
+                self._add_edge_with_validation(node, valid_state, f"release b{curr_box_id} {curr_robo_loc}", release_cost)
+                added_edges = True
+        
+        return added_edges
+
+    
+
+    def _add_sys_transitions_for_holding_node(self, node, node_info, arch_construction):
+        """
+        Add transitions from a 'holding' node to valid successor states.
+        """
+        # First, process any arch-specific release actions
+        added_arch_edges = False
+        if arch_construction:
+            added_arch_edges = self._add_arch_release_transitions(node, node_info)
+        
+        # Then add general transfer actions to empty locations
+        if not added_arch_edges:
+            self._add_sys_transitions_for_to_loc_node(node, node_info)
+
+
     def __add_transition_from_new_sys_states(self, print_new_states: bool = False, arch_construction: bool = False):
         """
         A helper method that identifies states that were created because of human interventions. We then add valid
         Sys transitions from these states.
         """
-        for _n in self._two_player_game._graph.nodes():
-            if self._two_player_game._graph.out_degree(_n) == 0:
+        _old_two_player_pddl_ts: TwoPlayerGraph = copy.deepcopy(self._two_player_game)
+        for game_node in _old_two_player_pddl_ts._graph.nodes():
+            
+            # Only process nodes with no outgoing edges
+            if self._two_player_game._graph.out_degree(game_node) == 0:
                 if print_new_states:
-                    print(_n)
-                _curr_two_player_node = self._two_player_game._graph.nodes[_n]
-                _curr_world_confg = _curr_two_player_node.get("list_ap")
-                _curr_world_confg_str = _curr_two_player_node.get("ap")
-                _curr_causal_state_name = _curr_two_player_node.get("causal_state_name")
-                _curr_box_id, _curr_robo_loc = self._get_box_location(_curr_causal_state_name)
-                _intervention_remaining: int = _n[1]
-                _cost_dict: Dict = self._transition_system.action_to_cost
+                    print(game_node)
+                
+                # Extract common node information
+                node_info = self._get_node_info(game_node)
 
                 # if its a to-obj action
-                if "to-obj" in _n[0]:
+                if "to-obj" in game_node[0]:
                     # from this state we add valid transition to "to-obj b# l#" sys states. These state should
                     # already exists in the two_player_pddl_ts graph
-                    _transit_cost: int = _cost_dict.get("transit")
-                    for _box_id, _box_loc in enumerate(_curr_world_confg):
-                        if _box_id != len(_curr_world_confg) - 1:
-                            _valid_state_to_transit: tuple = (f'(to-obj b{_box_id} {_box_loc}){_curr_world_confg_str}',
-                                                              _intervention_remaining)
-
-                            if not self._two_player_game._graph.has_node(_valid_state_to_transit):
-                                warnings.warn(f"Adding a transition from {_n} to {_valid_state_to_transit}."
-                                              f" The state {_valid_state_to_transit} does not already exist")
-
-                            _edge_action = f"transit b{_box_id} {_curr_robo_loc} {_box_loc}"
-                            self._two_player_game.add_edge(u=_n,
-                                                           v=_valid_state_to_transit,
-                                                           actions=_edge_action,
-                                                           weight=_transit_cost)
-                elif "to-loc" in _n[0]:
+                    self._add_sys_transitions_for_to_obj_node(game_node, node_info)
+                elif "to-loc" in game_node[0]:
                     # in this state the robot is moving a box. So, we add transitions to location that are currently
                     # available/free
-                    _transfer_cost: int = _cost_dict.get("transfer")
-                    _occupied_locs: set = set()
-                    _succ_world_conf = _curr_world_confg.copy()
-                    for _idx, _loc in enumerate(_curr_world_confg):
-                        if _idx != len(_curr_world_confg) - 1 and _loc != "gripper":
-                            _occupied_locs.add(_loc)
-
-                    _free_loc = set(self._causal_graph.task_locations) - _occupied_locs
-
-                    for _loc in _free_loc:
-                        _succ_world_conf[-1] = _loc
-                        _succ_world_conf_str = self._convert_list_ap_to_str(ap=_succ_world_conf)
-                        _valid_state_to_transit: tuple = (f'(to-loc b{_curr_box_id} {_loc}){_succ_world_conf_str}',
-                                                          _intervention_remaining)
-
-                        if not self._two_player_game._graph.has_node(_valid_state_to_transit):
-                            warnings.warn(f"Adding a transition from {_n} to {_valid_state_to_transit}."
-                                          f" The state {_valid_state_to_transit} does not already exist")
-
-                        _edge_action = f"transfer b{_curr_box_id} {_curr_robo_loc} {_loc}"
-                        self._two_player_game.add_edge(u=_n,
-                                                       v=_valid_state_to_transit,
-                                                       actions=_edge_action,
-                                                       weight=_transfer_cost)
+                    self._add_sys_transitions_for_to_loc_node(game_node, node_info)
 
                 else:
                     if not arch_construction:
                         warnings.warn(f"Encountered a Sys state due to human intervention which was unaccounted for. "
-                                      f" The Sys state is {_n}")
+                                      f" The Sys state is {game_node}")
                     else:
-                        if "holding" in _n[0]:
-                            # from holding state you can transfer to another "to-loc b0 {empty loc states}"
-                            _transfer_cost: int = _cost_dict.get("transfer")
-                            _occupied_locs: set = set()
-                            _succ_world_conf = _curr_world_confg.copy()
-                            for _idx, _loc in enumerate(_curr_world_confg):
-                                if _idx != len(_curr_world_confg) - 1 and _loc != "gripper":
-                                    _occupied_locs.add(_loc)
-
-                            _free_loc = set(self._causal_graph.task_locations) - _occupied_locs
-
-                            for _loc in _free_loc:
-                                _succ_world_conf[-1] = _loc
-                                _succ_world_conf_str = self._convert_list_ap_to_str(ap=_succ_world_conf)
-                                # this could be to-loc b0 {_loc}. But that's fine
-                                _valid_state_to_transit: tuple = (
-                                f'(to-loc b{_curr_box_id} {_loc}){_succ_world_conf_str}',
-                                _intervention_remaining)
-
-                                if not self._two_player_game._graph.has_node(_valid_state_to_transit):
-                                    warnings.warn(f"Adding a transition from {_n} to {_valid_state_to_transit}."
-                                                  f" The state {_valid_state_to_transit} does not already exist")
-
-                                _edge_action = f"transfer b{_curr_box_id} {_curr_robo_loc} {_loc}"
-                                self._two_player_game.add_edge(u=_n,
-                                                               v=_valid_state_to_transit,
-                                                               actions=_edge_action,
-                                                               weight=_transfer_cost)
+                        if "holding" in game_node[0]:
+                            self._add_sys_transitions_for_holding_node(game_node, node_info, arch_construction)
+                        elif "ready" in game_node[0]:
+                            self._add_sys_transitions_for_to_obj_node(game_node, node_info)
                         else:
-                            warnings.warn(
-                                f"Encountered a Sys state due to human intervention which was unaccounted for during"
-                                f" arch construction abstraction. The Sys state is {_n}")
+                            warnings.warn(f"Encountered a Sys state due to human intervention which was unaccounted for during"
+                                          f" arch construction abstraction. The Sys state is {game_node}")
+
 
 
     def _get_multiple_box_location(self, multiple_box_location_str: str) -> Tuple[int, List[str]]:
@@ -739,7 +904,6 @@ class TwoPlayerGame:
         NOTE: The string should be exactly in the above formation i.e on<whitespace>b#<whitespave>l#. We can swap
          between small and capital i.e 'l' & 'L' are valid.
         """
-
         _loc_pattern = "[l|L][\d]+"
         try:
             _loc_state: str = re.search(_loc_pattern, box_location_state_str).group()
@@ -750,13 +914,14 @@ class TwoPlayerGame:
         _box_pattern = "[b|B][\d]+"
         try:
             _box_state: str = re.search(_box_pattern, box_location_state_str).group()
+            _box_id_pattern = "\d+"
+            _box_id: int = int(re.search(_box_id_pattern, _box_state).group())
         except AttributeError:
-            _box_state = ""
-            print(f"The causal_state_string {box_location_state_str} dose not contain box id")
-
-        _box_id_pattern = "\d+"
-        _box_id: int = int(re.search(_box_id_pattern, _box_state).group())
-
+            # if the state is ready then the robot is not holding any box
+            if 'ready' in box_location_state_str:
+                _box_id = ""
+            else:
+                warnings.warn(f"The causal_state_string {box_location_state_str} dose not contain box id")
         return _box_id, _loc_state
 
     def internal_node_mapping(self, game: TwoPlayerGraph) -> TwoPlayerGraph:
@@ -921,7 +1086,6 @@ class TwoPlayerGame:
                                                config_yaml="/config/pddl_product_graph",
                                                trans_sys=trans_sys,
                                                automaton=dfa,
-                                               # dfa=dfa,
                                                save_flag=True,
                                                prune=False,
                                                debug=False,
