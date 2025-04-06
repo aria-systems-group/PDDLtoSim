@@ -631,7 +631,7 @@ class FiniteTransitionSystem:
             warnings.warn("Edge already exists")
     
 
-    def _add_transfer_node(self, box: str, node, curr_node_list_lbl: List[str], curr_loc, top_loc: str):
+    def _add_transfer_node(self, box: str, node, curr_node_list_lbl: List[str], curr_loc, top_loc: str) -> Tuple[str, List[str]]:
         """
          Helper method to add a transfer node.
         """
@@ -646,9 +646,9 @@ class FiniteTransitionSystem:
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
                             succ_node_list_lbl, succ_node_lbl, edge_action, cost)
         
-        return game_succ_node
+        return game_succ_node, succ_node_list_lbl
     
-    def _add_release_node(self, box: str, node, curr_node_list_lbl: List[str], top_loc: str):
+    def _add_release_node(self, box: str, node, curr_node_list_lbl: List[str], top_loc: str) -> Tuple[str, List[str]]:
         """
          Helper method to add a release node.
         """
@@ -665,10 +665,10 @@ class FiniteTransitionSystem:
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
                             succ_node_list_lbl, succ_node_lbl, edge_action, cost)
         
-        return game_succ_node
+        return game_succ_node, succ_node_list_lbl
     
 
-    def _add_transit_node(self, box: int, node, curr_node_list_lbl: List[str], top_loc: str):
+    def _add_transit_node(self, box: int, node, curr_node_list_lbl: List[str], top_loc: str) -> Tuple[str, List[str]]:
         """
          Helper method to add a transit node.
         """
@@ -682,10 +682,10 @@ class FiniteTransitionSystem:
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
                             succ_node_list_lbl, succ_node_lbl, edge_action, cost)
         
-        return game_succ_node
+        return game_succ_node, succ_node_list_lbl
     
 
-    def _add_grasp_node(self, box: int, node, curr_node_list_lbl: List[str], top_loc: str):
+    def _add_grasp_node(self, box: int, node, curr_node_list_lbl: List[str], top_loc: str) -> Tuple[str, List[str]]:
         """
          Helper method to add a grasp node.
         """
@@ -702,14 +702,13 @@ class FiniteTransitionSystem:
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
                             succ_node_list_lbl, succ_node_lbl, edge_action, cost)
         
-        return game_succ_node
+        return game_succ_node, succ_node_list_lbl
     
     def _add_transfer_to_empty_locations(self, box: int, node, curr_node_list_lbl: List[str], top_loc: str) -> None:
         """
          Helper method to add transfer edges to all empty locations.
         """
         succ_node_list_lbl = curr_node_list_lbl.copy()
-        # succ_node_list_lbl[0] = "gripper"
         
         # Find all empty locations
         occupied_locs = set(s for s in succ_node_list_lbl[:-1] if s != 'gripper')
@@ -736,16 +735,16 @@ class FiniteTransitionSystem:
         :param support_type: Type of support configuration ("support_1" or "support_2").
         """
         # Step 1: Add edge to transfer the box to the top location
-        transfer_node = self._add_transfer_node(box, node, curr_node_list_lbl, curr_loc, top_loc)
+        transfer_node, curr_node_list_lbl  = self._add_transfer_node(box, node, curr_node_list_lbl, curr_loc, top_loc)
         
         # Step 2: Add edge to release the box at the top location
-        release_node = self._add_release_node(box, transfer_node, curr_node_list_lbl, top_loc)
+        release_node, curr_node_list_lbl = self._add_release_node(box, transfer_node, curr_node_list_lbl, top_loc)
         
         # Step 3: Add edge to transit to the box at the top location
-        transit_node = self._add_transit_node(box, release_node, curr_node_list_lbl, top_loc)
+        transit_node, curr_node_list_lbl = self._add_transit_node(box, release_node, curr_node_list_lbl, top_loc)
         
         # Step 4: Add edge to grasp the box at the top location
-        grasp_node = self._add_grasp_node(box, transit_node, curr_node_list_lbl, top_loc)
+        grasp_node, curr_node_list_lbl = self._add_grasp_node(box, transit_node, curr_node_list_lbl, top_loc)
         
         # Step 5: Add edges to transfer the box to empty locations
         self._add_transfer_to_empty_locations(box, grasp_node, curr_node_list_lbl, top_loc)
