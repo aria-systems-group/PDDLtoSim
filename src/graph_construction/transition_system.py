@@ -640,7 +640,7 @@ class FiniteTransitionSystem:
         succ_node_list_lbl[-1] = top_loc
         succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
         game_succ_node = causal_succ_node + succ_node_lbl
-        edge_action = f"transfer {box} {curr_loc} {top_loc}"
+        edge_action = f"(transfer {box} {curr_loc} {top_loc})"
         cost = self._action_to_cost.get("transfer")
         
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
@@ -659,7 +659,7 @@ class FiniteTransitionSystem:
         succ_node_list_lbl[-1] = "free"
         succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
         game_succ_node = causal_succ_node + succ_node_lbl
-        edge_action = f"release {box} {top_loc}"
+        edge_action = f"(release {box} {top_loc})"
         cost = self._action_to_cost.get("release")
         
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
@@ -676,7 +676,7 @@ class FiniteTransitionSystem:
         succ_node_list_lbl = curr_node_list_lbl.copy()
         succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
         game_succ_node = causal_succ_node + succ_node_lbl
-        edge_action = f"transit {box} {top_loc} {top_loc}"
+        edge_action = f"(transit {box} {top_loc} {top_loc})"
         cost = self._action_to_cost.get("transit")
         
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
@@ -696,7 +696,7 @@ class FiniteTransitionSystem:
         succ_node_list_lbl[-1] = box
         succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
         game_succ_node = causal_succ_node + succ_node_lbl
-        edge_action = f"grasp {box} {top_loc}"
+        edge_action = f"(grasp {box} {top_loc})"
         cost = self._action_to_cost.get("grasp")
         
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
