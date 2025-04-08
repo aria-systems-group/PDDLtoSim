@@ -25,7 +25,7 @@ class RegretStrategyRolloutProvider(RolloutProvider):
     Then we compute the regret minimizing strategy on Graph of Best-Response. Regret Minimizing strategy is memoryless on this graph. Thus, when rolling out, we rollout on this graph.
     """
     def __init__(self, game: ProductAutomaton, strategy_handle: RegretMinimizationStrategySynthesis, debug: bool = False,  max_steps: int = 10, logger: Optional[Simulator] = None) -> 'RegretStrategyRolloutProvider':
-        super().__init__(game, strategy_handle, debug, max_steps, logger)
+        super().__init__(game=game, strategy_handle=strategy_handle, print_env_strategy=False, debug=debug, max_steps=max_steps, logger=logger)
         self.twa_game: TwoPlayerGraph = strategy_handle.graph_of_alternatives
     
 
@@ -206,8 +206,13 @@ class BestEffortStrategyRolloutProvider(RolloutProvider):
      This class implements rollout provide for Best Effort strategy synthesis 
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, debug: bool = False,  max_steps: int = 10, logger: Optional[Simulator] = None) -> 'BestEffortStrategyRolloutProvider':
-        super().__init__(game, strategy_handle, debug, max_steps, logger)
+    def __init__(self, game: ProductAutomaton, strategy_handle: BestEffortClass, print_env_strategy: bool = False, debug: bool = False,  max_steps: int = 10, logger: Optional[Simulator] = None) -> 'BestEffortStrategyRolloutProvider':
+        super().__init__(game=game,
+                         strategy_handle=strategy_handle,
+                         print_env_strategy=print_env_strategy,
+                         debug=debug,
+                         max_steps=max_steps,
+                         logger=logger)
 
     def set_strategy(self):
         self._strategy = self.strategy_handle.sys_best_effort_str
@@ -526,7 +531,12 @@ class AdvStrategyRolloutProvider(BestEffortStrategyRolloutProvider):
      This class implements inherits the Best Effort rollout provider
     """
     def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10, logger: Optional[Simulator] = None) -> None:
-        super().__init__(game, strategy_handle, debug, max_steps, logger)
+        super().__init__(game=game,
+                         strategy_handle=strategy_handle,
+                         print_env_strategy=False,
+                         debug=debug,
+                         max_steps=max_steps,
+                         logger=logger)
     
 
     def set_strategy(self):
