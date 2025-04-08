@@ -366,8 +366,8 @@ class TwoPlayerGame:
             print("Done plotting")
 
     def _add_valid_human_edges(self,
-                               human_state_name: tuple,
-                               org_succ_state_name: tuple,
+                               human_state_name: Tuple[str, int],
+                               org_succ_state_name: Tuple[str, int],
                                human_intervention_cost: int,
                                arch_construction: bool):
         """
@@ -502,9 +502,9 @@ class TwoPlayerGame:
                     break
         # there are conf where the robot is about to release the object in the arch support locs.
         #  While the above loop returns true the arch has not been completed yet.
-        for num, arch_locs in self._arch_locs_dict.items():
-            if not supports_not_constructed_dict[num] and 'free' not in current_world_config:
-                supports_not_constructed_dict[num] = True
+        # for num, arch_locs in self._arch_locs_dict.items():
+        #     if not supports_not_constructed_dict[num] and 'free' not in current_world_config:
+        #         supports_not_constructed_dict[num] = True
             
         actions_to_remove = set()
         for num, supports_not_constructed in supports_not_constructed_dict.items():
