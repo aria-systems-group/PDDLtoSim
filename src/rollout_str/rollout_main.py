@@ -13,6 +13,7 @@ from src.rollout_str.rollout_adm import RefinedAdmStrategyRolloutProvider, AdmWi
 from regret_synthesis_toolbox.src.simulation.simulator import Simulator
 
 from regret_synthesis_toolbox.src.graph.product import ProductAutomaton
+from regret_synthesis_toolbox.src.strategy_synthesis.safety_game import SafetyGame
 from regret_synthesis_toolbox.src.strategy_synthesis.value_iteration import ValueIteration
 from regret_synthesis_toolbox.src.strategy_synthesis.regret_str_synthesis import RegretMinimizationStrategySynthesis
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantiativeRefinedAdmissible, QuantitativeAdmMemorless
@@ -20,7 +21,7 @@ from regret_synthesis_toolbox.src.strategy_synthesis.best_effort_syn import Qual
 from regret_synthesis_toolbox.src.strategy_synthesis.adm_str_syn import QuantitativeNaiveAdmissible, QuantitativeGoUAdmissible, QuantitativeGoUAdmissibleWinning
 
 BestEffortClass = Union[QualitativeBestEffortReachSyn, QuantitativeBestEffortReachSyn]
-Strategy = Union[ValueIteration, RegretMinimizationStrategySynthesis, BestEffortClass]
+Strategy = Union[ValueIteration, SafetyGame, RegretMinimizationStrategySynthesis, BestEffortClass]
 
 VALID_ENV_STRINGS = ["manual", "no-human", "random-human", "epsilon-human", "coop-human", "mixed-human"]
 
@@ -49,6 +50,8 @@ def rollout_strategy(strategy: Strategy,
                                                 debug=debug,
                                                 max_steps=max_iterations,
                                                 logger=logger)
+    elif isinstance(strategy, SafetyGame):
+        raise NotImplementedError
     elif isinstance(strategy, ValueIteration):
         rhandle = AdvStrategyRolloutProvider(game=game,
                                              strategy_handle=strategy,
