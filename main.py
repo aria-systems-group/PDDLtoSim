@@ -458,7 +458,7 @@ def minigrid_main(debug: bool = False,
                                                     config_yaml_dict=OrderedDict(door_dict[id]))
             else:
                 minigrid_handle.build_minigrid_game(env_snap=False, get_aps=False)
-            sys.exit(-1)
+            # sys.exit(-1)
             stop = time.time()
             abs_dict['2p_game_constr_time'] = stop - start 
             minigrid_handle.get_aps(print_flag=True)
@@ -485,7 +485,7 @@ def minigrid_main(debug: bool = False,
             print(f"No. of edges in the DFA is :{len(minigrid_handle._dfa._graph.edges())}")
             abs_dict['DFA_game_nodes'] = len(minigrid_handle.dfa_game._graph.nodes())
             abs_dict['DFA_game_edges'] = len(minigrid_handle.dfa_game._graph.edges())
-            sys.exit(-1)
+            # sys.exit(-1)
             # run all synthesins and rollout algorithms0
             if test_all_str:
                 run_all_synthesis_and_rollouts(game=minigrid_handle.dfa_game,
@@ -522,7 +522,7 @@ def minigrid_main(debug: bool = False,
 
                 minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
     
-        minigrid_handle._logger.dump_results_to_yaml(file_path=ROOT_PATH + BENCHMARK_DIR + "/comp_time" + f"{id}", add_time_stamp=True)
+        # minigrid_handle._logger.dump_results_to_yaml(file_path=ROOT_PATH + BENCHMARK_DIR + "/comp_time" + f"{id}", add_time_stamp=True)
         
 
     # _dump_strs = input("Do you want to save the rollout of the strategy,Enter: Y/y")
@@ -744,6 +744,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
     transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+    # transition_system_instance.add_transit_and_transfer_nodes(plot=False, relabel_nodes=False)
     transition_system_instance.build_arch_abstraction(arch_dict=ARCH_LOCS_DICT ,plot=False, relabel_nodes=False)
     # transition_system_instance.modify_edge_weights()
 
@@ -778,6 +779,11 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
 
+    ### TMP - dump alll the edges in the game for sanity checking
+    # for (u, v, data) in product_graph._graph.edges(data=True):
+    #     print(f"{u} -------{data['actions']}------> {v} \n")
+    # sys.exit(-1)
+
     if print_flag:
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
@@ -810,8 +816,9 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 if __name__ == "__main__":
     record = False
     use_saved_str = False
-    human_type = 'coop-human'
-    # human_type = 'manual'
+    # human_type = 'coop-human'
+    # human_type = "random-human"
+    human_type = 'manual'
     # QuantiativeRefinedAdmissible; QuantitativeAdmMemorless
     strategy_type = 'QuantiativeRefinedAdmissible'
     env_type = ''
@@ -837,11 +844,11 @@ if __name__ == "__main__":
         #                       render_minigrid=False,
         #                       test_all_str=False,
         #                       rollout_flag= True,
-        #                       max_iterations=MAX_ITERATIONS,
-        #                       human_type=args.human_type,
-        #                       strategy_type=args.strategy_type,
-        #                       env_type=args.env_type)
-        construct_abstraction(abstraction_instance='arch-main',
+        #                       max_iterations=100,
+        #                       human_type=human_type,
+        #                       strategy_type=strategy_type,
+        #                       env_type=env_type)
+        construct_abstraction(abstraction_instance='minigrid',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,

@@ -668,7 +668,7 @@ class FiniteTransitionSystem:
         return game_succ_node, succ_node_list_lbl
     
 
-    def _add_transit_node(self, box: int, node, curr_node_list_lbl: List[str], top_loc: str) -> Tuple[str, List[str]]:
+    def _add_transit_node(self, box: int, node, curr_node_list_lbl: List[str], curr_loc: str, top_loc: str) -> Tuple[str, List[str]]:
         """
          Helper method to add a transit node.
         """
@@ -676,7 +676,8 @@ class FiniteTransitionSystem:
         succ_node_list_lbl = curr_node_list_lbl.copy()
         succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
         game_succ_node = causal_succ_node + succ_node_lbl
-        edge_action = f"(transit {box} {top_loc} {top_loc})"
+        # if curr_loc != '':
+        edge_action = f"(transit {box} {curr_loc} {top_loc})"
         cost = self._action_to_cost.get("transit")
         
         self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
@@ -741,13 +742,52 @@ class FiniteTransitionSystem:
         release_node, curr_node_list_lbl = self._add_release_node(box, transfer_node, curr_node_list_lbl, top_loc)
         
         # Step 3: Add edge to transit to the box at the top location
-        transit_node, curr_node_list_lbl = self._add_transit_node(box, release_node, curr_node_list_lbl, top_loc)
+        transit_node, curr_node_list_lbl = self._add_transit_node(box, release_node, curr_node_list_lbl, top_loc, top_loc)
         
         # Step 4: Add edge to grasp the box at the top location
         grasp_node, curr_node_list_lbl = self._add_grasp_node(box, transit_node, curr_node_list_lbl, top_loc)
         
         # Step 5: Add edges to transfer the box to empty locations
         self._add_transfer_to_empty_locations(box, grasp_node, curr_node_list_lbl, top_loc)
+    
+
+    def add_transit_and_transfer_nodes(self,
+                                       game: Optional[TwoPlayerGraph] = None,
+                                       plot: bool = False,
+                                       relabel_nodes: bool = True) -> None:
+        """
+         A helper method where I iterate throught every TS node, and add additional transit even if the robot is at an box. 
+         Similarly, add transfer nodes even if the robot is at empty location with an object in end effector.
+        """
+        if game is None:
+            game = copy.deepcopy(self._transition_system)
+
+        for node in game._graph.nodes():
+            causal_state_name = game._graph.nodes[node].get("causal_state_name")
+            curr_node_list_lbl = game._graph.nodes[node].get("list_ap")
+
+            # if 'to-obj' in causal_state_name:
+            #     curr_box_id, curr_loc = self._get_box_location(causal_state_name)
+            #     # Find all occupied locations
+            #     assert curr_node_list_lbl[-1] == 'free', '[Error] The last element in the list ap should be free'
+            #     # occupied_locs = set(s for s in curr_node_list_lbl[:-1])
+            #     for box_id, loc in enumerate(curr_node_list_lbl[:-1]):
+            #         if box_id != curr_box_id:
+            #             self._add_transit_node(f'b{box_id}', node, curr_node_list_lbl, curr_loc, loc)
+
+            # el
+            if 'to-loc' in causal_state_name:
+                # Check if you are holding box
+                curr_box_id, curr_loc = self._get_box_location(causal_state_name)
+                self._add_transfer_to_empty_locations(f"b{curr_box_id}", node, curr_node_list_lbl, curr_loc)
+        
+
+        if plot:
+            if relabel_nodes:
+                relabelled_graph = self.internal_node_mapping(self._transition_system)
+                relabelled_graph.plot_graph()
+            else:
+                self._transition_system.plot_graph()
     
 
     def build_arch_abstraction(self,

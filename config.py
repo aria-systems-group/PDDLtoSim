@@ -6,7 +6,7 @@ BENCHMARK_DIR = "/ral25_benchmark_data"
 BENCHMARK_DIR_WAIT = "/ral25_benchmark_data/wait_gw" 
 NUM_OF_TRAILS  = 1
 MAX_ITERATIONS = 100
-NUM_OF_TRIALS_FOR_COMP_TIMES  = 3
+NUM_OF_TRIALS_FOR_COMP_TIMES  = 1
 
 ################################### Formulas #########################################
 # Formulas follow Spot's syntax. Please see https://spot.lre.epita.fr/app/ Help section for more info.
@@ -40,9 +40,12 @@ FORMULA_ADM_TIC_TAC_TOE_3 = '(!(lose) U win)'
 ARCH_LOCS_DICT = {1: {'supports': ["l4", "l5"], 'top': "l6"}}
 
    
-ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
-ARCH_ADM_FORMULA = "F(((p06 & p14 & p25) | (p06 & p15 & p24)))"
+# ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
+# ARCH_ADM_FORMULA = "F(((p06 & p14 & p25) | (p06 & p15 & p24)))"
 # ARCH_ADM_FORMULA = "F(((p06 & p14 & p25) | (p06 & p15 & p24))) & G(!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24))"
+# ARCH_ADM_FORMULA = "F(((p06 & p14 & p25) | (p06 & p15 & p24))) & G(!(p04 & p15 & p26) & !(p04 & p16 & p25))"
+ARCH_ADM_FORMULA = "(!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24)) U (((p06 & p14 & p25) | (p06 & p15 & p24)))"
+
 # (!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24)) U (((p14 & p25 & p06) | (p15 & p24 & p06)))
 
 # Diag Formulas

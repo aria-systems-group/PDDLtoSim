@@ -496,7 +496,7 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
             _stratgey = self.env_strategy.get(curr_state)
             preprocess = [_stratgey] if not isinstance(_stratgey, Iterable) else _stratgey
             for next_state in preprocess:
-                print(self.strategy_handle.hopeless_str[curr_state])
+                # print(self.strategy_handle.hopeless_str[curr_state])
                 if isinstance(self.strategy_handle.hopeless_str[curr_state], Iterable):
                     if next_state in self.strategy_handle.hopeless_str[curr_state]:
                         print("Eys Strategy: [Hopeless]", self.get_edge_action(curr_state=curr_state, succ_state=next_state))
