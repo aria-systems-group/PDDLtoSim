@@ -19,10 +19,11 @@ class RolloutProvider(ABC):
      An abstract class which needs to implemented for various strategy rollouts
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle, debug: bool = False, max_steps: int = 10, logger: Optional[Simulator] = None) -> 'RolloutProvider':
+    def __init__(self, game: ProductAutomaton, strategy_handle, print_env_strategy: bool = False, debug: bool = False, max_steps: int = 10, logger: Optional[Simulator] = None) -> 'RolloutProvider':
         self._game: Union[ProductAutomaton, TwoPlayerGame] = game
         self._game_name: str = game.graph_name
         self._strategy_handle = strategy_handle
+        self._print_env_str: bool = print_env_strategy
         self._strategy: dict = None
         self._env_strategy: dict = None
         self._state_values: dict = None
@@ -57,6 +58,10 @@ class RolloutProvider(ABC):
     def strategy_handle(self):
         return self._strategy_handle
     
+    @property
+    def print_env_str(self):
+        return self._print_env_str
+
     @property
     def strategy(self):
         return self._strategy

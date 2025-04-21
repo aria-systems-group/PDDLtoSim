@@ -12,6 +12,8 @@ import warnings
 from collections import OrderedDict
 from typing import Optional, Dict, Type, Union, Tuple, List
 
+from networkx.utils import graphs_equal 
+
 from icra_examples.safe_adm_game import modify_abstraction, remove_non_reachable_states
 from icra_examples.tic_tac_toe_abs import TicTacToe
 
@@ -109,7 +111,7 @@ def compute_strategy(strategy_type: str, game: ProductAutomaton, debug: bool = F
     
     elif strategy_type == "QuantiativeRefinedAdmissible":
         strategy_handle = QuantiativeRefinedAdmissible(game=game, debug=debug)
-        strategy_handle.compute_adm_strategies(plot=plot)
+        strategy_handle.compute_adm_strategies(plot=plot, plot_interactive_graph=False)
     
     elif strategy_type == "QuantitativeAdmMemorless":
         strategy_handle = QuantitativeAdmMemorless(game=game, debug=debug)
@@ -402,7 +404,7 @@ def construct_abstraction(abstraction_instance: str,
     if abstraction_instance == 'daig-main':
         daig_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str, rollout_flag=rollout_flag)
     elif abstraction_instance == 'arch-main':
-        arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str)
+        arch_main(print_flag=print_flag, record_flag=record_flag, test_all_str=test_all_str, rollout_flag=rollout_flag)
     elif abstraction_instance == 'minigrid':
         minigrid_main(debug=print_flag, record=record_flag, render=render_minigrid, test_all_str=test_all_str, max_iterations=max_iterations, human_type=human_type, strategy_type=strategy_type, env_type=env_type)
     elif abstraction_instance == 'tic-tac-toe':
@@ -456,7 +458,7 @@ def minigrid_main(debug: bool = False,
                                                     config_yaml_dict=OrderedDict(door_dict[id]))
             else:
                 minigrid_handle.build_minigrid_game(env_snap=False, get_aps=False)
-            sys.exit(-1)
+            # sys.exit(-1)
             stop = time.time()
             abs_dict['2p_game_constr_time'] = stop - start 
             minigrid_handle.get_aps(print_flag=True)
@@ -483,7 +485,7 @@ def minigrid_main(debug: bool = False,
             print(f"No. of edges in the DFA is :{len(minigrid_handle._dfa._graph.edges())}")
             abs_dict['DFA_game_nodes'] = len(minigrid_handle.dfa_game._graph.nodes())
             abs_dict['DFA_game_edges'] = len(minigrid_handle.dfa_game._graph.edges())
-            sys.exit(-1)
+            # sys.exit(-1)
             # run all synthesins and rollout algorithms0
             if test_all_str:
                 run_all_synthesis_and_rollouts(game=minigrid_handle.dfa_game,
@@ -520,7 +522,7 @@ def minigrid_main(debug: bool = False,
 
                 minigrid_handle.simulate_strategy(sys_actions=system_actions, env_actions=env_actions, render=render, record_video=record)
     
-        minigrid_handle._logger.dump_results_to_yaml(file_path=ROOT_PATH + BENCHMARK_DIR + "/comp_time" + f"{id}", add_time_stamp=True)
+        # minigrid_handle._logger.dump_results_to_yaml(file_path=ROOT_PATH + BENCHMARK_DIR + "/comp_time" + f"{id}", add_time_stamp=True)
         
 
     # _dump_strs = input("Do you want to save the rollout of the strategy,Enter: Y/y")
@@ -589,12 +591,15 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     #### Safe-Adm game domain file - ICRA 25 ####
     # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_2.pddl'
-    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
+    # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
+
+    #### Arch Construction Safe-Adm game domain file - TRO 25 ####
+    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_arch.pddl'
 
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
-                                         domain_file=domain_file_path,
-                                         draw=False)
+                                        domain_file=domain_file_path,
+                                        draw=False)
 
     causal_graph_instance.build_causal_graph(add_cooccuring_edges=False, relabel=False)
 
@@ -616,9 +621,9 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
     two_player_instance.build_two_player_game(human_intervention=2,
-                                               human_intervention_cost=0,
-                                               plot_two_player_game=False,
-                                               arch_construction=False)
+                                              human_intervention_cost=0,
+                                              plot_two_player_game=False,
+                                              arch_construction=False)
 
     # product_graph = two_player_instance.build_product(dfa=dfa, trans_sys=two_player_instance.two_player_game)
 
@@ -627,12 +632,28 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(implicit=True)
+
+    ## Testing dumping and loading of a graph
+    # CONFIG_DIR = ROOT_PATH + "/regret_synthesis_toolbox"
+    # two_player_instance._two_player_implicit_game.dump_to_yaml()
+    
+    # loaded_two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    # start = time.time()
+    # loaded_two_player_instance.construct_game_from_yaml(ROOT_PATH + "/regret_synthesis_toolbox/config/two_player_implicit_franka_adm_arch_problem")
+    # stop = time.time()
+    # if graphs_equal(two_player_instance.two_player_implicit_game._graph, loaded_two_player_instance.two_player_implicit_game._graph):
+    #     print("Graphs are equal: Time for Computation {:.3f} seconds".format(stop - start))
+    #     sys.exit(-1)
+
+    # sys.exit(-1)
     # two_player_instance.modify_edge_weights(implicit=True)
-    modify_abstraction(game=two_player_instance.two_player_implicit_game,
-                       all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
-                       hopeless_human_loc=set(['l6', 'l7', 'l8']),
-                       human_only_loc=set(['l9']),
-                       debug=False)
+    
+    #### Abstraction for 
+    # modify_abstraction(game=two_player_instance.two_player_implicit_game,
+    #                    all_human_loc=set(two_player_instance.causal_graph.task_intervening_locations),
+    #                    hopeless_human_loc=set(['l6', 'l7', 'l8']),
+    #                    human_only_loc=set(['l9']),
+    #                    debug=False)
     stop = time.time()
     print(f"******************************Original Graph construction time: {stop - start}******************************")
 
@@ -703,9 +724,11 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 @timer_decorator
-def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False) -> None:
-    domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/domain.pddl"
-    problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/problem.pddl"
+def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str: bool = False, rollout_flag: bool = False) -> None:
+    # domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/domain.pddl"
+    # problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/problem.pddl"
+    domain_file_path = ROOT_PATH + "/pddl_files/adm_unrealizable_world/domain_arch.pddl"
+    problem_file_path = ROOT_PATH + "/pddl_files/adm_unrealizable_world/problem_arch.pddl"
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
                                          domain_file=domain_file_path,
@@ -721,8 +744,9 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
     transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
     transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
-    transition_system_instance.build_arch_abstraction(plot=False, relabel_nodes=False)
-    transition_system_instance.modify_edge_weights()
+    # transition_system_instance.add_transit_and_transfer_nodes(plot=False, relabel_nodes=False)
+    transition_system_instance.build_arch_abstraction(arch_dict=ARCH_LOCS_DICT ,plot=False, relabel_nodes=False)
+    # transition_system_instance.modify_edge_weights()
 
     if print_flag:
         print(f"No. of nodes in the Transition System is :"
@@ -730,28 +754,35 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         print(f"No. of edges in the Transition System is :"
               f"{len(transition_system_instance.transition_system._graph.edges())}")
 
-    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
+    two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance, arch_locs_dict=ARCH_LOCS_DICT)
     two_player_instance.build_two_player_game(human_intervention=2,
-                                               human_intervention_cost=0,
-                                               plot_two_player_game=False,
-                                               arch_construction=True)
+                                              human_intervention_cost=0,
+                                              plot_two_player_game=False,
+                                              arch_construction=True)
 
     # for implicit construction, the human intervention should >=2
-    two_player_instance.build_two_player_implicit_transition_system_from_explicit(
-        plot_two_player_implicit_game=False)
+    two_player_instance.build_two_player_implicit_transition_system_from_explicit(plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-    # two_player_instance.modify_ap_w_object_types(implicit=True)
+    two_player_instance.modify_ap_w_object_types(implicit=True)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
+    
+    # dfa = two_player_instance.build_LTL_automaton(formula="F((l8 & l9 & l0) || (l3 & l2 & l1))")
+    dfa = two_player_instance.build_LTLf_automaton(formula=ARCH_ADM_FORMULA, plot=False)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
 
     relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
+
+    ### TMP - dump alll the edges in the game for sanity checking
+    # for (u, v, data) in product_graph._graph.edges(data=True):
+    #     print(f"{u} -------{data['actions']}------> {v} \n")
+    # sys.exit(-1)
 
     if print_flag:
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
@@ -762,10 +793,11 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
     else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
                                               game=product_graph,
-                                              human_type='no-human',
-                                              rollout_flag=True,
+                                            #   human_type='coop-human',
+                                              human_type='manual',
+                                              rollout_flag=rollout_flag,
                                               debug=True,
                                               max_iterations=100)
 

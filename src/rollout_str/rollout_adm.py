@@ -24,8 +24,13 @@ class AdmStrategyRolloutProvider(RolloutProvider):
      This class implements rollout provide for Adm strategy synthesis 
     """
 
-    def __init__(self, game: ProductAutomaton, strategy_handle: QuantitativeGoUAdmissible, debug: bool = False,  max_steps: int = 10, logger: Optional[Simulator] = None) -> 'AdmStrategyRolloutProvider':
-        super().__init__(game, strategy_handle, debug, max_steps, logger)
+    def __init__(self, game: ProductAutomaton, strategy_handle: QuantitativeGoUAdmissible, print_env_strategy: bool = False, debug: bool = False,  max_steps: int = 10, logger: Optional[Simulator] = None) -> 'AdmStrategyRolloutProvider':
+        super().__init__(game=game, 
+                         strategy_handle=strategy_handle,
+                         print_env_strategy=print_env_strategy,
+                         debug=debug,
+                         max_steps=max_steps,
+                         logger=logger)
 
     def set_strategy(self):
         pass
@@ -195,16 +200,16 @@ class AdmStrategyRolloutProvider(RolloutProvider):
         
     
     def rollout_with_human_intervention(self):
-        pass
+        raise NotImplementedError
 
     def rollout_with_strategy_dictionary(self):
-        pass
+        raise NotImplementedError
 
     def rollout_no_human_intervention(self):
-        pass
+        raise NotImplementedError
 
     def rollout_with_epsilon_human_intervention(self):
-        pass
+        raise NotImplementedError
 
 
 class AdmWinStrategyRolloutProvider(AdmStrategyRolloutProvider):
@@ -212,7 +217,12 @@ class AdmWinStrategyRolloutProvider(AdmStrategyRolloutProvider):
      Overrides the base clas''admissibility checking method to compute admissible winning strategies. 
     """
     def __init__(self, game: ProductAutomaton, strategy_handle: QuantitativeGoUAdmissibleWinning, debug: bool = False, max_steps: int = 10, logger: Optional[Simulator] = None) -> 'AdmWinStrategyRolloutProvider':
-        super().__init__(game, strategy_handle, debug, max_steps, logger)
+        super().__init__(game=game,
+                         strategy_handle=strategy_handle,
+                         print_env_strategy=False,
+                         debug=debug,
+                         max_steps=max_steps,
+                         logger=logger)
     
 
     def check_sc_strategy(self, source: Tuple, succ: Tuple, avalues: Set[int]) -> bool:
@@ -266,8 +276,13 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
 
      A hopeful-admissible str always exists and worst-case scenario is exactly the same as Admissible strategies. 
     """
-    def __init__(self, game: ProductAutomaton, strategy_handle: QuantiativeRefinedAdmissible, debug: bool = False, max_steps: int = 10, logger: Optional[Simulator] = None)  -> 'RefinedAdmStrategyRolloutProvider':
-        super().__init__(game, strategy_handle, debug, max_steps, logger)
+    def __init__(self, game: ProductAutomaton, strategy_handle: QuantiativeRefinedAdmissible, print_env_strategy: bool = False, debug: bool = False, max_steps: int = 10, logger: Optional[Simulator] = None)  -> 'RefinedAdmStrategyRolloutProvider':
+        super().__init__(game=game,
+                         strategy_handle=strategy_handle,
+                         print_env_strategy=print_env_strategy,
+                         debug=debug,
+                         max_steps=max_steps,
+                         logger=logger)
         self.sys_opt_coop_str: Optional[dict] =  self.strategy_handle.coop_optimal_sys_str
         self.env_coop_str: Optional[dict] = self.strategy_handle.env_coop_winning_str
         self.env_safeadm_coop_str: Optional[dict] = self.strategy_handle.safeadm_game
@@ -476,6 +491,21 @@ class RefinedAdmStrategyRolloutProvider(AdmStrategyRolloutProvider):
                         print("Sys Strategy: [Hope-Adm][Coop Opt]", act)
                     else:
                         print("Sys Strategy: [Hope-Adm]", act)
+        
+        elif self.game.get_state_w_attribute(curr_state, 'player') == "adam":
+            _stratgey = self.env_strategy.get(curr_state)
+            preprocess = [_stratgey] if not isinstance(_stratgey, Iterable) else _stratgey
+            for next_state in preprocess:
+                # print(self.strategy_handle.hopeless_str[curr_state])
+                if isinstance(self.strategy_handle.hopeless_str[curr_state], Iterable):
+                    if next_state in self.strategy_handle.hopeless_str[curr_state]:
+                        print("Eys Strategy: [Hopeless]", self.get_edge_action(curr_state=curr_state, succ_state=next_state))
+                elif next_state == self.strategy_handle.hopeless_str[curr_state]:
+                    print("Eys Strategy: [Hopeless]", self.get_edge_action(curr_state=curr_state, succ_state=next_state))
+                else:
+                    print("Env Strategy: [Adv]", self.get_edge_action(curr_state=curr_state, succ_state=next_state))
+        else:
+            warnings.warn(f"[Error] Encountered state {curr_state} that does not belong to any player. Fix this!!!")
         
         idx_num = input("Enter state to select from: ")
         print(f"Choosing state: {succ_list[int(idx_num)]}")
@@ -686,7 +716,12 @@ class RandomSysStrategyRolloutProvider(RefinedAdmStrategyRolloutProvider):
      This class override the Adm Sys strategy and replace it with a random strategy.
     """
     def __init__(self, game, strategy_handle, debug = False, max_steps = 10, logger: Optional[Simulator] = None):
-        super().__init__(game, strategy_handle, debug, max_steps, logger)
+        super().__init__(game=game,
+                         strategy_handle=strategy_handle,
+                         print_env_strategy=False,
+                         debug=debug,
+                         max_steps=max_steps,
+                         logger=logger)
     
     def get_next_state(self, curr_state, coop_env: bool = False, prev_state = None) -> Tuple[str, str]:
         """
@@ -730,7 +765,12 @@ class RandomSysStrategyRolloutProvider(RefinedAdmStrategyRolloutProvider):
 class AdmMemeorylessStrRolloutProvider(RefinedAdmStrategyRolloutProvider):
 
     def __init__(self, game, strategy_handle, debug = False, max_steps = 10, logger: Optional[Simulator] = None):
-        super().__init__(game, strategy_handle, debug, max_steps, logger)
+        super().__init__(game=game,
+                         strategy_handle=strategy_handle,
+                         print_env_strategy=False,
+                         debug=debug,
+                         max_steps=max_steps,
+                         logger=logger)
     
 
     def _get_successors_based_on_str(self, curr_state) -> str:
