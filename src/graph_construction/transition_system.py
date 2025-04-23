@@ -667,6 +667,7 @@ class FiniteTransitionSystem:
         :param weight: Edge weight.
         """
         if to_node not in self._transition_system._graph.nodes:
+            print("******************** Adding Node ********************")
             self._transition_system.add_state(state_name=to_node,
                                               causal_state_name=causal_state,
                                               player="eve",
@@ -674,12 +675,11 @@ class FiniteTransitionSystem:
                                               ap=ap_str)
         
         if (from_node, to_node) not in self._transition_system._graph.edges:
+            print("******************** Adding Edge ********************")
             self._transition_system.add_edge(u=from_node,
                                              v=to_node,
                                              actions=action,
                                              weight=weight)
-        else:
-            warnings.warn("Edge already exists")
     
 
     def _add_transfer_node(self, box: str, node, curr_node_list_lbl: List[str], curr_loc, top_loc: str) -> Tuple[str, List[str]]:
@@ -699,62 +699,7 @@ class FiniteTransitionSystem:
         
         return game_succ_node, succ_node_list_lbl
     
-    def _add_release_node(self, box: str, node, curr_node_list_lbl: List[str], top_loc: str) -> Tuple[str, List[str]]:
-        """
-         Helper method to add a release node.
-        """
-        boxid = int(box[-1])
-        causal_succ_node = f"(ready {top_loc})"
-        succ_node_list_lbl = curr_node_list_lbl.copy()
-        succ_node_list_lbl[boxid] = top_loc
-        succ_node_list_lbl[-1] = "free"
-        succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
-        game_succ_node = causal_succ_node + succ_node_lbl
-        edge_action = f"(release {box} {top_loc})"
-        cost = self._action_to_cost.get("release")
-        
-        self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
-                            succ_node_list_lbl, succ_node_lbl, edge_action, cost)
-        
-        return game_succ_node, succ_node_list_lbl
-    
 
-    def _add_transit_node(self, box: int, node, curr_node_list_lbl: List[str], curr_loc: str, top_loc: str) -> Tuple[str, List[str]]:
-        """
-         Helper method to add a transit node.
-        """
-        causal_succ_node = f"(to-obj {box} {top_loc})"
-        succ_node_list_lbl = curr_node_list_lbl.copy()
-        succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
-        game_succ_node = causal_succ_node + succ_node_lbl
-        # if curr_loc != '':
-        edge_action = f"(transit {box} {curr_loc} {top_loc})"
-        cost = self._action_to_cost.get("transit")
-        
-        self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
-                            succ_node_list_lbl, succ_node_lbl, edge_action, cost)
-        
-        return game_succ_node, succ_node_list_lbl
-    
-
-    def _add_grasp_node(self, box: int, node, curr_node_list_lbl: List[str], top_loc: str) -> Tuple[str, List[str]]:
-        """
-         Helper method to add a grasp node.
-        """
-        boxid = int(box[-1])
-        causal_succ_node = f"(holding {box} {top_loc})"
-        succ_node_list_lbl = curr_node_list_lbl.copy()
-        succ_node_list_lbl[boxid] = "gripper"
-        succ_node_list_lbl[-1] = box
-        succ_node_lbl = self._convert_list_ap_to_str(succ_node_list_lbl)
-        game_succ_node = causal_succ_node + succ_node_lbl
-        edge_action = f"(grasp {box} {top_loc})"
-        cost = self._action_to_cost.get("grasp")
-        
-        self._add_node_and_edge(node, game_succ_node, causal_succ_node, 
-                            succ_node_list_lbl, succ_node_lbl, edge_action, cost)
-        
-        return game_succ_node, succ_node_list_lbl
     
     def _add_transfer_to_empty_locations(self, box: int, node, curr_node_list_lbl: List[str], top_loc: str) -> None:
         """
@@ -769,37 +714,6 @@ class FiniteTransitionSystem:
         
         for loc in empty_locs:
             self._add_transfer_node(box, node, succ_node_list_lbl, top_loc, loc)
-    
-    def _process_support_configuration(self,
-                                       box: str,
-                                       node,
-                                       curr_node_list_lbl: List[str],
-                                       curr_loc: str,
-                                       top_loc: str) -> None:
-        """
-        Process a support configuration by creating and adding necessary nodes and edges.
-        
-        :param node: The current node in the graph.
-        :param curr_node_list_lbl: Current node label as a list.
-        :param curr_loc: Current location.
-        :param top_loc: Top location to place the box.
-        :param current_world_config: Current world configuration.
-        :param support_type: Type of support configuration ("support_1" or "support_2").
-        """
-        # Step 1: Add edge to transfer the box to the top location
-        transfer_node, curr_node_list_lbl  = self._add_transfer_node(box, node, curr_node_list_lbl, curr_loc, top_loc)
-        
-        # Step 2: Add edge to release the box at the top location
-        release_node, curr_node_list_lbl = self._add_release_node(box, transfer_node, curr_node_list_lbl, top_loc)
-        
-        # Step 3: Add edge to transit to the box at the top location
-        transit_node, curr_node_list_lbl = self._add_transit_node(box, release_node, curr_node_list_lbl, top_loc, top_loc)
-        
-        # Step 4: Add edge to grasp the box at the top location
-        grasp_node, curr_node_list_lbl = self._add_grasp_node(box, transit_node, curr_node_list_lbl, top_loc)
-        
-        # Step 5: Add edges to transfer the box to empty locations
-        self._add_transfer_to_empty_locations(box, grasp_node, curr_node_list_lbl, top_loc)
     
 
     def add_transit_and_transfer_nodes(self,
@@ -833,43 +747,6 @@ class FiniteTransitionSystem:
                 self._add_transfer_to_empty_locations(f"b{curr_box_id}", node, curr_node_list_lbl, curr_loc)
         
 
-        if plot:
-            if relabel_nodes:
-                relabelled_graph = self.internal_node_mapping(self._transition_system)
-                relabelled_graph.plot_graph()
-            else:
-                self._transition_system.plot_graph()
-    
-
-    def build_arch_abstraction(self,
-                               arch_dict: dict,
-                               game: Optional[TwoPlayerGraph] = None,
-                               plot: bool = False,
-                               relabel_nodes: bool = True) -> None:
-        """
-        A helper method to create an abstraction in which there are no transfer actions to locations that are on the
-        top, unless you have supports below it.
-        """
-        if game is None:
-            game = copy.deepcopy(self._transition_system)
-
-        for node in game._graph.nodes():
-            causal_state_name = game._graph.nodes[node].get("causal_state_name")
-            
-            if "holding" in causal_state_name:
-                current_world_config = game._graph.nodes[node].get("list_ap")
-                curr_node_list_lbl = game._graph.nodes[node].get("list_ap")
-                # Check if you are holding b0
-                box_id, curr_loc = self._get_box_location(causal_state_name)
-                box = f"b{box_id}"
-                # if box_id == 0:
-                for _, arch_locs in arch_dict.items():
-                    # Check which support configuration is satisfied
-                    support_flag = self._check_support_configuration(current_world_config, arch_locs['supports'])
-            
-                    if support_flag:
-                        self._process_support_configuration(box, node, curr_node_list_lbl, curr_loc, arch_locs['top'])
-        
         if plot:
             if relabel_nodes:
                 relabelled_graph = self.internal_node_mapping(self._transition_system)

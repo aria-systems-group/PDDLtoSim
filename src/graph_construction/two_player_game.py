@@ -1040,44 +1040,6 @@ class TwoPlayerGame:
             if _from_loc == "" and _to_loc in _non_intervening_locs:
                 game._graph[_u][_v][0]['weight'] = 3
                 continue
-    
-    def modify_edge_weights_arch(self, arch_loc_dict: dict, implicit: bool = True):
-        """
-        A helper function in which I modify weights corresponding to actions that transit and transfer between the two arch locs.
-          It is more expensive (3 times) to travel between the two arch locs 
-        """
-        transit_pattern: str = "\\btransit\\b"
-        transfer_pattern: str = "\\btransfer\\b"
-        locs = []
-        for arch in arch_loc_dict.values():
-            locs.append(set(arch.get("supports")).union(set([arch.get("top")])))
-
-        def return_action_type(action: str) -> str:
-            if re.search(transit_pattern, action):
-                return "transit"
-            elif re.search(transfer_pattern, action):
-                return "transfer"
-            else:
-                return "other"
-
-        game = self._two_player_implicit_game if implicit else self._two_player_game
-
-        # iterate through all edge and multiply the weight by 4 for edges as per the doc string
-        for edge in game._graph.edges():
-            from_node, to_node = edge[0], edge[1]
-            edge_action = game._graph[from_node][to_node][0].get('actions')
-
-            if game._graph.nodes[from_node]['player'] == 'adam' or return_action_type(edge_action) == "other":
-                continue
-
-            # get the from and to loc
-            _, locs = self._get_multiple_box_location(edge_action)
-            # there are transit actions from else to l# that are not captured by the regex
-            if len(locs) == 2:
-                from_loc, to_loc = locs[0], locs[1]
-            
-                if not any(from_loc in loc_set and to_loc in loc_set for loc_set in locs):
-                    game._graph[from_node][to_node][0]['weight'] = 3
 
 
     def build_LTL_automaton(self, formula: str, debug: bool = False, plot: bool = False, use_alias: bool = False):
