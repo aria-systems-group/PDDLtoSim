@@ -41,7 +41,7 @@ from src.rollout_str.rollout_provider_if import RolloutProvider
 from src.rollout_str.rollout_main import rollout_strategy, VALID_ENV_STRINGS, Strategy
 
 from config import *
-from utls import timer_decorator
+from utls import timer_decorator, get_total_memory
 
 # define a constant to dump the yaml file
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -865,6 +865,9 @@ if __name__ == "__main__":
         # displaying the memory - output current memory usage and peak memory usage
         _,  peak_mem = tracemalloc.get_traced_memory()
         print(f" Peak memory [MB]: {peak_mem/(1024*1024)}")
+
+        # get the total process memory from the OS
+        get_total_memory()
         
         # stopping the library
         tracemalloc.stop()
