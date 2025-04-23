@@ -1,4 +1,6 @@
+import os
 import time
+import psutil
 import warnings
 
 from pathlib import Path
@@ -33,3 +35,13 @@ def timer_decorator(func):
 def is_docker():
     cgroup = Path('/proc/self/cgroup')
     return Path('/.dockerenv').is_file() or cgroup.is_file() and 'docker' in cgroup.read_text()
+
+
+def get_total_memory() -> None:
+    """
+    Returns the total memory of the system in bytes.
+    """
+    # For comparison, get the total process memory from the OS
+    
+    process = psutil.Process(os.getpid())
+    print(f"Process memory (RSS): {process.memory_info().rss / (1024 * 1024):.2f} MB")

@@ -41,7 +41,7 @@ from src.rollout_str.rollout_provider_if import RolloutProvider
 from src.rollout_str.rollout_main import rollout_strategy, VALID_ENV_STRINGS, Strategy
 
 from config import *
-from utls import timer_decorator
+from utls import timer_decorator, get_total_memory
 
 # define a constant to dump the yaml file
 ROOT_PATH = os.path.dirname(os.path.abspath(__file__))
@@ -728,7 +728,8 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     # domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/domain.pddl"
     # problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/arch/problem.pddl"
     domain_file_path = ROOT_PATH + "/pddl_files/adm_unrealizable_world/domain_arch.pddl"
-    problem_file_path = ROOT_PATH + "/pddl_files/adm_unrealizable_world/problem_arch.pddl"
+    # problem_file_path = ROOT_PATH + "/pddl_files/adm_unrealizable_world/problem_arch.pddl"
+    problem_file_path = ROOT_PATH + "/pddl_files/adm_unrealizable_world/problem_two_arch.pddl"
 
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
                                          domain_file=domain_file_path,
@@ -743,9 +744,9 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
             f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.edges())}")
 
     transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
-    transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
+    transition_system_instance.arch_dict = ARCH_LOCS_DICT
+    transition_system_instance.build_transition_system(plot=False, relabel_nodes=False, arch_construction=True)
     # transition_system_instance.add_transit_and_transfer_nodes(plot=False, relabel_nodes=False)
-    transition_system_instance.build_arch_abstraction(arch_dict=ARCH_LOCS_DICT ,plot=False, relabel_nodes=False)
     # transition_system_instance.modify_edge_weights()
 
     if print_flag:
@@ -763,7 +764,8 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     # for implicit construction, the human intervention should >=2
     two_player_instance.build_two_player_implicit_transition_system_from_explicit(plot_two_player_implicit_game=False)
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
-    two_player_instance.modify_ap_w_object_types(implicit=True)
+    two_player_instance.modify_ap_w_object_types(arch_loc_dict=ARCH_LOCS_DICT, include_box_in_ap=['b0'], implicit=True)
+    # two_player_instance.modify_ap_w_object_types(implicit=True)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
@@ -848,7 +850,7 @@ if __name__ == "__main__":
         #                       human_type=human_type,
         #                       strategy_type=strategy_type,
         #                       env_type=env_type)
-        construct_abstraction(abstraction_instance='minigrid',
+        construct_abstraction(abstraction_instance='arch-main',
                               print_flag=True,
                               record_flag=record,
                               render_minigrid=False,
@@ -862,6 +864,9 @@ if __name__ == "__main__":
         # displaying the memory - output current memory usage and peak memory usage
         _,  peak_mem = tracemalloc.get_traced_memory()
         print(f" Peak memory [MB]: {peak_mem/(1024*1024)}")
+
+        # get the total process memory from the OS
+        get_total_memory()
         
         # stopping the library
         tracemalloc.stop()
