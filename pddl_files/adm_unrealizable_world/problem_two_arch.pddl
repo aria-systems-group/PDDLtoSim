@@ -16,6 +16,7 @@
     l6 - top_loc
 
     ;; human placeholder locations
+    ;l2 - top_loc
     l7 - hbox_loc
     l8 - hbox_loc
 	
@@ -31,8 +32,8 @@
 (:init
     (ready else)
     (on b0 l5)
-    (on b1 l7)
-    (on b2 l8)
+    (on b1 l6)
+    (on b2 l4)
     ;(on b3 l4)
     ;(on b4 l8)
 )
