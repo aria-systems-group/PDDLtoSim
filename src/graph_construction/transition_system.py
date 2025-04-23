@@ -27,6 +27,7 @@ class FiniteTransitionSystem:
         self._causal_graph: CausalGraph = causal_graph
         self._transition_system: Optional[FiniteTransSys] = None
         self._action_to_cost: Optional[Dict] = self._set_default_action_cost_mapping()
+        self._arch_dict: dict = None
 
     @property
     def transition_system(self):
@@ -38,6 +39,11 @@ class FiniteTransitionSystem:
     @property
     def action_to_cost(self):
         return self._action_to_cost
+    
+    @property
+    def arch_dict(self):
+        return self._arch_dict
+    
 
     @action_to_cost.setter
     def action_to_cost(self, action_cost_dict):
@@ -48,6 +54,15 @@ class FiniteTransitionSystem:
                               f" works with >= 0 weights.")
 
         self._action_to_cost = action_cost_dict
+    
+
+    @arch_dict.setter
+    def arch_dict(self, arch_loc_dict: dict):
+        dict_keys = set({"supports", "top"})
+        for arch_num, arch in arch_loc_dict.items():
+            assert dict_keys == set(arch.keys()), f"Arch {arch_num} should have the following keys {dict_keys}"
+        
+        self._arch_dict = arch_loc_dict
 
     def _set_default_action_cost_mapping(self) -> Dict:
         """
@@ -62,7 +77,7 @@ class FiniteTransitionSystem:
              }
         return _action_cost_mapping
 
-    def build_transition_system(self, plot: bool = False, relabel_nodes: bool = True):
+    def build_transition_system(self, plot: bool = False, relabel_nodes: bool = True, arch_construction: bool = False) -> None:
         """
         A function that builds the transition system given a causal graph.
 
@@ -135,7 +150,8 @@ class FiniteTransitionSystem:
                                                               causal_succ_node=_causal_succ_node,
                                                               game_current_node=_game_current_node,
                                                               visited_stack=visited_stack,
-                                                              done_stack=done_stack)
+                                                              done_stack=done_stack,
+                                                              arch_construction=arch_construction)
 
             done_stack.append(_game_current_node)
 
@@ -151,7 +167,8 @@ class FiniteTransitionSystem:
                                              causal_succ_node,
                                              game_current_node,
                                              visited_stack: deque,
-                                             done_stack: deque) -> None:
+                                             done_stack: deque,
+                                             arch_construction: bool = False) -> None:
         """
         A helper function called by the self._build_transition_system method to add valid the edges between two states
         of the Transition System and update the label of the successor state based on the type of action being
@@ -196,7 +213,8 @@ class FiniteTransitionSystem:
         elif _action_type == "transfer":
             _cost: int = self._action_to_cost.get("transfer")
             if self._check_transfer_action_validity(current_node_list_lbl=_curr_node_list_lbl,
-                                                    action=_edge_action):
+                                                    action=_edge_action,
+                                                    arch_construction=arch_construction):
 
                 _succ_node_list_lbl = _curr_node_list_lbl.copy()
                 _, _box_loc = self._get_multiple_box_location(_edge_action)
@@ -331,7 +349,7 @@ class FiniteTransitionSystem:
 
         return False
 
-    def _check_transfer_action_validity(self, current_node_list_lbl: list, action: str) -> bool:
+    def _check_transfer_action_validity(self, current_node_list_lbl: list, action: str, arch_construction: bool = False) -> bool:
         """
         A transfer action is valid when the box is currently in the grippers hand and the grippers is holding that
         particular box. Also, the box can also be transferred to a place which is does not a box already placed in it.
@@ -346,7 +364,24 @@ class FiniteTransitionSystem:
         _box_id, _box_loc = self._get_multiple_box_location(action)
 
         if current_node_list_lbl[_box_id] == "gripper" and current_node_list_lbl[-1] == "b" + str(_box_id):
-            if not (_box_loc[-1] in current_node_list_lbl):
+            # if arch_construction then check if the box is part of an arch. If there is an box in top then you cannot move this object.
+            prior_list_lbl = current_node_list_lbl.copy()
+            prior_list_lbl[_box_id] = _box_loc[0]
+            prior_list_lbl[-1] = "free"
+            if arch_construction: 
+                # if the box is in support loc and then we can NOT move it.
+                if self._check_arch_constructed(prior_list_lbl):
+                    for _, arch in self._arch_dict.items():
+                        if _box_loc[0] in arch.get("supports") :                
+                            return False
+                # check if transfering to the top, if yes check if support constructed or not
+                else:
+                    for _, arch in self._arch_dict.items():
+                        if _box_loc[1] in arch.get("top") and not self._check_support_configuration(current_node_list_lbl, arch.get("supports")):
+                            return False
+
+            # check if the "to loc" is free
+            if _box_loc[-1] not in current_node_list_lbl:
                 return True
 
         return False
@@ -602,6 +637,22 @@ class FiniteTransitionSystem:
                 return False
         return True
     
+
+    def _check_arch_constructed(self, current_world_config: List[str]) -> bool:
+        """
+        Check if all support locations are present in the current world configuration.
+        
+        :param current_world_config: Current world configuration as a list of locations.
+        :param support_locations: List of support locations to check.
+        :return: True if all support locations are in the world configuration, False otherwise.
+        """
+        for _, arch in self._arch_dict.items():
+            supports, top = arch.get("supports"), arch.get("top")
+            if all(loc in current_world_config for loc in supports) and top in current_world_config:
+                if "free" == current_world_config[-1]:
+                    return True
+            return False
+
 
     def _add_node_and_edge(self, from_node, to_node, causal_state, list_ap, ap_str, action, weight):
         """

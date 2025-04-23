@@ -306,48 +306,6 @@ class TwoPlayerGame:
                     self._two_player_implicit_game.add_edge(u=_org_node,
                                                             v=_org_succ,
                                                             **_edge_attrs)
-
-        # coping so as to avoid dynamic dictionary change errors
-        # _two_player_implicit_game_copy = copy.deepcopy(self._two_player_implicit_game)
-
-        # human could intervene and evolve to state that only exists in the sub-graphs after intervening at least once.
-        # we iterate through the two_player_implicit_game, see if any states has zero outgoing edge. We then look for
-        # its counterpart in the graph with _max_human_counter - 1 state counter, look at its neighbour, add them and
-        # their edge
-        # _human_int = self._human_interventions - 1
-        # for _n in _two_player_implicit_game_copy._graph.nodes():
-        #     if len(list(_two_player_implicit_game_copy._graph.successors(_n))) == 0:
-        #         for _succ in self._two_player_game._graph.successors((_n, _human_int)):
-        #             _org_succ = _succ[0]
-        #             _org_succ_attrs = self._two_player_game._graph.nodes[_succ]
-
-        #             if not self._two_player_implicit_game._graph.has_node(_org_succ):
-        #                 self._two_player_implicit_game.add_state(_org_succ, **_org_succ_attrs)
-
-        #             _edge_attrs = self._two_player_game._graph.edges[(_n, _human_int), _succ, 0]
-
-        #             if not self._two_player_implicit_game._graph.has_edge(_n, _org_succ):
-        #                 self._two_player_implicit_game.add_edge(u=_n,
-        #                                                         v=_org_succ,
-        #                                                         **_edge_attrs)
-
-        #             for _succ_of_succ in self._two_player_game._graph.successors(_succ):
-        #                 # if _succ_of_succ[1] == _human_int:
-        #                 _org_succ_of_succ = _succ_of_succ[0]
-        #                 _org_attrs = self._two_player_game._graph.nodes[_succ_of_succ]
-
-        #                 if not self._two_player_implicit_game._graph.has_node(_org_succ_of_succ):
-        #                     self._two_player_implicit_game.add_state(_org_succ_of_succ, **_org_attrs)
-        #                     warnings.warn("This should not happen")
-        #                     num_warnings+= 1
-
-        #                 _edge_attrs = self._two_player_game._graph.edges[_succ, _succ_of_succ, 0]
-
-        #                 if not self._two_player_implicit_game._graph.has_edge(_org_succ, _org_succ_of_succ):
-        #                     self._two_player_implicit_game.add_edge(u=_org_succ,
-        #                                                             v=_org_succ_of_succ,
-        #                                                             **_edge_attrs)
-        # print(f"The number of warnings I got are: {num_warnings}")
         num_of_nodes_w_no_outgoing_edges = 0
         for game_node in self._two_player_implicit_game._graph.nodes():
             # Only process nodes with no outgoing edges
@@ -500,11 +458,6 @@ class TwoPlayerGame:
                 if loc not in current_world_config:
                     supports_not_constructed_dict[num] = True
                     break
-        # there are conf where the robot is about to release the object in the arch support locs.
-        #  While the above loop returns true the arch has not been completed yet.
-        # for num, arch_locs in self._arch_locs_dict.items():
-        #     if not supports_not_constructed_dict[num] and 'free' not in current_world_config:
-        #         supports_not_constructed_dict[num] = True
             
         actions_to_remove = set()
         for num, supports_not_constructed in supports_not_constructed_dict.items():
@@ -535,7 +488,7 @@ class TwoPlayerGame:
             
             for num, supports_not_constructed in supports_not_constructed_dict.items():
                 assert supports_not_constructed, "[Error] Removing human edges while the arch has NOT been formed in the next Sys state. Fix this!!!"
-                assert self._arch_locs_dict[num]['top'] in current_world_config, "[Error] Removing human edges while the arch has NOT been formed in the next Sys state. Fix this!!!"
+                # assert self._arch_locs_dict[num]['top'] in current_world_config, "[Error] Removing human edges while the arch has NOT been formed in the next Sys state. Fix this!!!"
                 
                 # this is not captured by the traditional compute human intervention method as the the game is directly evolving from holding state to ready state and skipping to-loc
                 for human_move in valid_human_actions:
@@ -557,13 +510,6 @@ class TwoPlayerGame:
         A function that returns a list all possible human action when the robot is trying to perform a transit action
         """
         _valid_human_actions: list = []
-
-        # human cannot intervene once the arch is build or a box is at location l0 or l1
-        # if arch_construction:
-        #     # if "l0" in current_world_conf or "l1" in current_world_conf:
-        #     for arch_locs in self._arch_locs_dict.values():
-        #         if arch_locs['top'] in current_world_conf:
-        #             return _valid_human_actions
 
         for _box_idx, _box_loc in enumerate(current_world_conf):
             if _box_idx != len(current_world_conf) - 1:
@@ -658,14 +604,6 @@ class TwoPlayerGame:
         A function that returns a list of all possible human actions when the robot is trying to drop an object
         """
         _valid_human_actions: list = []
-
-        # human cannot intervene once the arch is build or a box is at location l0 or l1
-        # if arch_construction:
-        #     # if "l0" in current_world_conf or "l1" in current_world_conf:
-        #     #     return _valid_human_actions
-        #     for arch_locs in self._arch_locs_dict.values():
-        #         if arch_locs['top'] in current_world_conf:
-        #             return _valid_human_actions
 
         for _box_idx, _box_loc in enumerate(current_world_conf):
             if _box_loc != "gripper" and _box_idx != len(current_world_conf) - 1:
@@ -999,34 +937,63 @@ class TwoPlayerGame:
             # delete the list_ap node attribute
             del game._graph.nodes[_n]['list_ap']
 
-    def modify_ap_w_object_types(self, implicit: bool = True):
+    def modify_ap_w_object_types(self, arch_loc_dict: dict = {}, implicit: bool = True, include_box_in_ap: List[str] = None):
         """
-        A function that modifies the list of atomic propositions that are true at a given state with the box type
+        A function that modifies the list of atomic propositions (APs) that are true at a given state.
 
-        e.g ["l2", "l3", "l4", "free"] => ["p02", "p13", "p24", "free"] or
-        [gripper, "l3", "l0", "b0"] => ["gripper", "p13", "p20", "b0"].
+        If `arch_loc_dict` is provided, the method modifies the APs to include the "arch" predicate if the arch is constructed.
+        For example:
+            Arch dict = {'supports': ["l4", "l5"], 'top': "l6"}
+            List AP: ["l6", "l4", "l5", "free"] -> ["arch", "p06", "free"]
 
-        NOTE: Before calling this function, make sure we call the set_appropriate_ap_attribute_name() method that swaps
-         the list_ap node with ap attribute.
+        If the robot is still holding the block on top, the arch is not constructed, and the APs are modified as:
+            ["gripper", "l4", "l5", "b0"] -> ["gripper", "p14", "p25", "b0"]
+
+        If `arch_loc_dict` is not provided, the method modifies the APs to include object types:
+            ["l2", "l3", "l4", "free"] -> ["p02", "p13", "p24", "free"] 
+
+        NOTE: For TRO 25 implementation, we care about b0's position so we will explicitly keep track of it's pos in the label.
+
+        NOTE: Before calling this function, make sure to call the `set_appropriate_ap_attribute_name()` method
+        that swaps the `list_ap` node attribute with the `ap` attribute.
+
+        :param arch_loc_dict: A dictionary defining the arch structure with "supports" and "top" locations.
+        :param implicit: Whether to modify the implicit two-player game or the explicit one.
+        :param include_box_in_ap: A list of boxes whoese locations to be explicitly included in the APs. We only care about this in the arch constuction e.g
         """
+        arch_predicate = ["arch"]
         if implicit:
             game = self._two_player_implicit_game
         else:
             game = self._two_player_game
 
         for _n in game._graph.nodes():
-            _list_ap = game.get_state_w_attribute(_n, "ap")
-            _tmp_lst_ap = _list_ap.copy()
+            list_ap = game.get_state_w_attribute(_n, "ap")
+            tmp_lst_ap = list_ap.copy()
 
-            for _idx, _box_loc in enumerate(_list_ap):
-                if _box_loc == "gripper" or _idx == len(_list_ap) - 1:
+            for bidx, box_loc in enumerate(list_ap):
+                if box_loc == "gripper" or bidx == len(list_ap) - 1:
                     continue
                 else:
-                    _loc = re.findall('[0-9]+', _box_loc)
-                    _new_ap_str = f"p{_idx}{_loc[0]}"
-                    _tmp_lst_ap[_idx] = _new_ap_str
+                    _loc = re.findall('[0-9]+', box_loc)
+                    _new_ap_str = f"p{bidx}{_loc[0]}"
+                    tmp_lst_ap[bidx] = _new_ap_str
 
-            game._graph.nodes[_n]['ap'] = _tmp_lst_ap
+            if arch_loc_dict:
+                # for each arch diction
+                for arch_dict in arch_loc_dict.values():
+                    # Check if the arch is constructed
+                    supports, top = arch_dict.get("supports"), arch_dict.get("top")
+                    if not supports or not top:
+                        raise KeyError("The arch_loc_dict must contain 'supports' and 'top' keys.")
+
+                    if all(loc in list_ap for loc in supports) and top in list_ap:
+                        if "free" == list_ap[-1]:
+                            # Arch is constructed
+                            tmp_lst_ap = [pred for bidx, pred in enumerate(tmp_lst_ap[:-1]) if f"b{bidx}" in include_box_in_ap]
+                            tmp_lst_ap = tmp_lst_ap + ["free"] + arch_predicate            
+
+            game._graph.nodes[_n]['ap'] = tmp_lst_ap
 
     def modify_edge_weights(self, implicit: bool = True):
         """
