@@ -37,14 +37,21 @@ FORMULA_ADM_TIC_TAC_TOE_3 = '(!(lose) U win)'
 # ARCH_LOCS_DICT = {1: {'supports': ["l8", "l9"], 'top': "l0"},
 #                   2: {'supports': ["l3", "l2"], 'top': "l1"}
 #                   }
-ARCH_LOCS_DICT = {1: {'supports': ["l4", "l5"], 'top': "l6"}}
+# ARCH_LOCS_DICT = {1: {'supports': ["l4", "l5"], 'top': "l6"}}
+ARCH_LOCS_DICT = {1: {'supports': ["l4", "l5"], 'top': "l6"},
+                #   2: {'supports': ["l7", "l8"], 'top': "l2"}
+                  }
+
 
    
 # ARCH_FORMULA = "F((l8 & l9 & l0) || (l3 & l2 & l1))"
 # ARCH_ADM_FORMULA = "F(((p06 & p14 & p25) | (p06 & p15 & p24)))"
 # ARCH_ADM_FORMULA = "F(((p06 & p14 & p25) | (p06 & p15 & p24))) & G(!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24))"
 # ARCH_ADM_FORMULA = "F(((p06 & p14 & p25) | (p06 & p15 & p24))) & G(!(p04 & p15 & p26) & !(p04 & p16 & p25))"
-ARCH_ADM_FORMULA = "(!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24)) U (((p06 & p14 & p25) | (p06 & p15 & p24)))"
+# ARCH_ADM_FORMULA = "(!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24)) U (((p06 & p14 & p25) | (p06 & p15 & p24)))"
+# ARCH_ADM_FORMULA = "(!(p04 & arch) & !(p05 & arch)) U (p06 & arch)"
+ARCH_ADM_FORMULA = "F(p06 & arch)"
+# ARCH_ADM_FORMULA = "F(p06 & arch) || F(p02 & arch)"
 
 # (!(p04 & p15 & p26) & !(p04 & p16 & p25) & !(p05 & p14 & p26) & !(p05 & p16 & p24)) U (((p14 & p25 & p06) | (p15 & p24 & p06)))
 
