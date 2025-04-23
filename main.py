@@ -767,6 +767,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     two_player_instance.set_appropriate_ap_attribute_name(implicit=True)
     two_player_instance.modify_ap_w_object_types(arch_loc_dict=ARCH_LOCS_DICT, include_box_in_ap=['b0'], implicit=True)
     # two_player_instance.modify_ap_w_object_types(implicit=True)
+    two_player_instance.modify_edge_weights_arch(arch_loc_dict=ARCH_LOCS_DICT, implicit=True)
 
     if print_flag:
         print(f"No. of nodes in the Two player game is :"
