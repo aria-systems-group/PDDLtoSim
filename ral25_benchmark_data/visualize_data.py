@@ -8,7 +8,7 @@ import yaml
 import numpy as np
 
 from abc import ABC
-from typing import List, Dict, Union, Optional, Tuple
+from typing import List, Dict, Union, Optional, Tuple, Iterable
 from collections import defaultdict
 
 import matplotlib.pyplot as plt
@@ -20,8 +20,8 @@ from matplotlib.ticker import AutoMinorLocator
 
 VALID_MINIGRID_ENVS = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0', \
                         'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0',
-                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0_NOT_CPLX',]
-                        #  'Manipulator_RAL25']
+                        'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0_NOT_CPLX', #]
+                        'ARCH_problem_arch', 'ARCH_problem_two_arch']
 VALID_SYS_STR_TYP = ["QuantiativeRefinedAdmissible", "QuantitativeAdmMemorless"]
 VALID_HUMAN_TYPE = ['epsilon-human', 'random-human', 'coop-human', 'mixed-human']
 VALID_SYS_TYPE = ['random-sys']
@@ -54,7 +54,8 @@ MINIGRID_NAME_ALIAS_DICT = {VALID_MINIGRID_ENVS[0]: 'IJCAI25-Lava',
                             VALID_MINIGRID_ENVS[2]: '3-Door',
                             VALID_MINIGRID_ENVS[4]: '4-Door - NOT CPLX', 
                             VALID_MINIGRID_ENVS[3]: '4-Door - CPLX',
-                            # VALID_MINIGRID_ENVS[5]: 'Manipulator', 
+                            VALID_MINIGRID_ENVS[5]: 'Manipulator_single_arch', 
+                            VALID_MINIGRID_ENVS[6]: 'Manipulator_two_arch', 
                             }
 
 MAX_COST_VAL = 51
@@ -656,8 +657,12 @@ def get_stats_synth_times(data: Dict[str, Optional[float]]) -> Tuple[Dict[str, f
         'coop_time': [],
         'hopeadm_time': [],
         'safe_coop_time': [],
+        'safeadm_game_constr': [],
         'safeadm_time': [],
         'safety_time': [],
+        'cumul_safe_coop_time': [],
+        'cumul_safeadm_game_constr': [],
+        'cumul_safety_time': [],
         'wco_time': [],
         'wcoop_time': []
     }
@@ -669,12 +674,20 @@ def get_stats_synth_times(data: Dict[str, Optional[float]]) -> Tuple[Dict[str, f
         'DFA_game_nodes': []
     }
 
+    def check_if_list_of_lists(values: Iterable) -> bool:
+        for var in values:
+            if isinstance(var, list):
+                return True
+            elif isinstance(var, float) or isinstance(var, int):
+                return False
+        return False
+
     # Extract values from the data
     for _, run_data in data.items():
         # Extract comp_time values
         for key in comp_time_values.keys():
-            value = run_data['comp_time'][key]
-            if value is not None:  # Skip None values
+            value = run_data['comp_time'].get(key, None)
+            if value is not None:  # Skip None values or Key the above does not exists (happens for cumul)
                 comp_time_values[key].append(value)
         
         # Extract abs_dict values
@@ -682,7 +695,16 @@ def get_stats_synth_times(data: Dict[str, Optional[float]]) -> Tuple[Dict[str, f
             abs_dict_values[key].append(run_data['abs_dict'][key])
 
     # Calculate means
-    comp_time_means: Dict[str, float] = {key: np.mean(values) if values else None for key, values in comp_time_values.items()}
+    for key, values in comp_time_values.items():
+        if check_if_list_of_lists(values=values):
+            new_key: str = "cumul_" + key
+            comp_time_values[new_key] = [np.sum(val) for val in values]
+
+    comp_time_means: Dict[str, float] = {}
+    for key, values in comp_time_values.items():
+        if not check_if_list_of_lists(values) and len(values) != 0:
+            comp_time_means[key] = np.mean(values)
+
     abs_dict_means: Dict[str, float] = {key: np.mean(values) for key, values in abs_dict_values.items()}
 
     total_synthesis_time: float = comp_time_means['coop_time'] +  comp_time_means['wco_time'] +  comp_time_means['wcoop_time'] + comp_time_means['safeadm_time']
@@ -699,8 +721,12 @@ def get_stats_synth_times(data: Dict[str, Optional[float]]) -> Tuple[Dict[str, f
     percentage_safeadm = (comp_time_means['safeadm_time'] / total_synthesis_time) * 100
         
 
-    percentage_safe_coop = (comp_time_means['safe_coop_time']/comp_time_means['safeadm_time']) * 100
-    percentage_safety = (comp_time_means['safety_time']/comp_time_means['safeadm_time']) * 100
+    # percentage_safe_coop = (comp_time_means['safe_coop_time']/comp_time_means['safeadm_time']) * 100
+    # percentage_safety = (comp_time_means['safety_time']/comp_time_means['safeadm_time']) * 100
+
+    percentage_safe_coop = (comp_time_means['cumul_safe_coop_time']/comp_time_means['safeadm_time']) * 100
+    percentage_safety = (comp_time_means['cumul_safety_time']/comp_time_means['safeadm_time']) * 100
+    percentage_safeadm_game_constr = (comp_time_means['cumul_safeadm_game_constr']/comp_time_means['safeadm_time']) * 100
 
     percentage_game_time = (abs_dict_means['2p_game_constr_time']/total_abs_time) * 100
     # percentage_daf_game_time = (abs_dict_means['safety_time']/total_abs_time) * 100
@@ -710,7 +736,7 @@ def get_stats_synth_times(data: Dict[str, Optional[float]]) -> Tuple[Dict[str, f
                             "percentage_wcoop": percentage_wcoop,
                             "percentage_safeadm": percentage_safeadm}
 
-    if comp_time_means['hopeadm_time']:
+    if comp_time_means.get('hopeadm_time'):
         percentage_hopeadm = (comp_time_means['hopeadm_time'] / total_synthesis_time) * 100
         comp_time_percentage["percentage_hopeadm"] = percentage_hopeadm
 
@@ -733,7 +759,8 @@ def get_stats_synth_times(data: Dict[str, Optional[float]]) -> Tuple[Dict[str, f
 
     print("\nPercentages of Safe Adm synthesis time: ")
     print(f" Safety Game time: {percentage_safety:.2f}%")
-    print(f"  Safe Coop Game time: {percentage_safe_coop:.2f}%")
+    print(f" Safe Coop Game time: {percentage_safe_coop:.2f}%")
+    print(f" Safe Adm Game Construction time: {percentage_safeadm_game_constr:.2f}%")
 
     # print("\nAbs. Size and Construction time: ")
     # print(f" DFA Game Nodes {int(abs_dict_means['DFA_game_nodes'])}")
@@ -1026,7 +1053,8 @@ def main_plot_average_synthesis():
         yaml_files =[]
         costs = []
         xlabels = []
-        target_pattern = f"comp_time_{env}_WAIT"
+        # target_pattern = f"comp_time_{env}_WAIT"
+        target_pattern = env
         closest_match = difflib.get_close_matches(target_pattern, FILES_SYNTH_WAIT, n=1)
         yaml_files.append(closest_match[0])
 
@@ -1048,7 +1076,7 @@ def main_plot_average_synthesis():
 
 # Main execution
 if __name__ == "__main__":
-    # main_plot_average_synthesis()
+    main_plot_average_synthesis()
 
     # mean_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))
     # stats_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(lambda: None)))

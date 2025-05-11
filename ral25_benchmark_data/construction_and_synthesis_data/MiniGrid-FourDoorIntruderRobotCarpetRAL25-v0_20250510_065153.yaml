@@ -1,0 +1,213 @@
+Run 0:
+  abs_dict:
+    2p_game_constr_time: 59.79394507408142
+    DFA_game_constr_time: 231.56995129585266
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 378.9130771160126
+    hopeadm_time: null
+    safe_coop_time:
+    - 131.5835039615631
+    - 131.02529668807983
+    safeadm_game_constr:
+    - 4.386847734451294
+    - 1.562727451324463
+    safeadm_time: 343.35642671585083
+    safety_time:
+    - 4.9583740234375
+    - 4.228651285171509
+    wco_time: 210.48825192451477
+    wcoop_time: 0.19948482513427734
+Run 1:
+  abs_dict:
+    2p_game_constr_time: 59.76912593841553
+    DFA_game_constr_time: 231.98397970199585
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 379.6845848560333
+    hopeadm_time: null
+    safe_coop_time:
+    - 132.76420402526855
+    - 130.6704716682434
+    safeadm_game_constr:
+    - 4.465392827987671
+    - 1.5633268356323242
+    safeadm_time: 344.0847647190094
+    safety_time:
+    - 5.001346588134766
+    - 4.2691380977630615
+    wco_time: 209.54047083854675
+    wcoop_time: 0.19377589225769043
+Run 2:
+  abs_dict:
+    2p_game_constr_time: 59.723849296569824
+    DFA_game_constr_time: 234.94464778900146
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 383.97760796546936
+    hopeadm_time: null
+    safe_coop_time:
+    - 134.56910347938538
+    - 131.66114258766174
+    safeadm_game_constr:
+    - 4.436255216598511
+    - 1.587857961654663
+    safeadm_time: 347.91074228286743
+    safety_time:
+    - 5.02156925201416
+    - 4.250373363494873
+    wco_time: 213.08648777008057
+    wcoop_time: 0.19867491722106934
+Run 3:
+  abs_dict:
+    2p_game_constr_time: 59.81222605705261
+    DFA_game_constr_time: 231.08937072753906
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 387.34431767463684
+    hopeadm_time: null
+    safe_coop_time:
+    - 135.57467532157898
+    - 132.66785407066345
+    safeadm_game_constr:
+    - 4.429839134216309
+    - 1.5826270580291748
+    safeadm_time: 349.2757728099823
+    safety_time:
+    - 4.996987342834473
+    - 4.233407258987427
+    wco_time: 210.39421105384827
+    wcoop_time: 0.20068597793579102
+Run 4:
+  abs_dict:
+    2p_game_constr_time: 59.97872543334961
+    DFA_game_constr_time: 233.58600282669067
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 385.31627798080444
+    hopeadm_time: null
+    safe_coop_time:
+    - 133.64705514907837
+    - 130.8230037689209
+    safeadm_game_constr:
+    - 4.457446098327637
+    - 1.6105990409851074
+    safeadm_time: 345.4657654762268
+    safety_time:
+    - 5.035449743270874
+    - 4.279678583145142
+    wco_time: 210.67699790000916
+    wcoop_time: 0.19670772552490234
+Run 5:
+  abs_dict:
+    2p_game_constr_time: 59.82455229759216
+    DFA_game_constr_time: 230.7275266647339
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 383.86387300491333
+    hopeadm_time: null
+    safe_coop_time:
+    - 133.19442701339722
+    - 131.34631156921387
+    safeadm_game_constr:
+    - 4.460378646850586
+    - 1.5819759368896484
+    safeadm_time: 346.12897515296936
+    safety_time:
+    - 5.027240037918091
+    - 4.275834321975708
+    wco_time: 210.6687569618225
+    wcoop_time: 0.19544768333435059
+Run 6:
+  abs_dict:
+    2p_game_constr_time: 59.54108285903931
+    DFA_game_constr_time: 232.32165050506592
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 386.90784978866577
+    hopeadm_time: null
+    safe_coop_time:
+    - 133.71082472801208
+    - 131.1254563331604
+    safeadm_game_constr:
+    - 4.47426700592041
+    - 1.5736446380615234
+    safeadm_time: 346.3764474391937
+    safety_time:
+    - 5.077755928039551
+    - 4.166500806808472
+    wco_time: 210.0857286453247
+    wcoop_time: 0.1975553035736084
+Run 7:
+  abs_dict:
+    2p_game_constr_time: 59.946316957473755
+    DFA_game_constr_time: 232.06758761405945
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 388.68033027648926
+    hopeadm_time: null
+    safe_coop_time:
+    - 133.79434776306152
+    - 131.19379663467407
+    safeadm_game_constr:
+    - 4.346907615661621
+    - 1.6082000732421875
+    safeadm_time: 345.5006172657013
+    safety_time:
+    - 4.951075077056885
+    - 4.262251138687134
+    wco_time: 212.33416748046875
+    wcoop_time: 0.19257497787475586
+Run 8:
+  abs_dict:
+    2p_game_constr_time: 59.740379333496094
+    DFA_game_constr_time: 230.406977891922
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 384.0834963321686
+    hopeadm_time: null
+    safe_coop_time:
+    - 133.21846175193787
+    - 130.04517889022827
+    safeadm_game_constr:
+    - 4.437171459197998
+    - 1.585221290588379
+    safeadm_time: 344.19895362854004
+    safety_time:
+    - 5.003571271896362
+    - 4.251145601272583
+    wco_time: 209.7504699230194
+    wcoop_time: 0.19774389266967773
+Run 9:
+  abs_dict:
+    2p_game_constr_time: 59.601357221603394
+    DFA_game_constr_time: 232.1166365146637
+    DFA_game_edges: 1577476
+    DFA_game_nodes: 443249
+  comp_time:
+    coop_time: 383.5459620952606
+    hopeadm_time: null
+    safe_coop_time:
+    - 134.3756353855133
+    - 132.0700068473816
+    safeadm_game_constr:
+    - 4.440100908279419
+    - 1.555706262588501
+    safeadm_time: 347.2070140838623
+    safety_time:
+    - 4.977301597595215
+    - 4.13085150718689
+    wco_time: 210.73082184791565
+    wcoop_time: 0.20030927658081055
+
+
+
