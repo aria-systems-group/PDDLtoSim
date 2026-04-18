@@ -9,6 +9,8 @@ import yaml
 
 import warnings
 
+from collections import defaultdict
+
 from collections import OrderedDict
 from typing import Optional, Dict, Type, Union, Tuple, List
 
@@ -51,6 +53,42 @@ DfaGame = Union[TwoPlayerGraph, TwoPlayerGame, NonDeterministicMiniGrid]
 VALID_STR_SYN_ALGOS = ["Min-Max", "Min-Min", "Regret", "BestEffortQual", "BestEffortQuant", "QuantitativeNaiveAdmissible", \
                         "QuantitativeGoUAdmissible", "QuantitativeGoUAdmissibleWinning", "QuantiativeRefinedAdmissible", "QuantitativeAdmMemorless"]
 VALID_ABSTRACTION_INSTANCES = ['daig-main', 'arch-main', 'minigrid', 'tic-tac-toe']
+
+ABS_DICT = {}
+COMP_DICT = {}
+
+
+# Representer for forcing lists to be in flow style (inline)
+def flow_style_list_representer(dumper, data):
+    return dumper.represent_sequence('tag:yaml.org,2002:seq', data, flow_style=True)
+
+# Representer for defaultdict to dump as a regular dict
+def defaultdict_representer(dumper, data):
+    return dumper.represent_dict(dict(data))
+
+yaml.add_representer(list, flow_style_list_representer)
+yaml.add_representer(defaultdict, defaultdict_representer)
+
+
+def dump_results_to_yaml(run_data: dict, file_path: str, add_time_stamp: bool = True, iteration: int = None):
+        """
+        Dump the _results list to a YAML file.
+
+        :param file_path: The path to the YAML file.
+        """
+        if add_time_stamp:
+            import datetime
+            now = datetime.datetime.now()
+            timestamp: str = now.strftime("%Y%m%d_%H%M%S")
+            file_path += f"_{timestamp}.yaml"
+        else:
+            file_path += ".yaml"
+        # tmp_dict = {f'Run {run}': run_data for run, run_data in enumerate(self._results)}
+        with open(file_path, 'a') as file:
+            if iteration is not None:
+                yaml.dump({f'Run {iteration}': run_data}, file, default_flow_style=False, sort_keys=False)
+            else:
+                yaml.dump(run_data, file, default_flow_style=False, sort_keys=False)
 
 
 def parse_arguments():
@@ -188,7 +226,7 @@ def run_synthesis_and_rollout(strategy_type: str,
                                                             epsilon=epsilon,
                                                             max_iterations=max_iterations)
             simulator._episode += 1
-        simulator.get_stats()
+        # simulator.get_stats()
 
         #dump the data for bookkeeping
         # now = datetime.datetime.now()
@@ -429,10 +467,10 @@ def minigrid_main(debug: bool = False,
     # nd_minigrid_envs = ['MiniGrid-FloodingLava-v0', 'MiniGrid-CorridorLava-v0', 'MiniGrid-ToyCorridorLava-v0',
     #     'MiniGrid-FishAndShipwreckAvoidAgent-v0', 'MiniGrid-ChasingAgentIn4Square-v0', 'MiniGrid-FourGrids-v0', 
     #     'MiniGrid-ChasingAgent-v0', 'MiniGrid-ChasingAgentInSquare4by4-v0', 'MiniGrid-ChasingAgentInSquare3by3-v0']
-    # nd_minigrid_envs = ['MiniGrid-IntruderRobotRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0']
     # nd_minigrid_envs = ['MiniGrid-LavaAdm_karan-v0', 'MiniGrid-IntruderRobotRAL25-v0', 'MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0', 'MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
-    nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
-    # nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
+    # nd_minigrid_envs = ['MiniGrid-FourDoorIntruderRobotCarpetRAL25-v0']
+    nd_minigrid_envs = ['MiniGrid-ThreeDoorIntruderRobotRAL25-v0']
     # start = time.time()
     
     for id in nd_minigrid_envs:
@@ -584,6 +622,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     # domain_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/domain.pddl"
     # _problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/problem.pddl"
     # problem_file_path = ROOT_PATH + "/pddl_files/two_table_scenario/diagonal/sym_test_problem.pddl"
+    # IROS 23 files
+    # domain_file_path = ROOT_PATH + '/pddl_files/iros23_pddl_files/domain.pddl'
+    problem_file_path = ROOT_PATH + '/pddl_files/iros23_pddl_files/varying_boxes/p00.pddl'
+
 
     ##### Adm Related domain files #####
     domain_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/domain.pddl'
@@ -594,9 +636,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_3.pddl'
 
     #### Arch Construction Safe-Adm game domain file - TRO 25 ####
-    problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_arch.pddl'
-
-
+    # problem_file_path = ROOT_PATH + '/pddl_files/adm_unrealizable_world/problem_arch.pddl'
+    start = time.time()
     causal_graph_instance = CausalGraph(problem_file=problem_file_path,
                                         domain_file=domain_file_path,
                                         draw=False)
@@ -608,7 +649,10 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
             f"No. of nodes in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.nodes())}")
         print(
             f"No. of edges in the Causal Graph is :{len(causal_graph_instance._causal_graph._graph.edges())}")
-    start = time.time()
+        ABS_DICT['causal_graph_nodes'] = len(causal_graph_instance._causal_graph._graph.nodes())
+        ABS_DICT['causal_graph_edges'] = len(causal_graph_instance._causal_graph._graph.edges())
+    
+    # start = time.time()
     transition_system_instance = FiniteTransitionSystem(causal_graph_instance)
     transition_system_instance.build_transition_system(plot=False, relabel_nodes=False)
     # transition_system_instance.modify_edge_weights()
@@ -618,6 +662,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(transition_system_instance.transition_system._graph.nodes())}")
         print(f"No. of edges in the Transition System is :"
               f"{len(transition_system_instance.transition_system._graph.edges())}")
+        ABS_DICT['TS_nodes'] = len(transition_system_instance.transition_system._graph.nodes())
+        ABS_DICT['TS_edges'] = len(transition_system_instance.transition_system._graph.edges())
 
     two_player_instance = TwoPlayerGame(causal_graph_instance, transition_system_instance)
     two_player_instance.build_two_player_game(human_intervention=2,
@@ -654,8 +700,8 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     #                    hopeless_human_loc=set(['l6', 'l7', 'l8']),
     #                    human_only_loc=set(['l9']),
     #                    debug=False)
-    stop = time.time()
-    print(f"******************************Original Graph construction time: {stop - start}******************************")
+    # stop = time.time()
+    # print(f"******************************Original Graph construction time: {stop - start}******************************")
 
     # print # of Sys and Env state
     env_count = 0
@@ -674,14 +720,20 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
               f"{len(two_player_instance._two_player_implicit_game._graph.nodes())}")
         print(f"No. of edges in the Two player game is :"
               f"{len(two_player_instance._two_player_implicit_game._graph.edges())}")
+        ABS_DICT['Game_nodes'] = len(two_player_instance._two_player_implicit_game._graph.nodes())
+        ABS_DICT['Game_edges'] = len(two_player_instance._two_player_implicit_game._graph.edges())
+    # two_player_instance._two_player_implicit_game.plot_graph()
     # sys.exit(-1)
     # dfa = two_player_instance.build_LTL_automaton(formula=FORMULA_SAFE_ADM_TEST_2,  plot=True)
-    dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=False)
+    # dfa = two_player_instance.build_LTLf_automaton(formula=FORMULA_SAFE_ADM_TEST_2, plot=False)
+    dfa = two_player_instance.build_LTLf_automaton(formula='F(p00)', plot=False)
     # sys.exit(-1)
 
     product_graph = two_player_instance.build_product(dfa=dfa,
                                                       trans_sys=two_player_instance.two_player_implicit_game)
     relabelled_graph = two_player_instance.internal_node_mapping(product_graph)
+    stop = time.time()
+    COMP_DICT['TR_time'] = stop - start
 
     # edge_weights = set({})
     # for (u, v, d) in product_graph._graph.edges(data=True):
@@ -695,20 +747,26 @@ def daig_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
     if print_flag:
         print(f"No. of nodes in the product graph is :{len(relabelled_graph._graph.nodes())}")
         print(f"No. of edges in the product graph is :{len(relabelled_graph._graph.edges())}")
+        ABS_DICT['DFA_Game_nodes'] = len(relabelled_graph._graph.nodes())
+        ABS_DICT['DFA_Game_edges'] = len(relabelled_graph._graph.edges())
+        ABS_DICT['Formula'] = 'F(p00)'
     
     # create a strategy synthesis handle, solve the game, and roll out the strategy
     if test_all_str:
         run_all_synthesis_and_rollouts(game=product_graph,
                                        debug=False)
-    else:    
-        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[-2],
+    else: 
+        start - time.time()
+        _, roller = run_synthesis_and_rollout(strategy_type=VALID_STR_SYN_ALGOS[0],
                                               game=product_graph,
                                             #   human_type='coop-human',
-                                              human_type='manual',
+                                            #   human_type='manual',
                                               rollout_flag=rollout_flag,
                                               debug=True,
                                               max_iterations=100,
                                               reg_factor=1.25)
+        stop = time.time()
+        COMP_DICT['Synth_time'] = stop - start
 
     # return
     # ask the user if they want to save the str or not
@@ -816,7 +874,7 @@ def arch_main(print_flag: bool = False, record_flag: bool = False, test_all_str:
 
 
 if __name__ == "__main__":
-    record = False
+    record = True
     use_saved_str = False
     human_type = 'coop-human'
     # human_type = 'manual'
@@ -854,7 +912,7 @@ if __name__ == "__main__":
                               record_flag=record,
                               render_minigrid=False,
                               test_all_str=False,
-                              rollout_flag= True,
+                              rollout_flag= False,
                               max_iterations=MAX_ITERATIONS,
                               human_type=human_type,
                               strategy_type=strategy_type,
@@ -865,7 +923,8 @@ if __name__ == "__main__":
         print(f" Peak memory [MB]: {peak_mem/(1024*1024)}")
 
         # get the total process memory from the OS
-        get_total_memory()
-        
+        # get_total_memory()
+        dump_results_to_yaml(run_data={'abs_dict': ABS_DICT, 'comp_dict': COMP_DICT, 'MemoryInUse': (peak_mem/((1024*1024)))}, file_path=os.path.join('recuv_logs/', 'test'), iteration=0, add_time_stamp=False)
         # stopping the library
         tracemalloc.stop()
+
