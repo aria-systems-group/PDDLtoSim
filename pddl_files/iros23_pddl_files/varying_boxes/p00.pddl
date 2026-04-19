@@ -26,7 +26,7 @@
 (:init
     (ready else)
     
-    (on b0 l0)
+    (on b0 l1)
     (on b1 l6)
 )
 
