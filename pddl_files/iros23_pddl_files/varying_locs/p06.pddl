@@ -1,12 +1,14 @@
-(define (problem dynamic_only_franka_world) (:domain dynamic_franka_box_world)
+(define (problem dynamic_only_franka_world) (:domain franka_unrealizable_world)
 (:objects
+    franka - robot
+    else - robo_loc
 
     ;;;;; Locs where only the robot can operate ;;;;;
     
     l0 - box_loc
-    l1 - box_loc
-    l2 - box_loc
-    l3 - box_loc
+    l1 - hbox_loc
+    l2 - hbox_loc
+    l3 - hbox_loc
 
     ;;;;; Locs where the robot & human can operate ;;;;;
     ; NOTE: The way pyperplan parses the PDDL file, you need atleast two human locs to construct `human-move` action
@@ -20,9 +22,6 @@
     l12 - hbox_loc
     l13 - hbox_loc
     l14 - hbox_loc
-    l15 - hbox_loc
-    l16 - hbox_loc
-
 
 
     b0 - box
@@ -34,7 +33,7 @@
 (:init
     (ready else)
     
-    (on b0 l0)
+    (on b0 l2)
     (on b1 l6)
     (on b2 l1)
 )
